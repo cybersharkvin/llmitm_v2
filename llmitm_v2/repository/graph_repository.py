@@ -3,7 +3,12 @@
 import json
 from typing import Any, Dict, List, Optional
 
-from neo4j import Driver, Session
+try:
+    from neo4j import Driver, Session
+except ImportError:
+    # Graceful fallback when neo4j is not installed
+    Driver = object  # type: ignore
+    Session = object  # type: ignore
 
 from llmitm_v2.models import ActionGraph, Finding, Fingerprint, Step
 
@@ -434,3 +439,46 @@ class GraphRepository:
 
         with self.driver.session() as session:
             session.execute_write(tx_func)
+
+    def get_repair_history(
+        self,
+        fingerprint_hash: str,
+        max_results: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """Query repair history for a fingerprint's ActionGraphs.
+
+        Fetches all [:REPAIRED_TO] relationships for ActionGraphs triggered by this fingerprint.
+        Returns repair chain data for LLM to understand past repair patterns.
+
+        Args:
+            fingerprint_hash: Hash of Fingerprint to query repairs for
+            max_results: Maximum number of repair records to return
+
+        Returns:
+            List of repair records with failed/repaired step info and timestamps
+        """
+
+        def tx_func(tx: Session) -> List[Dict[str, Any]]:
+            result = tx.run(
+                """
+                MATCH (f:Fingerprint {hash: $fp_hash})-[:TRIGGERS]->(ag:ActionGraph)
+                MATCH (old_step)-[:REPAIRED_TO {reason: $reason}]->(new_step)
+                WHERE (ag)-[:HAS_STEP]->(old_step) OR (ag)-[:HAS_STEP]->(new_step)
+                RETURN {
+                    action_graph_id: ag.id,
+                    old_step: properties(old_step),
+                    new_step: properties(new_step),
+                    repair_reason: old_step.repair_reason,
+                    repair_timestamp: old_step.repair_timestamp
+                } AS repair_record
+                ORDER BY repair_timestamp DESC
+                LIMIT $max_results
+                """,
+                fp_hash=fingerprint_hash,
+                reason="Systemic repair",
+                max_results=max_results,
+            )
+            return [record["repair_record"] for record in result]
+
+        with self.driver.session() as session:
+            return session.execute_read(tx_func)

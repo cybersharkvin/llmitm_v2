@@ -5,9 +5,18 @@ Run with: docker compose up -d && pytest tests/test_graph_repository.py -m integ
 """
 
 import json
+import os
+
 import pytest
+
 from llmitm_v2.constants import StepPhase, StepType
 from llmitm_v2.models import ActionGraph, Finding, Fingerprint, Step
+
+try:
+    from neo4j import GraphDatabase
+    HAS_NEO4J = True
+except ImportError:
+    HAS_NEO4J = False
 
 
 @pytest.fixture
@@ -67,15 +76,14 @@ class TestGraphRepositoryIntegration:
     @pytest.mark.integration
     def test_save_and_retrieve_fingerprint(self, sample_fingerprint):
         """Integration test: save and retrieve fingerprint from Neo4j."""
-        from llmitm_v2.repository import GraphRepository
-        from neo4j import GraphDatabase
-        import os
-
-        uri = os.getenv("NEO4J_URI", "neo4j://localhost:7687")
-        user = os.getenv("NEO4J_USERNAME", "neo4j")
-        password = os.getenv("NEO4J_PASSWORD", "password")
-
+        if not HAS_NEO4J:
+            pytest.skip("Neo4j driver not installed")
         try:
+            from llmitm_v2.repository import GraphRepository
+
+            uri = os.getenv("NEO4J_URI", "neo4j://localhost:7687")
+            user = os.getenv("NEO4J_USERNAME", "neo4j")
+            password = os.getenv("NEO4J_PASSWORD", "password")
             driver = GraphDatabase.driver(uri, auth=(user, password))
             driver.verify_connectivity()
             repo = GraphRepository(driver)
@@ -89,15 +97,14 @@ class TestGraphRepositoryIntegration:
     @pytest.mark.integration
     def test_save_and_retrieve_action_graph(self, sample_fingerprint, sample_action_graph):
         """Integration test: save and retrieve ActionGraph with steps from Neo4j."""
-        from llmitm_v2.repository import GraphRepository
-        from neo4j import GraphDatabase
-        import os
-
-        uri = os.getenv("NEO4J_URI", "neo4j://localhost:7687")
-        user = os.getenv("NEO4J_USERNAME", "neo4j")
-        password = os.getenv("NEO4J_PASSWORD", "password")
-
+        if not HAS_NEO4J:
+            pytest.skip("Neo4j driver not installed")
         try:
+            from llmitm_v2.repository import GraphRepository
+
+            uri = os.getenv("NEO4J_URI", "neo4j://localhost:7687")
+            user = os.getenv("NEO4J_USERNAME", "neo4j")
+            password = os.getenv("NEO4J_PASSWORD", "password")
             driver = GraphDatabase.driver(uri, auth=(user, password))
             driver.verify_connectivity()
             repo = GraphRepository(driver)
@@ -112,22 +119,20 @@ class TestGraphRepositoryIntegration:
     @pytest.mark.integration
     def test_save_finding(self, sample_fingerprint, sample_action_graph, sample_finding):
         """Integration test: save Finding and [:PRODUCED_BY] edge."""
-        from llmitm_v2.repository import GraphRepository
-        from neo4j import GraphDatabase
-        import os
-
-        uri = os.getenv("NEO4J_URI", "neo4j://localhost:7687")
-        user = os.getenv("NEO4J_USERNAME", "neo4j")
-        password = os.getenv("NEO4J_PASSWORD", "password")
-
+        if not HAS_NEO4J:
+            pytest.skip("Neo4j driver not installed")
         try:
+            from llmitm_v2.repository import GraphRepository
+
+            uri = os.getenv("NEO4J_URI", "neo4j://localhost:7687")
+            user = os.getenv("NEO4J_USERNAME", "neo4j")
+            password = os.getenv("NEO4J_PASSWORD", "password")
             driver = GraphDatabase.driver(uri, auth=(user, password))
             driver.verify_connectivity()
             repo = GraphRepository(driver)
             repo.save_fingerprint(sample_fingerprint)
             repo.save_action_graph(sample_fingerprint.hash, sample_action_graph)
             repo.save_finding(sample_action_graph.id, sample_finding)
-            # Verify finding was created by querying back
             driver.close()
         except Exception as e:
             pytest.skip(f"Neo4j unavailable: {e}")
@@ -135,15 +140,14 @@ class TestGraphRepositoryIntegration:
     @pytest.mark.integration
     def test_increment_execution_count(self, sample_fingerprint, sample_action_graph):
         """Integration test: increment metrics on ActionGraph."""
-        from llmitm_v2.repository import GraphRepository
-        from neo4j import GraphDatabase
-        import os
-
-        uri = os.getenv("NEO4J_URI", "neo4j://localhost:7687")
-        user = os.getenv("NEO4J_USERNAME", "neo4j")
-        password = os.getenv("NEO4J_PASSWORD", "password")
-
+        if not HAS_NEO4J:
+            pytest.skip("Neo4j driver not installed")
         try:
+            from llmitm_v2.repository import GraphRepository
+
+            uri = os.getenv("NEO4J_URI", "neo4j://localhost:7687")
+            user = os.getenv("NEO4J_USERNAME", "neo4j")
+            password = os.getenv("NEO4J_PASSWORD", "password")
             driver = GraphDatabase.driver(uri, auth=(user, password))
             driver.verify_connectivity()
             repo = GraphRepository(driver)

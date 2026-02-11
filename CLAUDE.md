@@ -6,45 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **At the start of EVERY session, you MUST read all memory files before doing any work:**
 
+@.claude/memory/tags.md
 @.claude/memory/activeContext.json
 @.claude/memory/projectBrief.md
 @.claude/memory/systemPatterns.md
 @.claude/memory/techContext.md
-@.claude/memory/neo4jSchema.md
-@.claude/memory/strandsGuide.md
 @.claude/memory/projectProgress.md
-@.claude/memory/tags.md
+
 
 **Do not skip this step.** These files contain persistent context that survives between sessions.
-
----
-
-## MANDATORY: Testing Philosophy
-
-**Every test in this project MUST comply with these rules:**
-
-1. **Max 5 lines per test body** — Keep tests focused and concise
-2. **No mocks or fake objects** — Use real code with real inputs (use fixtures to reduce setup)
-3. **User perspective only** — Test as if calling the library from the outside
-4. **Graceful skips for dependencies** — If a test needs Neo4j and it's unavailable, skip with `pytest.skip()`
-5. **Mark integration tests** — Use `@pytest.mark.integration` for tests that require external services
-
-**Example compliant test:**
-```python
-def test_fingerprint_hash_is_deterministic(sample_fingerprint):
-    fp1 = Fingerprint(tech_stack="Express.js", auth_model="JWT", endpoint_pattern="/api/*")
-    fp2 = Fingerprint(tech_stack="Express.js", auth_model="JWT", endpoint_pattern="/api/*")
-    assert fp1.ensure_hash() or fp1.hash == fp2.ensure_hash() or fp1.hash == fp2.hash
-```
-
-**Non-compliant test (DO NOT WRITE):**
-```python
-def test_save_fingerprint(mock_driver, mock_session):
-    # ❌ Uses mocks, violates philosophy
-    repo = GraphRepository(mock_driver)
-    mock_driver.session.return_value.__enter__.return_value = mock_session
-    # ...
-```
 
 ---
 
@@ -54,23 +24,31 @@ This project uses a memory file system for persistent context across Claude Code
 
 ### The Two-Part System
 
-- **Memory files** (`.claude/memory/*.md`) = **Context** — WHY patterns exist, HOW systems work, PURPOSE of implementations
+- **Memory files** (`.claude/memory/`) = **Context** — WHY patterns exist, HOW systems work, PURPOSE of implementations
 - **tags.md** = **Inventory** — WHAT exists, WHERE it's located (auto-generated)
 
-### The Eight Memory Files
+### Your Memory Files
 
 | File | Purpose |
 |------|---------|
-| `activeContext.md` | Current working state, recent changes, immediate next steps |
+| `activeContext.json` | Current working state, recent changes, immediate next steps |
 | `projectBrief.md` | Project goals, scope, requirements |
 | `systemPatterns.md` | Architectural patterns and design decisions |
 | `techContext.md` | Tech stack, dependencies, constraints |
-| `neo4jSchema.md` | Complete Neo4j schema, queries, and integration patterns |
-| `strandsGuide.md` | Strands SDK integration patterns and usage examples |
 | `projectProgress.md` | Completed features, known issues, technical debt |
 | `tags.md` | Auto-generated codebase inventory (**never edit manually**) |
 
 ---
+
+## `tags.md` — NEVER edit manually
+
+This file is auto-generated. It provides codebase inventory:
+- Component locations
+- Function signatures
+- Interface definitions
+- Configuration mappings
+
+**You MUST always check tags.md before creating new code to avoid duplication.**
 
 ## When to Update Memory Files
 
@@ -183,17 +161,6 @@ This project uses a memory file system for persistent context across Claude Code
 
 ---
 
-### `tags.md` — NEVER edit manually
-
-This file is auto-generated. It provides codebase inventory:
-- Component locations
-- Function signatures
-- Interface definitions
-- Configuration mappings
-
-**Always check tags.md before creating new code** to avoid duplication.
-
----
 
 ## What NOT to Include in Memory Files
 
