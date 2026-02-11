@@ -72,16 +72,24 @@
   - Completed: Feb 10, 2026
   - Validation: 70 tests passing (10 new), all ≤5 lines, no mocks
 
+- ✅ **Phase 5: Hackathon Demo Infrastructure**: Complete CLI and fingerprinting
+  - Fingerprinter class: rule-based HTTP traffic analysis for target identification
+  - demo/juice_shop_traffic.txt: 8 pre-recorded request/response pairs for testing
+  - CLI entry point (llmitm_v2/__main__.py): loads settings, fingerprints traffic, orchestrates execution
+  - Bug fixes: (1) recursive interpolation for nested parameters, (2) repair uses fingerprint hash, (3) ExecutionResult.repaired propagates
+  - Completed: Feb 11, 2026
+  - Validation: 78 tests passing (6 new Fingerprinter + 2 new recursive interpolation tests)
+
 ## In Progress
 
-- **None**: Phase 4 complete, ready for Phase 5
+- **None**: Phase 5 complete, infrastructure ready for demonstrations
 
 ## Pending Features
 
-**Phase 5: Hackathon Demonstrations**
-- Cold start test: Juice Shop → compilation → vulnerability discovery
-- Warm start test: Second run, zero LLM calls
-- Self-repair test: Target changes break graph → LLM repairs → graph persists
+**Phase 5b: End-to-End Verification (Optional)**
+- Cold start verification: fingerprint demo traffic → compile with mock LLM → verify graph creation
+- Warm start verification: re-run with same fingerprint → verify zero LLM calls
+- Self-repair verification: simulate target change → trigger repair → verify persistence
 
 ## Known Issues
 

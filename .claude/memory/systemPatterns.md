@@ -94,6 +94,13 @@
 - **Example**: `handler = get_handler(step.type); result = handler.execute(step, context)`
 - **Rationale**: New step types added by writing one handler class and one registry entry. Zero changes to orchestrator
 
+### Rule-Based Fingerprinting
+- **Description**: `Fingerprinter` extracts target identity from HTTP response headers and traffic patterns (deterministic, no ML)
+- **When to Use**: Identifying targets for warm/cold start routing
+- **Example**: `fp = Fingerprinter().fingerprint(traffic_log)` → `tech_stack`, `auth_model`, `endpoint_pattern`, `security_signals`
+- **Signals Extracted**: X-Powered-By header, Authorization header format, API endpoint prefixes, CORS/CSP headers
+- **Rationale**: Deterministic-first philosophy; no ML model required; works offline; 100% reproducible output
+
 ### Deterministic-First with LLM Fallback
 - **Description**: Simple classification logic handles obvious cases, LLM only for ambiguous
 - **When to Use**: Self-repair failure classification

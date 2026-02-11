@@ -84,6 +84,42 @@ docker run --env-file .env llmitm:latest
 - **Subprocess management**: Must handle zombie processes and cleanup
 - **Memory**: Large traffic logs can accumulate, require periodic cleanup
 
+## HTTP Traffic Format
+
+### Demo Traffic File (`demo/juice_shop_traffic.txt`)
+
+Human-readable text format with `>>>` request and `<<<` response delimiters:
+
+```
+>>> GET /api/health HTTP/1.1
+Host: localhost:3000
+Authorization: Bearer token123
+
+<<< HTTP/1.1 200 OK
+X-Powered-By: Express
+Content-Type: application/json
+
+{"status":"ok"}
+```
+
+**Structure:**
+- `>>>` marks request start
+- Request line: `METHOD path HTTP/VERSION`
+- Headers: `Key: value` (one per line)
+- Blank line before body (if present)
+- Body: JSON, form data, or empty
+- `<<<` marks response start
+- Status line: `HTTP/VERSION code`
+- Headers: same format as request
+- Blank line before body
+- Body: JSON, HTML, or empty
+
+**Fingerprinter Extraction:**
+- **Tech stack**: `X-Powered-By`, `Server` headers (e.g., "Express", "Apache/2.4")
+- **Auth model**: `Authorization` header format ("Bearer" → JWT, "Basic" → basic auth) or presence of `Cookie`
+- **Endpoint pattern**: Most common first path segment (e.g., `/api/*`, `/rest/*`)
+- **Security signals**: CORS (`Access-Control-Allow-Origin: *`), CSP presence, X-Frame-Options, etc.
+
 ## Configuration
 
 ### Environment Variables
