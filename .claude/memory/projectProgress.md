@@ -80,9 +80,17 @@
   - Completed: Feb 11, 2026
   - Validation: 78 tests passing (6 new Fingerprinter + 2 new recursive interpolation tests)
 
+- ✅ **Neo4j Graph Snapshot/Restore**: CI/CD for the database
+  - Dual strategy: binary dump/load (fast) + APOC Cypher export (git-tracked, diffable)
+  - Scripts: export-snapshot.sh, restore-snapshot.sh, reset-graph.sh
+  - Makefile with snapshot/restore/reset/up/down/schema/test targets
+  - docker-compose.yml updated with APOC file I/O + snapshots bind mount
+  - Schema separated from data: setup_schema.py runs after every restore
+  - Completed: Feb 11, 2026
+
 ## In Progress
 
-- **None**: Phase 5 complete, infrastructure ready for demonstrations
+- **None**: All infrastructure ready for demonstrations
 
 ## Pending Features
 
@@ -108,6 +116,7 @@
 - **Test Suite**: 78 passing, 10 skipped, 0 failed
 
 ### Recent Milestones
+- **Feb 11, 2026**: Neo4j snapshot/restore infrastructure (Makefile, scripts, dual backup strategy)
 - **Feb 11, 2026**: Phase 5 complete (Fingerprinter, demo traffic, CLI, bug fixes: 78 tests passing)
 - **Feb 10, 2026**: Phase 4 complete (Orchestrator main loop: cold/warm/repair flows, 70 tests passing)
 - **Feb 10, 2026**: Phase 3 complete (Step Handlers: HTTP, Shell, Regex + registry, 58 tests passing)
@@ -118,8 +127,11 @@
 
 - **Environment**: Local development (Docker Compose ready)
 - **Installation**: `pip install -e .` (with dependencies from pyproject.toml)
-- **Schema Setup**: `python3 -m llmitm_v2.repository.setup_schema`
-- **Testing**: `python3 -m pytest tests/`
+- **Schema Setup**: `make schema` or `python3 -m llmitm_v2.repository.setup_schema`
+- **Testing**: `make test` or `python3 -m pytest tests/`
+- **Snapshot**: `make snapshot NAME=x` (binary dump + Cypher export)
+- **Restore**: `make restore NAME=x` (binary load + schema apply)
+- **Reset**: `make reset` (online wipe + schema recreate)
 
 ---
 

@@ -10,9 +10,13 @@ services:
     environment:
       NEO4J_AUTH: neo4j/password
       NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_apoc_export_file_enabled: "true"
+      NEO4J_apoc_import_file_enabled: "true"
+      NEO4J_apoc_import_file_use__neo4j__config: "true"
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
+      - ./snapshots:/var/lib/neo4j/import/snapshots
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:7474"]
       interval: 5s

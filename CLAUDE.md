@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## MANDATORY: Read Memory Files First
 
-**At the start of EVERY session, you MUST read all memory files before doing any work:**
+**At the start of EVERY session, you MUST read all memory files BEFORE doing any work:**
 
 @.claude/memory/tags.md
 @.claude/memory/activeContext.json
@@ -14,7 +14,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 @.claude/memory/projectProgress.md
 
 
-**Do not skip this step.** These files contain persistent context that survives between sessions.
+**This is not optional.** These files contain persistent context that survives between sessions and you MUST NOT skip this step.
+
+---
+
+## `@.claude/memory/tags.md` — Your Codebase Skeleton
+
+`tags.md` is a high-level semantic map of the **entire** codebase:
+
+- **Abstract Base Classes** — Core interfaces and contracts
+- **Concrete Implementations** — Classes that inherit from ABCs
+- **Factory Functions** — Functions that construct complex objects
+- **All Classes** — Complete class inventory
+- **All Functions** — Complete function inventory
+- **All Methods** — Complete method inventory
+
+1. You **MUST** read `tags.md` before beginning any work session
+2. You **MUST** prioritize `tags.md` above all other memory files for semantic codebase awareness
+3. Before creating ANY new code, you **SHOULD** grep `tags.md` to search for functions and APIs you are looking for
+4. Before adding new functionality, you **SHOULD** search for existing related code by grepping expected function names, API calls, and opening files where that code may exist
+5. You **SHOULD NOT** manually explore the codebase with broad directory scans unless **absolutely necessary** for the given task
+6. You **MUST NOT** manually edit `tags.md` — it is auto-generated
+
+**Why This Matters:**
+Semantic awareness of the entire codebase at once prevents accidental duplication, reveals existing patterns you can follow, and enables you to work efficiently without exhaustive exploration.
 
 ---
 
@@ -40,7 +63,7 @@ This project uses a memory file system for persistent context across Claude Code
 
 ---
 
-## `tags.md` — NEVER edit manually
+## `tags.md` — MUST NOT be edited manually
 
 This file is auto-generated. It provides codebase inventory:
 - Component locations
@@ -48,20 +71,20 @@ This file is auto-generated. It provides codebase inventory:
 - Interface definitions
 - Configuration mappings
 
-**You MUST always check tags.md before creating new code to avoid duplication.**
+**You MUST check tags.md before creating new code to avoid duplication. Failure to do so WILL result in code duplication.**
 
 ## When to Update Memory Files
 
-### `activeContext.json` — Update FREQUENTLY
+### `activeContext.json` — MUST be updated FREQUENTLY
 
-**Update after:**
+**Update MUST occur after:**
 - Completing any significant task or feature
 - Making architectural decisions
 - Discovering important issues or blockers
 - Changing working focus or context
 - End of every work session
 
-**Structure (follow this format exactly):**
+**Structure MUST follow this format exactly:**
 ```json
 {
   "session": "Phase name and date",
@@ -98,34 +121,34 @@ This file is auto-generated. It provides codebase inventory:
 }
 ```
 
-**Keep it current** — This is the "working memory" for the next session. Use the JSON format to organize information clearly with specific categories for files, test results, design decisions, and next steps.
+**You MUST keep it current** — This is the "working memory" for the next session. You MUST use the JSON format to organize information clearly with specific categories for files, test results, design decisions, and next steps.
 
 ---
 
-### `projectProgress.md` — Update after COMPLETING features
+### `projectProgress.md` — MUST be updated after COMPLETING features
 
-**Update after:**
+**Update MUST occur after:**
 - Finishing a feature (move from "In Progress" to "Completed")
 - Discovering bugs or technical debt
 - Identifying new known issues
 - Major milestones
 
-**Include:**
+**You MUST include:**
 - Completion dates for features
 - Known issues with priority
 - Technical debt items with reasoning
 
 ---
 
-### `systemPatterns.md` — Update after ESTABLISHING patterns
+### `systemPatterns.md` — MUST be updated after ESTABLISHING patterns
 
-**Update after:**
+**Update MUST occur after:**
 - Creating new architectural patterns
 - Establishing coding conventions
 - Making significant design decisions
 - Adding new integration patterns
 
-**Include:**
+**You MUST include:**
 - Pattern name and purpose
 - When to use the pattern
 - Key files/functions involved
@@ -133,16 +156,16 @@ This file is auto-generated. It provides codebase inventory:
 
 ---
 
-### `techContext.md` — Update after CHANGING dependencies
+### `techContext.md` — MUST be updated after CHANGING dependencies
 
-**Update after:**
+**Update MUST occur after:**
 - Adding new dependencies
 - Removing dependencies
 - Updating configuration files
 - Changing build/test commands
 - Modifying environment variables
 
-**Include:**
+**You MUST include:**
 - Dependency name and version
 - Why it was added
 - How it's used
@@ -150,22 +173,55 @@ This file is auto-generated. It provides codebase inventory:
 
 ---
 
-### `projectBrief.md` — Update RARELY
+### `projectBrief.md` — MUST be updated RARELY
 
-**Update only when:**
+**Update ONLY when:**
 - Project scope fundamentally changes
 - Core requirements are added/removed
 - Success criteria change
 
-**This file should remain stable** — only update for major scope changes.
+**This file MUST remain stable** — update ONLY for major scope changes.
 
 ---
 
 
-## What NOT to Include in Memory Files
+## What MUST NOT be Included in Memory Files
 
+You **MUST NOT** include:
 - Duplicate information across files
 - Implementation details that belong in code comments
 - Temporary debugging notes
 - Content already in tags.md (file locations, function lists)
 - Verbose explanations when concise ones suffice
+
+## MANDATORY: Read Memory Files First
+
+**At the start of EVERY session, you MUST read all memory files BEFORE doing any work:**
+
+@.claude/memory/tags.md
+@.claude/memory/activeContext.json
+@.claude/memory/projectBrief.md
+@.claude/memory/systemPatterns.md
+@.claude/memory/techContext.md
+@.claude/memory/projectProgress.md
+
+## `@.claude/memory/tags.md` — Your Codebase Skeleton
+
+`tags.md` is a high-level semantic map of the **entire** codebase:
+
+- **Abstract Base Classes** — Core interfaces and contracts
+- **Concrete Implementations** — Classes that inherit from ABCs
+- **Factory Functions** — Functions that construct complex objects
+- **All Classes** — Complete class inventory
+- **All Functions** — Complete function inventory
+- **All Methods** — Complete method inventory
+
+1. You **MUST** read `tags.md` before beginning any work session
+2. You **MUST** prioritize `tags.md` above all other memory files for semantic codebase awareness
+3. Before creating ANY new code, you **SHOULD** grep `tags.md` to search for functions and APIs you are looking for
+4. Before adding new functionality, you **SHOULD** search for existing related code by grepping expected function names, API calls, and opening files where that code may exist
+5. You **SHOULD NOT** manually explore the codebase with broad directory scans unless **absolutely necessary** for the given task
+6. You **MUST NOT** manually edit `tags.md` — it is auto-generated
+
+**Why This Matters:**
+Semantic awareness of the entire codebase at once prevents accidental duplication, reveals existing patterns you can follow, and enables you to work efficiently without exhaustive exploration.

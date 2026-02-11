@@ -136,3 +136,8 @@ This report provides an overview of the APOC (Awesome Procedures on Cypher) libr
 
 #### [MCP Server Deep Dive](./neo4j_docs/mcp_server_deep_dive.md)
 This document details the Model Context Protocol (MCP) server, a standardized bridge for LLMs to interact with Neo4j. While our production system uses the deterministic `GraphRepository`, the MCP server is a valuable tool for debugging and interactive exploration. A developer should understand how to configure and use it to query the graph conversationally during development.
+
+### 5. Operations
+
+#### [Backup, Restore & Snapshot Strategies](./neo4j_docs/backup_restore_and_snapshot_strategies.md)
+Covers all backup/restore methods for Neo4j Community Edition in our Docker setup: binary dump/load for fast snapshots, APOC Cypher export for git-tracked diffable snapshots, and online reset. Documents the dual-strategy approach (binary + Cypher), Makefile targets (`make snapshot`, `make restore`, `make reset`), and key gotchas (volume naming, healthchecks, schema separation).

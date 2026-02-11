@@ -1,48 +1,35 @@
 {
-  "session": "Phase 5 Complete: Hackathon Demo Infrastructure (Feb 11, 2026)",
-  "completed_phase": "Phase 5: Hackathon Demo Infrastructure",
-  "summary": "Fingerprinter (rule-based traffic analysis), demo traffic file, CLI entry point, orchestrator bug fixes (recursive interpolation, repair hash, repaired flag). 78 tests passing. Ready for hackathon demos.",
-  "files_created": 4,
-  "git_commits": ["c293f5b", "66846f3"],
+  "session": "Neo4j Snapshot/Restore Infrastructure (Feb 11, 2026)",
+  "completed_phase": "Neo4j Graph Snapshot/Restore (CI/CD for the Database)",
+  "summary": "Dual-strategy backup system: binary dump/load for fast restore + APOC Cypher export for git-tracked diffable snapshots. Makefile with snapshot/restore/reset targets. Online reset via DETACH DELETE + apoc.schema.assert.",
+  "files_created": 7,
+  "git_commits": [],
   "files_by_category": {
-    "fingerprinter": [
-      {"path": "llmitm_v2/fingerprinter.py", "description": "Fingerprinter class: _parse_traffic_log, _extract_tech_stack, _extract_auth_model, _extract_endpoint_pattern, _extract_security_signals"},
-      {"path": "tests/test_fingerprinter.py", "description": "6 unit tests: tech_stack extraction, JWT auth detection, endpoint pattern, CORS signals, graceful fallback, format parsing"}
+    "scripts": [
+      {"path": "scripts/export-snapshot.sh", "description": "Binary dump (neo4j-admin) + APOC Cypher export with healthcheck polling"},
+      {"path": "scripts/restore-snapshot.sh", "description": "Binary load + setup_schema.py with healthcheck polling"},
+      {"path": "scripts/reset-graph.sh", "description": "Online wipe (DETACH DELETE + apoc.schema.assert) + schema recreate"}
     ],
-    "demo": [
-      {"path": "demo/juice_shop_traffic.txt", "description": "8 pre-recorded HTTP request/response pairs from OWASP Juice Shop: login, product listing, IDOR"}
+    "build": [
+      {"path": "Makefile", "description": "Targets: up, down, schema, reset, snapshot, restore, snapshot-baseline, restore-baseline, test"}
     ],
-    "cli": [
-      {"path": "llmitm_v2/__main__.py", "description": "CLI entry point: loads settings, connects Neo4j, fingerprints traffic, runs orchestrator"}
+    "docs": [
+      {"path": ".claude/docs/neo4j/neo4j_docs/backup_restore_and_snapshot_strategies.md", "description": "Comprehensive backup guide: methods, trade-offs, commands, gotchas"}
     ],
-    "bug_fixes": [
-      {"path": "llmitm_v2/orchestrator/orchestrator.py", "description": "Bug 1: _interpolate_params now recursive (nested dicts/lists). Bug 2: _repair() accepts fingerprint_hash. Bug 4: (re-execute after repair deferred to future phase)"},
-      {"path": "llmitm_v2/models/context.py", "description": "Bug 3: ExecutionResult.repaired field added"},
-      {"path": "tests/test_orchestrator_main.py", "description": "Bug 1: 2 new recursive interpolation tests (nested dict, nested list)"}
+    "config_changes": [
+      {"path": "docker-compose.yml", "description": "Added APOC file I/O env vars + ./snapshots bind mount"},
+      {"path": ".gitignore", "description": "Added backups/ (gitignored) and snapshots/latest.cypher"}
     ]
   },
   "test_results": {
-    "total": "78 passed, 10 skipped",
-    "test_suites": [
-      {"suite": "tests/test_models.py", "passed": 21, "failed": 0},
-      {"suite": "tests/test_graph_repository.py", "passed": 5, "failed": 0, "skipped": 4},
-      {"suite": "tests/test_orchestrator.py", "passed": 15, "failed": 0, "skipped": 5},
-      {"suite": "tests/test_handlers.py", "passed": 17, "failed": 0, "skipped": 2},
-      {"suite": "tests/test_orchestrator_main.py", "passed": 11, "failed": 0, "skipped": 1},
-      {"suite": "tests/test_fingerprinter.py", "passed": 6, "failed": 0}
-    ],
-    "coverage": [
-      "Fingerprinter: Express tech_stack, JWT Bearer auth, /api/* endpoint pattern, CORS/CSP signals",
-      "Traffic parsing: >>> <<< delimiters, headers, status codes",
-      "Recursive interpolation: nested dicts, nested lists, string interpolation",
-      "ExecutionResult.repaired: propagates through OrchestratorResult"
-    ]
+    "total": "78 passed, 10 skipped (unchanged — no new Python code)",
+    "status": "ALL PASSING"
   },
   "design_decisions": [
-    {"decision": "Rule-based fingerprinter (no ML)", "rationale": "Deterministic header checks (X-Powered-By, Authorization, endpoints) reliable for target identification"},
-    {"decision": "Traffic log text format with >>> <<< delimiters", "rationale": "Human-readable, easy to curate, captures full request/response"},
-    {"decision": "Recursive interpolation in _interpolate_params", "rationale": "Supports nested parameter structures (headers dicts, value lists) common in HTTP handlers"},
-    {"decision": "ExecutionResult.repaired boolean", "rationale": "Tracks whether graph was modified during execution for reporting and metrics"}
+    {"decision": "Dual backup strategy (binary + Cypher)", "rationale": "Binary for fast demo resets, Cypher for git-tracked diffable audit trail"},
+    {"decision": "Schema separated from data snapshots", "rationale": "setup_schema.py remains single source of truth; Cypher exports have schema lines stripped; restore always runs setup_schema.py"},
+    {"decision": "Dynamic volume name detection", "rationale": "Docker Compose prefixes volume names with project dir; scripts detect via docker volume ls --filter"},
+    {"decision": "Online reset (no restart)", "rationale": "DETACH DELETE + apoc.schema.assert is faster than stop/wipe/start for dev workflows"}
   ],
   "next_phases": [
     {
@@ -55,18 +42,16 @@
       ]
     }
   ],
-  "blockers": "None — Phase 5 complete. Hackathon infrastructure ready for demo runs.",
+  "blockers": "None",
   "context_for_next_session": [
-    "PHASE 5 COMPLETE: All infrastructure ready for hackathon demonstrations",
-    "Fingerprinter: Rule-based (no ML), deterministic, 100% reproducible. Extracts tech_stack, auth_model, endpoint_pattern, security_signals from HTTP headers",
-    "Demo traffic: 8 pre-recorded Juice Shop request/response pairs covering cold start (login → IDOR discovery)",
-    "CLI: python -m llmitm_v2 → fingerprints traffic → orchestrates execution → logs results",
-    "Bug fixes: (1) _interpolate_params recursive (nested dicts/lists), (2) _repair uses fingerprint_hash, (3) ExecutionResult.repaired propagates",
-    "Test coverage: 78 passing (6 Fingerprinter + 2 recursive interpolation), 10 skipped (external deps), 0 failed",
-    "Production-ready for: cold start demo (compile), warm start demo (zero LLM), self-repair demo (LLM diagnosis)"
+    "Neo4j snapshot/restore infrastructure complete: make snapshot/restore/reset",
+    "Binary dumps in backups/ (gitignored), Cypher exports in snapshots/ (git-tracked)",
+    "docker-compose.yml updated with APOC file I/O + snapshots bind mount",
+    "setup_schema.py is sole schema source of truth — always runs after restore",
+    "All 78 tests still passing, no Python code changes"
   ],
   "files_to_reference": [
-    "systemPatterns.md — Fingerprinter as rule-based pattern extraction, deterministic-first philosophy",
-    "techContext.md — Traffic format, fingerprinting signals, demo traffic structure"
+    ".claude/docs/neo4j/neo4j_docs/backup_restore_and_snapshot_strategies.md — Full backup guide",
+    "Makefile — All available make targets"
   ]
 }

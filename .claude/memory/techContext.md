@@ -140,9 +140,17 @@ Content-Type: application/json
 - `LOG_LEVEL`: Python logging level (default: `INFO`)
 
 ### docker-compose.yml
-- **neo4j service**: Neo4j 5.x with APOC and vector plugins enabled
+- **neo4j service**: Neo4j 5.x with APOC and vector plugins enabled, APOC file I/O enabled, `./snapshots` bind-mounted to `/var/lib/neo4j/import/snapshots`
 - **target service**: OWASP Juice Shop on port 3000
 - **orchestrator service**: Python orchestrator with shared network access
+
+### Makefile
+- `make up/down` — Docker Compose lifecycle with healthcheck
+- `make schema` — Run setup_schema.py with local Neo4j env vars
+- `make snapshot NAME=x` — Binary dump + APOC Cypher export
+- `make restore NAME=x` — Binary load + setup_schema.py
+- `make reset` — Online wipe + schema recreate (no restart)
+- `make test` — Run pytest
 
 ### pyproject.toml
 - **Dependencies**: All pip packages with version constraints

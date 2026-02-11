@@ -61,6 +61,11 @@ neo4j_logs/
 .mitmproxy/
 mitm_data/
 
+# Neo4j backups (binary dumps too large for git)
+backups/
+!backups/.gitkeep
+snapshots/latest.cypher
+
 # Build artifacts
 *.tar.gz
 *.whl
