@@ -91,6 +91,7 @@ class ExecutionResult(BaseModel):
     findings: List[Any] = Field(default_factory=list, description="Findings discovered during execution")
     steps_executed: int = Field(default=0, description="Number of steps executed")
     error_log: Optional[str] = Field(default=None, description="Error details if execution failed")
+    repaired: bool = Field(default=False, description="Whether ActionGraph was repaired during execution")
 
 
 class OrchestratorResult(BaseModel):

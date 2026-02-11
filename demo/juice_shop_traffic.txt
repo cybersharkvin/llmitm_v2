@@ -1,0 +1,111 @@
+>>> GET / HTTP/1.1
+Host: localhost:3000
+User-Agent: Mozilla/5.0
+
+<<< HTTP/1.1 200 OK
+X-Powered-By: Express
+Access-Control-Allow-Origin: *
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+Content-Type: text/html
+
+<!DOCTYPE html><html><head><title>OWASP Juice Shop</title></head><body>Welcome to Juice Shop</body></html>
+
+>>> GET /api/Products HTTP/1.1
+Host: localhost:3000
+User-Agent: Mozilla/5.0
+
+<<< HTTP/1.1 200 OK
+X-Powered-By: Express
+Access-Control-Allow-Origin: *
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+Content-Type: application/json
+
+{"status":"success","data":[{"id":1,"name":"Apple Juice","price":1.99},{"id":2,"name":"Orange Juice","price":2.49}]}
+
+>>> POST /rest/user/login HTTP/1.1
+Host: localhost:3000
+Content-Type: application/json
+User-Agent: Mozilla/5.0
+
+{"email":"admin@juice-sh.op","password":"admin123"}
+
+<<< HTTP/1.1 200 OK
+X-Powered-By: Express
+Access-Control-Allow-Origin: *
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+Content-Type: application/json
+Set-Cookie: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiaWF0IjoxNjAwMDAwMDAwfQ.GjD_HFCKmHkNSE5l-U7GBXFf5qXFMAQSb0w9y0dI; Path=/; HttpOnly
+
+{"authentication":{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiaWF0IjoxNjAwMDAwMDAwfQ.GjD_HFCKmHkNSE5l-U7GBXFf5qXFMAQSb0w9y0dI","bid":1,"umail":"admin@juice-sh.op"}}
+
+>>> GET /rest/user/whoami HTTP/1.1
+Host: localhost:3000
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiaWF0IjoxNjAwMDAwMDAwfQ.GjD_HFCKmHkNSE5l-U7GBXFf5qXFMAQSb0w9y0dI
+User-Agent: Mozilla/5.0
+
+<<< HTTP/1.1 200 OK
+X-Powered-By: Express
+Access-Control-Allow-Origin: *
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+Content-Type: application/json
+
+{"user":{"id":1,"email":"admin@juice-sh.op","role":"admin"}}
+
+>>> GET /api/Users/1 HTTP/1.1
+Host: localhost:3000
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiaWF0IjoxNjAwMDAwMDAwfQ.GjD_HFCKmHkNSE5l-U7GBXFf5qXFMAQSb0w9y0dI
+User-Agent: Mozilla/5.0
+
+<<< HTTP/1.1 200 OK
+X-Powered-By: Express
+Access-Control-Allow-Origin: *
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+Content-Type: application/json
+
+{"status":"success","data":{"id":1,"email":"admin@juice-sh.op","password":"0c0edf07a2d2d8a88c3e4f5e93ca3e","role":"admin"}}
+
+>>> GET /api/Users/2 HTTP/1.1
+Host: localhost:3000
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiaWF0IjoxNjAwMDAwMDAwfQ.GjD_HFCKmHkNSE5l-U7GBXFf5qXFMAQSb0w9y0dI
+User-Agent: Mozilla/5.0
+
+<<< HTTP/1.1 200 OK
+X-Powered-By: Express
+Access-Control-Allow-Origin: *
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+Content-Type: application/json
+
+{"status":"success","data":{"id":2,"email":"user@juice-sh.op","password":"8d969eef6ecad3c29a3a873fba2d9f8","role":"customer"}}
+
+>>> GET /api/Feedbacks HTTP/1.1
+Host: localhost:3000
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiaWF0IjoxNjAwMDAwMDAwfQ.GjD_HFCKmHkNSE5l-U7GBXFf5qXFMAQSb0w9y0dI
+User-Agent: Mozilla/5.0
+
+<<< HTTP/1.1 200 OK
+X-Powered-By: Express
+Access-Control-Allow-Origin: *
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+Content-Type: application/json
+
+{"status":"success","data":[]}
+
+>>> OPTIONS /api/Users HTTP/1.1
+Host: localhost:3000
+User-Agent: Mozilla/5.0
+
+<<< HTTP/1.1 200 OK
+X-Powered-By: Express
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET,HEAD,PUT,PATCH,POST,DELETE
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+Content-Type: application/json
+

@@ -116,3 +116,17 @@ class TestInterpolateParams:
         ctx = ExecutionContext(target_url="http://localhost", fingerprint=fingerprint, previous_outputs=["only"])
         result = Orchestrator._interpolate_params(step, ctx)
         assert result.parameters["x"] == "{{previous_outputs[99]}}"
+
+    def test_recursive_interpolation_nested_dict(self, fingerprint):
+        params = {"headers": {"Authorization": "Bearer {{previous_outputs[0]}}"}}
+        step = Step(order=1, phase=StepPhase.MUTATE, type=StepType.HTTP_REQUEST, command="GET /", parameters=params)
+        ctx = ExecutionContext(target_url="http://localhost", fingerprint=fingerprint, previous_outputs=["token123"])
+        result = Orchestrator._interpolate_params(step, ctx)
+        assert result.parameters["headers"]["Authorization"] == "Bearer token123"
+
+    def test_recursive_interpolation_nested_list(self, fingerprint):
+        params = {"values": ["prefix-{{previous_outputs[0]}}", "suffix"]}
+        step = Step(order=1, phase=StepPhase.MUTATE, type=StepType.HTTP_REQUEST, command="GET /", parameters=params)
+        ctx = ExecutionContext(target_url="http://localhost", fingerprint=fingerprint, previous_outputs=["xyz"])
+        result = Orchestrator._interpolate_params(step, ctx)
+        assert result.parameters["values"][0] == "prefix-xyz" and result.parameters["values"][1] == "suffix"

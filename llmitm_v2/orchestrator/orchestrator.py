@@ -64,7 +64,7 @@ class Orchestrator:
             action_graph_id=ag.id,
             execution=result,
             compiled=compiled,
-            repaired=False,
+            repaired=result.repaired,
         )
 
     def _try_warm_start(self, fingerprint: Fingerprint) -> Optional[ActionGraph]:
@@ -154,12 +154,13 @@ class Orchestrator:
                         findings=findings,
                         steps_executed=steps_executed,
                         error_log=result.stderr or result.stdout,
+                        repaired=repaired,
                     )
                 if action == "repaired":
                     repaired = True
 
         return ExecutionResult(
-            success=True, findings=findings, steps_executed=steps_executed
+            success=True, findings=findings, steps_executed=steps_executed, repaired=repaired
         )
 
     def _handle_step_failure(
@@ -194,6 +195,7 @@ class Orchestrator:
                     step,
                     error_log,
                     context.previous_outputs,
+                    context.fingerprint.hash,
                 )
                 return "repaired"
             except Exception:
@@ -204,22 +206,25 @@ class Orchestrator:
 
     @staticmethod
     def _interpolate_params(step: Step, context: ExecutionContext) -> Step:
-        """Replace {{previous_outputs[N]}} in step parameters with actual values."""
-        new_params = {}
-        for key, value in step.parameters.items():
+        """Replace {{previous_outputs[N]}} in step parameters with actual values (recursive)."""
+        def replacer(match: re.Match) -> str:
+            idx = int(match.group(1))
+            try:
+                return context.previous_outputs[idx]
+            except IndexError:
+                return match.group(0)
+
+        def interpolate_value(value: any) -> any:
             if isinstance(value, str) and "{{previous_outputs[" in value:
-
-                def replacer(match: re.Match) -> str:
-                    idx = int(match.group(1))
-                    try:
-                        return context.previous_outputs[idx]
-                    except IndexError:
-                        return match.group(0)
-
-                new_params[key] = _INTERPOLATION_RE.sub(replacer, value)
+                return _INTERPOLATION_RE.sub(replacer, value)
+            elif isinstance(value, dict):
+                return {k: interpolate_value(v) for k, v in value.items()}
+            elif isinstance(value, list):
+                return [interpolate_value(v) for v in value]
             else:
-                new_params[key] = value
+                return value
 
+        new_params = {k: interpolate_value(v) for k, v in step.parameters.items()}
         return step.model_copy(update={"parameters": new_params})
 
     def _repair(
@@ -228,6 +233,7 @@ class Orchestrator:
         failed_step: Step,
         error_log: str,
         execution_history: list[str],
+        fingerprint_hash: Optional[str],
     ) -> ActionGraph:
         """LLM diagnoses systemic failure, repairs step chain in Neo4j."""
         context = assemble_repair_context(failed_step, error_log, execution_history)
@@ -254,8 +260,8 @@ class Orchestrator:
                 action_graph.id, failed_step.order, [new_step]
             )
 
-        # Re-fetch updated graph
-        data = self.graph_repo.get_action_graph_with_steps(
-            action_graph.id  # This needs fingerprint hash, not AG id
-        )
-        return ActionGraph(**data) if data else action_graph
+        # Re-fetch updated graph using fingerprint hash
+        if fingerprint_hash:
+            data = self.graph_repo.get_action_graph_with_steps(fingerprint_hash)
+            return ActionGraph(**data) if data else action_graph
+        return action_graph
