@@ -1,0 +1,220 @@
+# System Patterns
+
+## Architecture Overview
+
+**Architecture Type**: Graph-Native Custom Logic Agent
+**Database**: Neo4j (IS the architecture, not just storage)
+**Orchestrator**: Python (Custom Logic owns all control flow)
+**LLM Role**: Stateless compiler for discrete tasks only
+**Runtime Model**: 95% deterministic graph traversal with zero LLM involvement
+
+## Design Philosophy
+
+| Principle | Description |
+|-----------|-------------|
+| **The LLM is a Compiler, Not an Interpreter** | The LLM generates automation (ActionGraphs) that replaces itself. It runs once per novel fingerprint, then the graph executes deterministically forever |
+| **Minimal & Guarded LLM** | Can it be done in code? Do it in code. The LLM is only invoked when reasoning is genuinely required. When it is invoked, it is constrained by Pydantic schemas and validated by a Critic |
+| **Deterministic by Default** | The orchestrator, the graph walker, the step handlers, the fingerprinters — all deterministic Python. The LLM is the exception, not the rule |
+| **Knowledge Compounds in the Graph** | Every compilation, every repair, every finding enriches the graph. The asset is the graph, not the model |
+| **Strict Separation of Concerns** | The LLM never touches the network, the filesystem, or the graph directly. Tools mediate all access |
+
+## Design Patterns
+
+### Repository Pattern
+- **Description**: `GraphRepository` class encapsulates all Cypher queries behind semantic methods
+- **When to Use**: All Neo4j access goes through GraphRepository
+- **Example**: `graph_repo.get_action_graph_by_fingerprint(fingerprint_hash)`
+- **Rationale**: Single class, mockable, testable, hides Cypher complexity
+
+### Strategy Pattern
+- **Description**: Different context assembly functions for different phases
+- **When to Use**: Before each LLM call to build minimal, relevant context
+- **Example**: `assemble_compilation_context()`, `assemble_repair_context()`
+- **Rationale**: Context hygiene — each phase needs different information
+
+### Actor/Critic Pattern
+- **Description**: Two single-shot LLM calls in while loop: Actor produces, Critic validates
+- **When to Use**: ActionGraph compilation and major repairs (at *compile time*, not runtime)
+- **Example**: Actor generates graph → Critic validates → loop until `critic_result.passed` or max iterations
+- **Rationale**: Quality control on LLM outputs, catches over-fitting and logic errors. Used for compilation, not execution
+
+### Abstract Base Class + Concrete Implementation
+- **Description**: `StepHandler` ABC and `Fingerprinter` ABC with concrete implementations per type
+- **When to Use**: Adding new execution capabilities or fingerprinting dimensions
+- **Example**: `class MitmdumpStepHandler(StepHandler): def execute(...)`. ABCs inherit directly from `ABC` (not `abc.ABCMeta`) to ensure ctags detection
+- **Rationale**: Plugin architecture. New capabilities added by writing one class and registering it. Zero changes to core
+
+### Factory Pattern
+- **Description**: `create_*` functions construct configured objects with injected dependencies
+- **When to Use**: Creating complex objects (Agent, GraphRepository, Orchestrator)
+- **Example**: `create_actor_agent()`, `create_critic_agent()`, `create_graph_repository()`
+- **Rationale**: Named with `create_` prefix for ctags architectural visibility, centralizes configuration
+
+### Singleton Pattern
+- **Description**: Neo4j `Driver` instance created once, injected everywhere
+- **When to Use**: Database connections
+- **Example**: `driver = GraphDatabase.driver(uri, auth)` → passed to all Repository instances
+- **Rationale**: Official Neo4j best practice. Manages connection pool efficiently
+
+### Dependency Injection
+- **Description**: Dependencies passed explicitly to constructors throughout the stack
+- **When to Use**: Every component construction
+- **Example**: Driver → Repository → Context Assemblers → Orchestrator
+- **Rationale**: Loose coupling, testable, mockable
+
+### Data Transfer Object (DTO)
+- **Description**: Pydantic models for all data transfer between layers
+- **When to Use**: LLM outputs, graph storage, application boundaries
+- **Example**: `Fingerprint`, `ActionGraph`, `CriticFeedback`, `RepairDiagnosis`
+- **Rationale**: Typed contracts, validation, type safety throughout
+
+### Deterministic-First with LLM Fallback
+- **Description**: Simple classification logic handles obvious cases, LLM only for ambiguous
+- **When to Use**: Self-repair failure classification
+- **Example**: `if error_code == 404: return "transient_unrecoverable"` else ask LLM
+- **Rationale**: Minimize LLM costs, handle 80% of failures deterministically
+
+## Component Structure
+
+```
+Python Orchestrator (Custom Logic — programmatic flow control)
+├── Anthropic API via Strands (reasoning — compilation and repair only)
+├── Neo4j via GraphRepository (knowledge — action graphs, fingerprints, findings)
+├── mitmdump via subprocess (execution — deterministic CAMRO operations)
+└── Pydantic (contract enforcement — every boundary)
+```
+
+## Data Flow
+
+### Compilation Flow (Cold Start)
+1. Capture traffic from target → Extract Fingerprint
+2. Query Neo4j for exact match on Fingerprint hash
+3. If no match: Vector search for similar Fingerprints
+4. If novel: Assemble compilation context (fingerprint + traffic + similar graphs)
+5. Actor/Critic loop generates validated ActionGraph
+6. Store ActionGraph in Neo4j linked to Fingerprint
+
+### Execution Flow (Warm Start)
+1. Fetch ActionGraph and ordered Steps via GraphRepository
+2. For each Step in chain:
+   - Look up handler from registry by `step.type`
+   - Construct ExecutionContext from accumulated state
+   - Call `handler.execute(step, context)` → StepResult
+   - If `success_criteria` matches: record Finding
+   - If error: `classify_failure()` → repair tier → retry/restart/repair
+   - Thread StepResult into next step's context
+
+### Self-Repair Flow
+1. Step execution fails → Capture error log and HTTP status code
+2. Deterministic classification first (timeouts, 404, 503, session expired)
+3. LLM fallback for ambiguous errors → RepairDiagnosis
+4. Three tiers:
+   - **Transient recoverable**: Retry step immediately
+   - **Transient unrecoverable**: Restart full ActionGraph
+   - **Systemic**: LLM repairs graph, creates `[:REPAIRED_TO]` edge, stores fix
+
+## Neo4j Graph Schema
+
+**See `neo4jSchema.md` for complete Neo4j architecture, schema details, query patterns, and integration examples.**
+
+### Quick Reference
+
+**Core Nodes:** `(:Fingerprint)`, `(:ActionGraph)`, `(:Step)`, `(:Finding)`
+
+**Core Relationships:**
+- `(:Fingerprint)-[:TRIGGERS]->(:ActionGraph)` — routing relationship
+- `(:ActionGraph)-[:STARTS_WITH]->(:Step)` — step chain entry point
+- `(:Step)-[:NEXT]->(:Step)` — CAMRO execution order
+- `(:Step)-[:REPAIRED_TO]->(:Step)` — self-healing history
+- `(:Finding)-[:PRODUCED_BY]->(:ActionGraph)` — finding attribution
+- `(:Fingerprint)-[:SIMILAR_TO]->(:Fingerprint)` — fuzzy similarity cache
+
+## Naming Conventions
+
+### Files
+- **Python modules**: `snake_case.py` (e.g., `graph_repository.py`, `step_handler.py`)
+
+### Code
+- **Classes**: `PascalCase` (e.g., `GraphRepository`, `ActionGraph`)
+- **ABCs**: `PascalCase`, inherits `ABC` directly (e.g., `class StepHandler(ABC)`)
+- **Factory Functions**: `create_<thing>` (e.g., `create_actor_agent()`, `create_graph_repository()`)
+- **Functions**: `snake_case` verb phrase (e.g., `assemble_compilation_context()`, `classify_failure()`)
+- **Methods**: `snake_case` verb phrase (e.g., `get_action_graph_by_fingerprint()`, `find_similar_action_graphs()`)
+- **Constants**: `UPPER_SNAKE_CASE` (e.g., `MAX_CRITIC_ITERATIONS`, `DEFAULT_SIMILARITY_THRESHOLD`)
+- **Pydantic Models**: `PascalCase` noun (e.g., `Fingerprint`, `CriticFeedback`, `RepairDiagnosis`)
+
+### Neo4j Conventions
+- **Node Labels**: `PascalCase` noun (e.g., `(:Fingerprint)`, `(:ActionGraph)`, `(:Step)`)
+- **Relationships**: `UPPER_SNAKE_CASE` verb phrase (e.g., `[:HAS_STEP]`, `[:REPAIRED_TO]`, `[:TESTS_FOR]`)
+- **Properties**: `snake_case` (e.g., `tech_stack`, `observation_embedding`, `success_criteria`)
+
+### Tool Functions
+- **Strands @tool functions**: `snake_case` verb phrase (e.g., `find_similar_action_graphs`, `get_repair_history`)
+
+## ctags Compatibility
+
+The naming conventions are designed to produce clean output from the `ctags-arch.sh` script:
+
+| Script Section | What It Detects | Our Convention That Matches |
+|----------------|-----------------|----------------------------|
+| **Abstract Base Classes** | `inherits == "ABC"` | ABCs inherit directly from `ABC`, never `abc.ABCMeta` |
+| **Concrete Implementations** | `inherits != false and inherits != "ABC"` | Concrete classes inherit from the ABC by name (e.g., `StepHandler`) |
+| **Factory Functions** | Name contains `create`, `factory`, `build`, or `make` | All factory functions use the `create_` prefix |
+| **All Classes** | `kind == "class"` | `PascalCase` class names |
+| **All Functions** | `kind == "function"` | `snake_case` function names |
+| **All Methods** | `kind == "member"` | `snake_case` method names |
+
+## Error Handling Patterns
+
+### Deterministic Classification First
+```python
+def classify_failure(error_log: str, status_code: int) -> str:
+    if status_code == 404:
+        return "transient_unrecoverable"  # Endpoint gone
+    if status_code == 503:
+        return "transient_recoverable"  # Service overloaded
+    if "timeout" in error_log.lower():
+        return "transient_recoverable"  # Network issue
+    if "session expired" in error_log.lower():
+        return "transient_unrecoverable"  # Need fresh session
+    # Only ambiguous cases hit LLM
+    return ask_llm_for_diagnosis(error_log, status_code)
+```
+
+### LLM-Guarded Execution
+All LLM outputs validated via Pydantic:
+```python
+agent = create_actor_agent()
+response = agent.run(
+    prompt=compilation_context,
+    structured_output_model=ActionGraph  # Pydantic enforces schema
+)
+# response is guaranteed to match ActionGraph schema or raises ValidationError
+```
+
+## State Management
+
+**Neo4j is the only stateful component.** There is no in-memory state, no session files, no Redis. The graph stores:
+
+- **`(:Fingerprint)`** — target identity and characteristics
+- **`(:ActionGraph)`** — compiled workflow logic (the reusable asset)
+- **`(:Step)`** — individual execution steps within an ActionGraph
+- **`(:Finding)`** — discovered vulnerabilities and observations
+- **`[:REPAIRED_TO]`** — repair history linking old steps to new ones
+- **`[:SIMILAR_TO]`** — fuzzy similarity edges between fingerprints
+
+**The Python process is stateless.** If it crashes, the graph retains everything. The orchestrator resumes by querying the graph for the current state.
+
+### Execution State (Ephemeral)
+- **session_tokens**: Dict stored in ExecutionContext, threaded through steps during execution only
+- **previous_outputs**: List accumulated during graph traversal, discarded after run completes
+- **current_step_index**: Tracked by orchestrator loop during execution only
+
+### State Transitions
+- **Cold → Warm**: First successful execution creates reusable graph in Neo4j
+- **Warm → Repair**: Execution failure triggers repair diagnosis
+- **Repair → Warm**: Repaired graph stored in Neo4j, returns to normal execution
+
+---
+
+**Update Frequency**: After establishing new patterns or making architectural decisions

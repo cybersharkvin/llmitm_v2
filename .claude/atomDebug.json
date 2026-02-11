@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-02-10T16:17:01-06:00",
+  "hook_input": {
+    "session_id": "3d7595aa-4124-4ca0-96f3-3c57ddea97c5",
+    "transcript_path": "/home/geebs/.claude/projects/-home-geebs-Documents-GitHub-llmitm-v2/3d7595aa-4124-4ca0-96f3-3c57ddea97c5.jsonl",
+    "cwd": "/home/geebs/Documents/GitHub/llmitm_v2",
+    "permission_mode": "default",
+    "hook_event_name": "UserPromptSubmit",
+    "prompt": "ea test respond with cheese if you got this"
+  },
+  "actual_prompt": "test respond with cheese if you got this",
+  "response": "error: unknown option '--memory'",
+  "exit_code": 1
+}
