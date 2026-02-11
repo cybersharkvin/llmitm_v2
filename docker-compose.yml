@@ -1,0 +1,50 @@
+version: "3.8"
+
+services:
+  neo4j:
+    image: neo4j:5-community
+    container_name: llmitm_neo4j
+    ports:
+      - "7474:7474"  # Browser UI
+      - "7687:7687"  # Bolt
+    environment:
+      NEO4J_AUTH: neo4j/password
+      NEO4J_PLUGINS: '["apoc"]'
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:7474"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  juiceshop:
+    image: bkimminich/juice-shop:latest
+    container_name: llmitm_juice_shop
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  mitmproxy:
+    image: mitmproxy/mitmproxy:latest
+    container_name: llmitm_mitmproxy
+    ports:
+      - "8080:8080"  # HTTP proxy
+    command: mitmdump --mode regular -q --flow-detail 3
+    volumes:
+      - mitm_data:/home/mitmproxy/.mitmproxy
+
+volumes:
+  neo4j_data:
+    driver: local
+  neo4j_logs:
+    driver: local
+  mitm_data:
+    driver: local
