@@ -3,22 +3,26 @@
 ## Plugin Architecture
 
 ### Abstract Base Classes
+- **StepHandler** (`llmitm_v2/handlers/base.py:9`)
 
 ### Concrete Implementations
 - **ActionGraph** extends `BaseModel` (`llmitm_v2/models/action_graph.py:11`)
 - **ApprovalHook** extends `HookProvider` (`llmitm_v2/hooks/approval_hook.py:18`)
-- **CompilationContext** extends `BaseModel` (`llmitm_v2/models/context.py:49`)
+- **CompilationContext** extends `BaseModel` (`llmitm_v2/models/context.py:53`)
 - **CriticFeedback** extends `BaseModel` (`llmitm_v2/models/critic.py:10`)
 - **ExecutionContext** extends `BaseModel` (`llmitm_v2/models/context.py:11`)
 - **FailureType** extends `str, Enum` (`llmitm_v2/constants.py:26`)
 - **Finding** extends `BaseModel` (`llmitm_v2/models/finding.py:9`)
 - **Fingerprint** extends `BaseModel` (`llmitm_v2/models/fingerprint.py:9`)
-- **RepairContext** extends `BaseModel` (`llmitm_v2/models/context.py:64`)
+- **HTTPRequestHandler** extends `StepHandler` (`llmitm_v2/handlers/http_request_handler.py:12`)
+- **RegexMatchHandler** extends `StepHandler` (`llmitm_v2/handlers/regex_match_handler.py:10`)
+- **RepairContext** extends `BaseModel` (`llmitm_v2/models/context.py:68`)
 - **RepairDiagnosis** extends `BaseModel` (`llmitm_v2/models/critic.py:21`)
 - **Settings** extends `BaseSettings` (`llmitm_v2/config.py:6`)
+- **ShellCommandHandler** extends `StepHandler` (`llmitm_v2/handlers/shell_command_handler.py:12`)
 - **Step** extends `BaseModel` (`llmitm_v2/models/step.py:10`)
 - **StepPhase** extends `str, Enum` (`llmitm_v2/constants.py:6`)
-- **StepResult** extends `BaseModel` (`llmitm_v2/models/context.py:28`)
+- **StepResult** extends `BaseModel` (`llmitm_v2/models/context.py:32`)
 - **StepType** extends `str, Enum` (`llmitm_v2/constants.py:16`)
 
 ### Factory Functions
@@ -28,7 +32,7 @@
 ## All Classes
 - **ActionGraph** (`llmitm_v2/models/action_graph.py:11`)
 - **ApprovalHook** (`llmitm_v2/hooks/approval_hook.py:18`)
-- **CompilationContext** (`llmitm_v2/models/context.py:49`)
+- **CompilationContext** (`llmitm_v2/models/context.py:53`)
 - **CriticFeedback** (`llmitm_v2/models/critic.py:10`)
 - **ExecutionContext** (`llmitm_v2/models/context.py:11`)
 - **FailureType** (`llmitm_v2/constants.py:26`)
@@ -36,12 +40,16 @@
 - **Fingerprint** (`llmitm_v2/models/fingerprint.py:9`)
 - **GraphRepository** (`llmitm_v2/repository/graph_repository.py:16`)
 - **GraphTools** (`llmitm_v2/tools/graph_tools.py:20`)
-- **RepairContext** (`llmitm_v2/models/context.py:64`)
+- **HTTPRequestHandler** (`llmitm_v2/handlers/http_request_handler.py:12`)
+- **RegexMatchHandler** (`llmitm_v2/handlers/regex_match_handler.py:10`)
+- **RepairContext** (`llmitm_v2/models/context.py:68`)
 - **RepairDiagnosis** (`llmitm_v2/models/critic.py:21`)
 - **Settings** (`llmitm_v2/config.py:6`)
+- **ShellCommandHandler** (`llmitm_v2/handlers/shell_command_handler.py:12`)
 - **Step** (`llmitm_v2/models/step.py:10`)
+- **StepHandler** (`llmitm_v2/handlers/base.py:9`)
 - **StepPhase** (`llmitm_v2/constants.py:6`)
-- **StepResult** (`llmitm_v2/models/context.py:28`)
+- **StepResult** (`llmitm_v2/models/context.py:32`)
 - **StepType** (`llmitm_v2/constants.py:16`)
 
 ## All Functions
@@ -50,6 +58,7 @@
 - **classify_failure**(error_log: str, status_code: int = 0) (`llmitm_v2/orchestrator/failure_classifier.py:6`)
 - **create_actor_agent**( graph_repo: GraphRepository, embed_model: Optional[Any] = None, ) (`llmitm_v2/orchestrator/agents.py:66`)
 - **create_critic_agent**() (`llmitm_v2/orchestrator/agents.py:103`)
+- **get_handler**(step_type: StepType) (`llmitm_v2/handlers/registry.py:18`)
 - **setup_schema**() (`llmitm_v2/repository/setup_schema.py:8`)
 - **tool**(func) (`llmitm_v2/tools/graph_tools.py:13`)
 - **tx_func**(tx: Session) (`llmitm_v2/repository/graph_repository.py:461`)
@@ -72,6 +81,10 @@
 - **ensure_hash**(self) (`llmitm_v2/models/fingerprint.py:41`)
 - **ensure_id**(self) (`llmitm_v2/models/action_graph.py:36`)
 - **ensure_id**(self) (`llmitm_v2/models/finding.py:32`)
+- **execute**(self, step: Step, context: ExecutionContext) (`llmitm_v2/handlers/base.py:13`)
+- **execute**(self, step: Step, context: ExecutionContext) (`llmitm_v2/handlers/http_request_handler.py:15`)
+- **execute**(self, step: Step, context: ExecutionContext) (`llmitm_v2/handlers/regex_match_handler.py:13`)
+- **execute**(self, step: Step, context: ExecutionContext) (`llmitm_v2/handlers/shell_command_handler.py:15`)
 - **find_similar_action_graphs**(self, description: str, top_k: int = 5) (`llmitm_v2/tools/graph_tools.py:43`)
 - **find_similar_fingerprints**( self, embedding: List[float], top_k: int = 5, ) (`llmitm_v2/repository/graph_repository.py:79`)
 - **get_action_graph_with_steps**( self, fingerprint_hash: str, ) (`llmitm_v2/repository/graph_repository.py:208`)

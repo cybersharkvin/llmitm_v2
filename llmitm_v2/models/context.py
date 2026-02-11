@@ -20,6 +20,10 @@ class ExecutionContext(BaseModel):
         default_factory=list,
         description="Output from previous steps (threaded through execution)"
     )
+    cookies: Dict[str, str] = Field(
+        default_factory=dict,
+        description="HTTP cookies accumulated during execution (Set-Cookie extraction)"
+    )
     fingerprint: Fingerprint = Field(
         description="Target fingerprint for execution context"
     )
