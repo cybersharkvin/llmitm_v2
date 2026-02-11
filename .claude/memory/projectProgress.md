@@ -39,19 +39,29 @@
   - Idempotent setup_schema.py script
   - Completed: Feb 10, 2026
 
+- ✅ **Phase 2: Strands SDK Integration**: Complete LLM orchestration layer
+  - Actor/Critic agent factories via Strands SDK with per-call structured_output_model
+  - Context assembly (compilation_context, repair_context) with smart truncation
+  - Deterministic failure classification (TRANSIENT_RECOVERABLE, TRANSIENT_UNRECOVERABLE, SYSTEMIC)
+  - GraphTools with @tool methods: find_similar_action_graphs, get_repair_history
+  - ApprovalHook for human-in-the-loop on destructive patterns
+  - GraphRepository.get_repair_history() method for repair diagnostics
+  - Graceful import fallbacks for Strands, Neo4j, sentence-transformers
+  - Completed: Feb 10, 2026
+  - Validation: 15 unit tests pass, 5 gracefully skip when dependencies unavailable
+
 ## In Progress
 
-- **None**: Foundation phase complete
+- **None**: Phase 2 complete, ready for Phase 3
 
 ## Pending Features
 
-**Phase 2: Strands SDK Integration (Next)**
-- Actor agent for ActionGraph compilation
-- Critic agent for validation
-- Tool functions for graph queries
-- Context assembly functions (compilation, repair phases)
-- RepairDiagnosis with deterministic classification
-- Hook for human-in-the-loop approval
+**Phase 3: Step Handlers (Next)**
+- Abstract StepHandler base class
+- MitmdumpStepHandler for traffic capture
+- HTTPRequestHandler for direct API calls
+- RegexMatchHandler for response validation
+- StepHandler registry for dispatch by type
 
 **Phase 3: Step Handlers (Execution)**
 - StepHandler abstract base class
