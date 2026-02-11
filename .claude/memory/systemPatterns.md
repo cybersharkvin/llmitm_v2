@@ -88,6 +88,12 @@
 - **Example**: `Fingerprint`, `ActionGraph`, `CriticFeedback`, `RepairDiagnosis`
 - **Rationale**: Typed contracts, validation, type safety throughout
 
+### Handler Registry Pattern
+- **Description**: `HANDLER_REGISTRY` maps `StepType` → `Type[StepHandler]`, `get_handler()` instantiates
+- **When to Use**: Dispatching step execution by type during ActionGraph traversal
+- **Example**: `handler = get_handler(step.type); result = handler.execute(step, context)`
+- **Rationale**: New step types added by writing one handler class and one registry entry. Zero changes to orchestrator
+
 ### Deterministic-First with LLM Fallback
 - **Description**: Simple classification logic handles obvious cases, LLM only for ambiguous
 - **When to Use**: Self-repair failure classification
@@ -226,7 +232,8 @@ response = agent.run(
 **The Python process is stateless.** If it crashes, the graph retains everything. The orchestrator resumes by querying the graph for the current state.
 
 ### Execution State (Ephemeral)
-- **session_tokens**: Dict stored in ExecutionContext, threaded through steps during execution only
+- **session_tokens**: Dict stored in ExecutionContext, keys are literal HTTP header names (e.g., `"Authorization"`) → merged directly into request headers
+- **cookies**: Dict stored in ExecutionContext, keys are cookie names → set via `httpx.Client(cookies=...)`, updated from `Set-Cookie` responses
 - **previous_outputs**: List accumulated during graph traversal, discarded after run completes
 - **current_step_index**: Tracked by orchestrator loop during execution only
 

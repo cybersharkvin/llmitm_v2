@@ -50,25 +50,21 @@
   - Completed: Feb 10, 2026
   - Validation: 15 unit tests pass, 5 gracefully skip when dependencies unavailable
 
+- ✅ **Phase 3: Step Handlers**: Complete execution layer
+  - StepHandler ABC with execute(step, context) → StepResult contract
+  - HTTPRequestHandler: httpx sync client, URL resolution, header/cookie merging, Set-Cookie extraction
+  - ShellCommandHandler: subprocess.run with timeout, env vars, working dir, exit codes
+  - RegexMatchHandler: pattern matching against previous_outputs with capture groups and source indexing
+  - Handler registry: HANDLER_REGISTRY dict + get_handler() dispatch by StepType
+  - ExecutionContext.cookies field added for cookie persistence across steps
+  - Completed: Feb 10, 2026
+  - Validation: 17 unit tests + 2 integration tests (58 total passing across all suites)
+
 ## In Progress
 
-- **None**: Phase 2 complete, ready for Phase 3
+- **None**: Phase 3 complete, ready for Phase 4
 
 ## Pending Features
-
-**Phase 3: Step Handlers (Next)**
-- Abstract StepHandler base class
-- MitmdumpStepHandler for traffic capture
-- HTTPRequestHandler for direct API calls
-- RegexMatchHandler for response validation
-- StepHandler registry for dispatch by type
-
-**Phase 3: Step Handlers (Execution)**
-- StepHandler abstract base class
-- MitmdumpStepHandler for traffic capture
-- HTTPRequestHandler for direct API calls
-- RegexMatchHandler for response validation
-- JSONExtractHandler for data transformation
 
 **Phase 4: Orchestrator (Control Flow)**
 - Cold start: Fingerprint → Compilation → Execution
@@ -97,7 +93,9 @@
 - **Primary Branch**: main
 
 ### Recent Milestones
-- **Feb 10, 2026**: Foundation complete (Pydantic models, GraphRepository, Neo4j schema, tests passing)
+- **Feb 10, 2026**: Phase 3 complete (Step Handlers: HTTP, Shell, Regex + registry, 58 tests passing)
+- **Feb 10, 2026**: Phase 2 complete (Strands SDK integration, agents, context assembly, failure classification)
+- **Feb 10, 2026**: Foundation complete (Pydantic models, GraphRepository, Neo4j schema)
 
 ## Deployment Status
 

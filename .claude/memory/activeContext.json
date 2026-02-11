@@ -1,125 +1,61 @@
 {
-  "session": "Phase 2 Complete: Strands SDK Integration (Feb 10, 2026)",
-  "completed_phase": "Phase 2: Strands SDK Integration — LLM Orchestration Layer",
-  "summary": "Actor/Critic agents, context assembly, failure classification, graph tools, approval hooks implemented. All 41 tests passing with graceful dependency skips.",
-  "files_created": 8,
-  "git_commit": "742fce9",
+  "session": "Phase 3 Complete: Step Handlers (Feb 10, 2026)",
+  "completed_phase": "Phase 3: Step Handlers — Execution Layer",
+  "summary": "StepHandler ABC + 3 concrete handlers (HTTP, Shell, Regex) + registry dispatch + cookies on ExecutionContext. 58 tests passing.",
+  "files_created": 7,
+  "git_commit": "fda700e",
   "files_by_category": {
-    "orchestration": [
-      {
-        "path": "llmitm_v2/orchestrator/__init__.py",
-        "description": "Exports all orchestration components"
-      },
-      {
-        "path": "llmitm_v2/orchestrator/agents.py",
-        "description": "create_actor_agent(), create_critic_agent() factories via Strands SDK"
-      },
-      {
-        "path": "llmitm_v2/orchestrator/context.py",
-        "description": "assemble_compilation_context(), assemble_repair_context() for phase-specific prompts"
-      },
-      {
-        "path": "llmitm_v2/orchestrator/failure_classifier.py",
-        "description": "classify_failure() for deterministic repair tier selection"
-      }
+    "handlers": [
+      {"path": "llmitm_v2/handlers/__init__.py", "description": "Exports all handler components"},
+      {"path": "llmitm_v2/handlers/base.py", "description": "StepHandler ABC with execute(step, context) → StepResult"},
+      {"path": "llmitm_v2/handlers/http_request_handler.py", "description": "HTTPRequestHandler: httpx sync client, URL resolution, header/cookie merging"},
+      {"path": "llmitm_v2/handlers/shell_command_handler.py", "description": "ShellCommandHandler: subprocess.run with timeout, env vars, exit codes"},
+      {"path": "llmitm_v2/handlers/regex_match_handler.py", "description": "RegexMatchHandler: pattern matching against previous_outputs with capture groups"},
+      {"path": "llmitm_v2/handlers/registry.py", "description": "HANDLER_REGISTRY dict + get_handler() dispatch by StepType"}
     ],
-    "tools": [
-      {
-        "path": "llmitm_v2/tools/__init__.py",
-        "description": "Exports GraphTools"
-      },
-      {
-        "path": "llmitm_v2/tools/graph_tools.py",
-        "description": "GraphTools class with @tool methods: find_similar_action_graphs, get_repair_history"
-      }
-    ],
-    "hooks": [
-      {
-        "path": "llmitm_v2/hooks/__init__.py",
-        "description": "Exports ApprovalHook"
-      },
-      {
-        "path": "llmitm_v2/hooks/approval_hook.py",
-        "description": "ApprovalHook(HookProvider) for human-in-the-loop approval of destructive actions"
-      }
+    "models_modified": [
+      {"path": "llmitm_v2/models/context.py", "description": "Added cookies: Dict[str, str] to ExecutionContext"}
     ],
     "testing": [
-      {
-        "path": "tests/test_orchestrator.py",
-        "description": "20 tests for orchestration: 15 passing, 5 skipped when dependencies unavailable"
-      }
+      {"path": "tests/test_handlers.py", "description": "17 unit tests + 2 integration tests for all handlers and registry"}
     ]
   },
   "test_results": {
     "test_suites": [
-      {
-        "suite": "tests/test_models.py",
-        "passed": 21,
-        "failed": 0,
-        "status": "✅ ALL PASSING"
-      },
-      {
-        "suite": "tests/test_graph_repository.py (pure Python)",
-        "passed": 8,
-        "failed": 0,
-        "integration_tests": "4 skipped when Neo4j unavailable"
-      },
-      {
-        "suite": "tests/test_orchestrator.py",
-        "passed": 15,
-        "failed": 0,
-        "skipped": 5,
-        "status": "✅ ALL PASSING + graceful skips"
-      }
+      {"suite": "tests/test_models.py", "passed": 21, "failed": 0, "status": "✅ ALL PASSING"},
+      {"suite": "tests/test_graph_repository.py", "passed": 8, "failed": 0, "integration_tests": "4 skipped when Neo4j unavailable"},
+      {"suite": "tests/test_orchestrator.py", "passed": 15, "failed": 0, "skipped": 5, "status": "✅ ALL PASSING + graceful skips"},
+      {"suite": "tests/test_handlers.py", "passed": 17, "failed": 0, "skipped": 2, "status": "✅ ALL PASSING + 2 integration skipped"}
     ],
-    "total": "41 passed, 9 skipped",
+    "total": "58 passed, 3 skipped (non-integration), 2 integration deselected",
     "coverage": [
-      "Failure classification: all tiers (timeout, 503, 404, 401, session expired, unknown)",
-      "Context assembly: fingerprint inclusion, traffic truncation, step/error details",
-      "Approval hooks: HookProvider inheritance, pattern matching, custom patterns",
-      "Graph tools: repo initialization, lazy embedding model loading",
-      "Agent factories: initialization checks (skipped when Strands unavailable)"
-    ],
-    "notes": "All tests ≤5 lines, no mocks, pure user perspective; graceful skips for external dependencies"
+      "StepHandler ABC: instantiation fails, subclass contract enforcement",
+      "HTTPRequestHandler: GET/POST, header merging, cookie persistence, timeout, success_criteria",
+      "ShellCommandHandler: stdout, exit codes, timeout, env vars, success_criteria",
+      "RegexMatchHandler: last output, capture groups, source indexing, no-match, no-outputs",
+      "Registry: all 3 types registered, correct dispatch, unknown type raises ValueError",
+      "ExecutionContext.cookies: default empty dict"
+    ]
   },
   "design_decisions": [
     {
-      "decision": "Graceful import fallbacks for Strands, Neo4j, sentence-transformers",
-      "rationale": "Tests must run without external dependencies; skip gracefully when unavailable"
+      "decision": "session_tokens = HTTP headers, cookies = separate dict",
+      "rationale": "session_tokens keys are literal header names merged into requests; cookies need separate httpx handling and Set-Cookie extraction"
     },
     {
-      "decision": "Per-call structured_output_model override for Actor agent",
-      "rationale": "Single Agent instance used for both ActionGraph compilation and RepairDiagnosis"
+      "decision": "ShellCommandHandler instead of MitmdumpStepHandler",
+      "rationale": "Generic shell handler covers mitmdump and any other CLI tool; no need for specialized handler"
     },
     {
-      "decision": "Deterministic-first failure classification",
-      "rationale": "80% of failures are obvious (timeout, 404, 503); only ambiguous cases hit LLM"
+      "decision": "Handler mutates context.cookies in-place",
+      "rationale": "HTTPRequestHandler updates context.cookies from response Set-Cookie; orchestrator threads context forward"
     },
     {
-      "decision": "Context assembly provides static prompts, no graph queries",
-      "rationale": "Graph queries are performed dynamically by LLM via tools, not pre-fetched"
-    },
-    {
-      "decision": "GraphTools with lazy-loaded embedding model",
-      "rationale": "Avoid initialization cost until tools are actually invoked"
-    },
-    {
-      "decision": "ApprovalHook for human-in-the-loop on destructive patterns",
-      "rationale": "Prevent accidental destructive operations; user must explicitly approve"
+      "decision": "JSON_EXTRACT and RESPONSE_COMPARE deferred",
+      "rationale": "Out of scope for Phase 3; registry raises ValueError for unregistered types"
     }
   ],
   "next_phases": [
-    {
-      "phase": "Phase 3: Step Handlers",
-      "estimated_hours": 3,
-      "tasks": [
-        "Abstract StepHandler base class (ABC)",
-        "MitmdumpStepHandler for traffic capture via subprocess",
-        "HTTPRequestHandler for direct API calls via httpx",
-        "RegexMatchHandler for response validation",
-        "StepHandler registry for dispatch by StepType"
-      ]
-    },
     {
       "phase": "Phase 4: Orchestrator (Main Loop)",
       "estimated_hours": 3,
@@ -142,18 +78,18 @@
       ]
     }
   ],
-  "blockers": "None — Phase 2 complete, ready for Phase 3",
+  "blockers": "None — Phase 3 complete, ready for Phase 4",
   "context_for_next_session": [
-    "Phase 2 adds the 'brain' layer: LLM agents, context assembly, failure classification",
-    "Next: Phase 3 adds 'hands' (step handlers) for executing compiled ActionGraphs",
-    "GraphRepository.get_repair_history() now available for LLM self-repair diagnosis",
-    "All code gracefully handles missing Strands, Neo4j, sentence-transformers via pytest.skip()",
-    "Testing philosophy: max 5 lines per test, no mocks, real behavior only (41 tests passing)"
+    "Phase 3 adds 'hands': StepHandler ABC + HTTP, Shell, Regex handlers + registry dispatch",
+    "ExecutionContext now has cookies dict separate from session_tokens (headers)",
+    "get_handler(StepType) returns instantiated handler; orchestrator calls handler.execute(step, context)",
+    "HTTPRequestHandler mutates context.cookies from Set-Cookie responses",
+    "Next: Phase 4 wires handlers into orchestrator main loop (cold/warm/repair flows)",
+    "58 tests passing, all ≤5 lines, no mocks"
   ],
   "files_to_reference": [
-    "systemPatterns.md — Actor/Critic pattern, failure classification rules, DI patterns",
-    "techContext.md — Strands SDK constraints, AnthropicModel setup, tool serialization",
-    "neo4jSchema.md — repair_history query patterns, graph structure for repairs",
-    "strandsGuide.md — @tool decorator, Agent construction, structured_output_model usage"
+    "systemPatterns.md — Handler registry pattern, ABC+Concrete pattern",
+    "techContext.md — httpx sync client, subprocess usage",
+    "tags.md — Updated with all handler classes and methods"
   ]
 }
