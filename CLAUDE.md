@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **At the start of EVERY session, you MUST read all memory files before doing any work:**
 
-@.claude/memory/activeContext.md
+@.claude/memory/activeContext.json
 @.claude/memory/projectBrief.md
 @.claude/memory/systemPatterns.md
 @.claude/memory/techContext.md
@@ -45,7 +45,7 @@ This project uses a memory file system for persistent context across Claude Code
 
 ## When to Update Memory Files
 
-### `activeContext.md` — Update FREQUENTLY
+### `activeContext.json` — Update FREQUENTLY
 
 **Update after:**
 - Completing any significant task or feature
@@ -54,13 +54,44 @@ This project uses a memory file system for persistent context across Claude Code
 - Changing working focus or context
 - End of every work session
 
-**Include:**
-- What was just completed (with file paths)
-- Current state of work in progress
-- Immediate next steps
-- Any blockers or decisions needed
+**Structure (follow this format exactly):**
+```json
+{
+  "session": "Phase name and date",
+  "completed_phase": "What phase just finished",
+  "summary": "One-line summary of work",
+  "files_created": N,
+  "git_commit": "commit hash",
+  "files_by_category": {
+    "category_name": [
+      {"path": "file/path.py", "description": "What it does"}
+    ]
+  },
+  "test_results": {
+    "test_suite": "tests/test_X.py",
+    "passed": N,
+    "failed": 0,
+    "status": "✅ ALL PASSING or ⚠️ ISSUES",
+    "coverage": ["test area 1", "test area 2"],
+    "notes": "Important notes"
+  },
+  "design_decisions": [
+    {"decision": "Name", "rationale": "Why chosen"}
+  ],
+  "next_phases": [
+    {
+      "phase": "Phase N: Name",
+      "estimated_hours": N,
+      "tasks": ["Task 1", "Task 2"]
+    }
+  ],
+  "blockers": "None or description",
+  "context_for_next_session": ["context point 1", "context point 2"],
+  "files_to_reference": ["file.md — description"]
+}
+```
 
-**Keep it current** — This is the "working memory" for the next session.
+**Keep it current** — This is the "working memory" for the next session. Use the JSON format to organize information clearly with specific categories for files, test results, design decisions, and next steps.
 
 ---
 
