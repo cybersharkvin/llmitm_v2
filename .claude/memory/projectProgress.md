@@ -60,17 +60,23 @@
   - Completed: Feb 10, 2026
   - Validation: 17 unit tests + 2 integration tests (58 total passing across all suites)
 
+- ✅ **Phase 4: Orchestrator (Main Loop)**: Complete control flow
+  - Orchestrator class with run() main entry point (cold/warm start decision)
+  - _try_warm_start(): graph lookup by fingerprint hash (zero LLM)
+  - _compile(): Actor/Critic loop with Strands __call__() API and structured_output_model
+  - _execute(): Step walker with handler dispatch, context threading, finding collection
+  - _interpolate_params(): {{previous_outputs[N]}} template substitution for dynamic values
+  - _handle_step_failure(): 3-tier self-repair (retry/abort/repair)
+  - _repair(): LLM-assisted RepairDiagnosis → repair_step_chain() in Neo4j
+  - ExecutionResult and OrchestratorResult models
+  - Completed: Feb 10, 2026
+  - Validation: 70 tests passing (10 new), all ≤5 lines, no mocks
+
 ## In Progress
 
-- **None**: Phase 3 complete, ready for Phase 4
+- **None**: Phase 4 complete, ready for Phase 5
 
 ## Pending Features
-
-**Phase 4: Orchestrator (Control Flow)**
-- Cold start: Fingerprint → Compilation → Execution
-- Warm start: Fingerprint lookup → Direct execution
-- Self-repair: Error classification → Repair/Retry/Restart logic
-- Knowledge accumulation in Neo4j
 
 **Phase 5: Hackathon Demonstrations**
 - Cold start test: Juice Shop → compilation → vulnerability discovery
@@ -93,6 +99,7 @@
 - **Primary Branch**: main
 
 ### Recent Milestones
+- **Feb 10, 2026**: Phase 4 complete (Orchestrator main loop: cold/warm/repair flows, 70 tests passing)
 - **Feb 10, 2026**: Phase 3 complete (Step Handlers: HTTP, Shell, Regex + registry, 58 tests passing)
 - **Feb 10, 2026**: Phase 2 complete (Strands SDK integration, agents, context assembly, failure classification)
 - **Feb 10, 2026**: Foundation complete (Pydantic models, GraphRepository, Neo4j schema)

@@ -4,6 +4,8 @@ from llmitm_v2.models.action_graph import ActionGraph
 from llmitm_v2.models.context import (
     CompilationContext,
     ExecutionContext,
+    ExecutionResult,
+    OrchestratorResult,
     RepairContext,
     StepResult,
 )
@@ -23,4 +25,6 @@ __all__ = [
     "StepResult",
     "CompilationContext",
     "RepairContext",
+    "ExecutionResult",
+    "OrchestratorResult",
 ]

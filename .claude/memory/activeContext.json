@@ -1,95 +1,67 @@
 {
-  "session": "Phase 3 Complete: Step Handlers (Feb 10, 2026)",
-  "completed_phase": "Phase 3: Step Handlers — Execution Layer",
-  "summary": "StepHandler ABC + 3 concrete handlers (HTTP, Shell, Regex) + registry dispatch + cookies on ExecutionContext. 58 tests passing.",
-  "files_created": 7,
-  "git_commit": "fda700e",
+  "session": "Phase 4 Complete: Orchestrator Main Loop (Feb 10, 2026)",
+  "completed_phase": "Phase 4: Orchestrator — Main Loop",
+  "summary": "Orchestrator class with cold/warm start, actor/critic compilation, step execution with interpolation, self-repair decision tree. 70 tests passing.",
+  "files_created": 2,
+  "git_commit": "pending",
   "files_by_category": {
-    "handlers": [
-      {"path": "llmitm_v2/handlers/__init__.py", "description": "Exports all handler components"},
-      {"path": "llmitm_v2/handlers/base.py", "description": "StepHandler ABC with execute(step, context) → StepResult"},
-      {"path": "llmitm_v2/handlers/http_request_handler.py", "description": "HTTPRequestHandler: httpx sync client, URL resolution, header/cookie merging"},
-      {"path": "llmitm_v2/handlers/shell_command_handler.py", "description": "ShellCommandHandler: subprocess.run with timeout, env vars, exit codes"},
-      {"path": "llmitm_v2/handlers/regex_match_handler.py", "description": "RegexMatchHandler: pattern matching against previous_outputs with capture groups"},
-      {"path": "llmitm_v2/handlers/registry.py", "description": "HANDLER_REGISTRY dict + get_handler() dispatch by StepType"}
+    "orchestrator": [
+      {"path": "llmitm_v2/orchestrator/orchestrator.py", "description": "Orchestrator class: run(), _try_warm_start(), _compile(), _execute(), _handle_step_failure(), _interpolate_params(), _repair()"}
     ],
     "models_modified": [
-      {"path": "llmitm_v2/models/context.py", "description": "Added cookies: Dict[str, str] to ExecutionContext"}
+      {"path": "llmitm_v2/models/context.py", "description": "Added ExecutionResult and OrchestratorResult models"},
+      {"path": "llmitm_v2/models/__init__.py", "description": "Export ExecutionResult and OrchestratorResult"}
+    ],
+    "orchestrator_modified": [
+      {"path": "llmitm_v2/orchestrator/__init__.py", "description": "Export Orchestrator class"}
     ],
     "testing": [
-      {"path": "tests/test_handlers.py", "description": "17 unit tests + 2 integration tests for all handlers and registry"}
+      {"path": "tests/test_orchestrator_main.py", "description": "10 unit tests for result models, orchestrator init, and parameter interpolation"}
     ]
   },
   "test_results": {
+    "total": "70 passed, 10 skipped",
     "test_suites": [
-      {"suite": "tests/test_models.py", "passed": 21, "failed": 0, "status": "✅ ALL PASSING"},
-      {"suite": "tests/test_graph_repository.py", "passed": 8, "failed": 0, "integration_tests": "4 skipped when Neo4j unavailable"},
-      {"suite": "tests/test_orchestrator.py", "passed": 15, "failed": 0, "skipped": 5, "status": "✅ ALL PASSING + graceful skips"},
-      {"suite": "tests/test_handlers.py", "passed": 17, "failed": 0, "skipped": 2, "status": "✅ ALL PASSING + 2 integration skipped"}
+      {"suite": "tests/test_models.py", "passed": 21, "failed": 0},
+      {"suite": "tests/test_graph_repository.py", "passed": 8, "failed": 0},
+      {"suite": "tests/test_orchestrator.py", "passed": 15, "failed": 0, "skipped": 5},
+      {"suite": "tests/test_handlers.py", "passed": 17, "failed": 0, "skipped": 2},
+      {"suite": "tests/test_orchestrator_main.py", "passed": 9, "failed": 0, "skipped": 1}
     ],
-    "total": "58 passed, 3 skipped (non-integration), 2 integration deselected",
     "coverage": [
-      "StepHandler ABC: instantiation fails, subclass contract enforcement",
-      "HTTPRequestHandler: GET/POST, header merging, cookie persistence, timeout, success_criteria",
-      "ShellCommandHandler: stdout, exit codes, timeout, env vars, success_criteria",
-      "RegexMatchHandler: last output, capture groups, source indexing, no-match, no-outputs",
-      "Registry: all 3 types registered, correct dispatch, unknown type raises ValueError",
-      "ExecutionContext.cookies: default empty dict"
+      "ExecutionResult: defaults, error construction",
+      "OrchestratorResult: cold/warm paths, with execution",
+      "Orchestrator._interpolate_params: positive/negative index, non-string, out-of-range, no-op"
     ]
   },
   "design_decisions": [
-    {
-      "decision": "session_tokens = HTTP headers, cookies = separate dict",
-      "rationale": "session_tokens keys are literal header names merged into requests; cookies need separate httpx handling and Set-Cookie extraction"
-    },
-    {
-      "decision": "ShellCommandHandler instead of MitmdumpStepHandler",
-      "rationale": "Generic shell handler covers mitmdump and any other CLI tool; no need for specialized handler"
-    },
-    {
-      "decision": "Handler mutates context.cookies in-place",
-      "rationale": "HTTPRequestHandler updates context.cookies from response Set-Cookie; orchestrator threads context forward"
-    },
-    {
-      "decision": "JSON_EXTRACT and RESPONSE_COMPARE deferred",
-      "rationale": "Out of scope for Phase 3; registry raises ValueError for unregistered types"
-    }
+    {"decision": "Strands __call__() API with structured_output_model per call", "rationale": "Docs confirm agent() returns AgentResult with .structured_output"},
+    {"decision": "StructuredOutputException from strands.types.exceptions", "rationale": "Graceful fallback to base Exception if Strands not installed"},
+    {"decision": "{{previous_outputs[N]}} interpolation in _execute loop", "rationale": "Dynamic values (tokens, IDs) flow between steps via template substitution"},
+    {"decision": "TRANSIENT_UNRECOVERABLE aborts cleanly", "rationale": "Caller decides whether to re-fingerprint; orchestrator doesn't auto-restart"}
   ],
   "next_phases": [
-    {
-      "phase": "Phase 4: Orchestrator (Main Loop)",
-      "estimated_hours": 3,
-      "tasks": [
-        "Cold start workflow: Fingerprint → Compilation → Execution",
-        "Warm start workflow: Fingerprint lookup → Direct execution",
-        "Self-repair decision tree: Classify → Retry/Restart/Repair",
-        "Knowledge accumulation: Save graphs, findings, repairs to Neo4j",
-        "Main orchestration loop with error handling"
-      ]
-    },
     {
       "phase": "Phase 5: Hackathon Demos",
       "estimated_hours": 2,
       "tasks": [
         "Cold start demo: Juice Shop → compilation → vulnerability discovery",
         "Warm start demo: Second run, zero LLM calls, instant execution",
-        "Self-repair demo: Target changes break graph → LLM repairs → persists",
-        "Metrics and knowledge compounding validation"
+        "Self-repair demo: Target changes break graph → LLM repairs → persists"
       ]
     }
   ],
-  "blockers": "None — Phase 3 complete, ready for Phase 4",
+  "blockers": "None — Phase 4 complete, ready for Phase 5",
   "context_for_next_session": [
-    "Phase 3 adds 'hands': StepHandler ABC + HTTP, Shell, Regex handlers + registry dispatch",
-    "ExecutionContext now has cookies dict separate from session_tokens (headers)",
-    "get_handler(StepType) returns instantiated handler; orchestrator calls handler.execute(step, context)",
-    "HTTPRequestHandler mutates context.cookies from Set-Cookie responses",
-    "Next: Phase 4 wires handlers into orchestrator main loop (cold/warm/repair flows)",
-    "58 tests passing, all ≤5 lines, no mocks"
+    "Phase 4 adds Orchestrator class: run() decides cold/warm, _compile() does actor/critic loop, _execute() walks steps with interpolation",
+    "ExecutionResult and OrchestratorResult models added to context.py",
+    "_interpolate_params() replaces {{previous_outputs[N]}} in step parameters before handler dispatch",
+    "_handle_step_failure() implements 3-tier self-repair: retry (recoverable), abort (unrecoverable), repair (systemic)",
+    "70 tests passing across 5 test suites",
+    "Next: Phase 5 wires everything for hackathon demos against Juice Shop"
   ],
   "files_to_reference": [
-    "systemPatterns.md — Handler registry pattern, ABC+Concrete pattern",
-    "techContext.md — httpx sync client, subprocess usage",
-    "tags.md — Updated with all handler classes and methods"
+    "systemPatterns.md — Orchestrator patterns, interpolation mechanism",
+    "techContext.md — Strands __call__() API, StructuredOutputException"
   ]
 }

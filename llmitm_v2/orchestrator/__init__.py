@@ -6,6 +6,7 @@ from llmitm_v2.orchestrator.context import (
     assemble_repair_context,
 )
 from llmitm_v2.orchestrator.failure_classifier import classify_failure
+from llmitm_v2.orchestrator.orchestrator import Orchestrator
 
 __all__ = [
     "create_actor_agent",
@@ -13,4 +14,5 @@ __all__ = [
     "assemble_compilation_context",
     "assemble_repair_context",
     "classify_failure",
+    "Orchestrator",
 ]

@@ -82,3 +82,22 @@ class RepairContext(BaseModel):
         default_factory=list,
         description="Historical repair records for similar errors"
     )
+
+
+class ExecutionResult(BaseModel):
+    """Result of a full ActionGraph execution."""
+
+    success: bool = Field(description="Whether execution completed successfully")
+    findings: List[Any] = Field(default_factory=list, description="Findings discovered during execution")
+    steps_executed: int = Field(default=0, description="Number of steps executed")
+    error_log: Optional[str] = Field(default=None, description="Error details if execution failed")
+
+
+class OrchestratorResult(BaseModel):
+    """Result of a full orchestrator run (cold/warm start + execution)."""
+
+    path: str = Field(description="Execution path: 'cold_start' or 'warm_start'")
+    action_graph_id: Optional[str] = Field(default=None, description="ID of ActionGraph used")
+    execution: Optional[ExecutionResult] = Field(default=None, description="Execution result")
+    compiled: bool = Field(default=False, description="Whether ActionGraph was compiled this run")
+    repaired: bool = Field(default=False, description="Whether ActionGraph was repaired this run")
