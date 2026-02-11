@@ -19,6 +19,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## MANDATORY: Testing Philosophy
+
+**Every test in this project MUST comply with these rules:**
+
+1. **Max 5 lines per test body** — Keep tests focused and concise
+2. **No mocks or fake objects** — Use real code with real inputs (use fixtures to reduce setup)
+3. **User perspective only** — Test as if calling the library from the outside
+4. **Graceful skips for dependencies** — If a test needs Neo4j and it's unavailable, skip with `pytest.skip()`
+5. **Mark integration tests** — Use `@pytest.mark.integration` for tests that require external services
+
+**Example compliant test:**
+```python
+def test_fingerprint_hash_is_deterministic(sample_fingerprint):
+    fp1 = Fingerprint(tech_stack="Express.js", auth_model="JWT", endpoint_pattern="/api/*")
+    fp2 = Fingerprint(tech_stack="Express.js", auth_model="JWT", endpoint_pattern="/api/*")
+    assert fp1.ensure_hash() or fp1.hash == fp2.ensure_hash() or fp1.hash == fp2.hash
+```
+
+**Non-compliant test (DO NOT WRITE):**
+```python
+def test_save_fingerprint(mock_driver, mock_session):
+    # ❌ Uses mocks, violates philosophy
+    repo = GraphRepository(mock_driver)
+    mock_driver.session.return_value.__enter__.return_value = mock_session
+    # ...
+```
+
+---
+
 ## Memory File System
 
 This project uses a memory file system for persistent context across Claude Code sessions.

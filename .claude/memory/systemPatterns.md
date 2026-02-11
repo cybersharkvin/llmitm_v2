@@ -17,6 +17,26 @@
 | **Deterministic by Default** | The orchestrator, the graph walker, the step handlers, the fingerprinters — all deterministic Python. The LLM is the exception, not the rule |
 | **Knowledge Compounds in the Graph** | Every compilation, every repair, every finding enriches the graph. The asset is the graph, not the model |
 | **Strict Separation of Concerns** | The LLM never touches the network, the filesystem, or the graph directly. Tools mediate all access |
+| **Test Reality, Not Implementation** | Tests must not use mocks; they test from user perspective. Real code, real inputs, real outputs |
+
+## Testing Philosophy
+
+**Mandatory rules for all tests in this project:**
+
+1. **Max 5 lines per test body** — Keep tests focused and concise. Use fixtures to reduce setup boilerplate.
+2. **No mocks or fakes** — Use real code with real inputs and assertions on real outputs.
+3. **User perspective only** — Test as if calling the library from the outside; never test internal implementation details.
+4. **Graceful external dependency handling** — Tests requiring Neo4j, HTTP, or filesystem must skip gracefully if unavailable via `pytest.skip()`.
+5. **Mark integration tests** — Use `@pytest.mark.integration` for tests that require external services.
+
+**What this means:**
+- ✅ Call real Pydantic models with real data
+- ✅ Use real Neo4j connections (skip if unavailable)
+- ✅ Test JSON serialization with real `json` module
+- ✅ Mark external service tests with `@pytest.mark.integration`
+- ❌ Never use `unittest.mock`, `MagicMock`, `patch`, or `monkeypatch`
+- ❌ Never test internal implementation details
+- ❌ Never skip tests without a documented reason (e.g., "Neo4j unavailable")
 
 ## Design Patterns
 
