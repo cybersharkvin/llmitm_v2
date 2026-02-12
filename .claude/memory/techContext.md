@@ -138,6 +138,10 @@ Content-Type: application/json
 - `MITM_PORT`: mitmproxy listen port (default: 8080)
 - `MITM_CERT_PATH`: Path to mitm certificate (default: `~/.mitmproxy/mitmproxy-ca-cert.pem`)
 - `LOG_LEVEL`: Python logging level (default: `INFO`)
+- `CAPTURE_MODE`: `file` (static traffic file) or `live` (LLM-driven recon through mitmproxy). Default: `file`
+- `TRAFFIC_FILE`: Path to static traffic file (default: `demo/juice_shop_traffic.txt`). Only used when `CAPTURE_MODE=file`
+- `RECON_MODEL_ID`: Model for recon agent/critic (default: `claude-haiku-4-5-20251001`). Use Opus for demo
+- `RECON_MAX_ITERATIONS`: Max recon/critic loop iterations (default: 3)
 
 ### docker-compose.yml
 - **neo4j service**: Neo4j 5.x with APOC and vector plugins enabled, APOC file I/O enabled, `./snapshots` bind-mounted to `/var/lib/neo4j/import/snapshots`

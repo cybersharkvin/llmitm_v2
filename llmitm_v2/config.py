@@ -37,5 +37,11 @@ class Settings(BaseSettings):
     mitm_port: int = 8080
     mitm_cert_path: str = "~/.mitmproxy/mitmproxy-ca-cert.pem"
 
+    # Capture/Recon settings
+    capture_mode: str = "file"  # "live" or "file"
+    traffic_file: str = "demo/juice_shop_traffic.txt"
+    recon_model_id: str = "claude-haiku-4-5-20251001"
+    recon_max_iterations: int = 3
+
     # Logging
     log_level: str = "INFO"

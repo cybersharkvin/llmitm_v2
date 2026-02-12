@@ -76,6 +76,19 @@
 - **Example**: `driver = GraphDatabase.driver(uri, auth)` → passed to all Repository instances
 - **Rationale**: Official Neo4j best practice. Manages connection pool efficiently
 
+### Recon Agent / Critic Pattern
+- **Description**: LLM-driven recon agent with tools explores target through mitmproxy, critic validates the structured ReconReport
+- **When to Use**: Live target exploration (capture_mode=live) replacing static traffic files
+- **Example**: `recon_agent(prompt, structured_output_model=ReconReport)` → critic validates → `ReconReport.to_fingerprint()` → existing warm-start flow
+- **Key Files**: `capture/launcher.py` (lifecycle), `tools/recon_tools.py` (http_request/shell_command), `models/recon.py` (ReconReport), `orchestrator/agents.py` (create_recon_agent)
+- **Rationale**: LLM-driven exploration discovers more endpoints and identifies vulns that rule-based fingerprinting misses. tool_context audit trail lets critic verify claims.
+
+### Quick Fingerprint Fast Path
+- **Description**: Send 3 deterministic HTTP requests, extract fingerprint from headers — zero LLM cost for known targets
+- **When to Use**: First step in live mode before invoking expensive recon agent
+- **Example**: `quick_fingerprint(target_url, proxy_port)` → Fingerprint → check Neo4j → if match, skip recon entirely
+- **Rationale**: Preserves "convergence toward zero LLM cost" thesis. Second run against same target = zero tokens.
+
 ### Dependency Injection
 - **Description**: Dependencies passed explicitly to constructors throughout the stack
 - **When to Use**: Every component construction

@@ -12,6 +12,12 @@ from llmitm_v2.models.context import (
 from llmitm_v2.models.critic import CriticFeedback, RepairDiagnosis
 from llmitm_v2.models.finding import Finding
 from llmitm_v2.models.fingerprint import Fingerprint
+from llmitm_v2.models.recon import (
+    AttackOpportunity,
+    DiscoveredEndpoint,
+    ReconCriticFeedback,
+    ReconReport,
+)
 from llmitm_v2.models.step import Step
 
 __all__ = [
@@ -27,4 +33,8 @@ __all__ = [
     "RepairContext",
     "ExecutionResult",
     "OrchestratorResult",
+    "DiscoveredEndpoint",
+    "AttackOpportunity",
+    "ReconReport",
+    "ReconCriticFeedback",
 ]

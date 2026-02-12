@@ -41,9 +41,13 @@ services:
     container_name: llmitm_mitmproxy
     ports:
       - "8080:8080"  # HTTP proxy
-    command: mitmdump --mode regular -q --flow-detail 3
+    command: mitmdump --mode reverse:http://juiceshop:3000 -p 8080 --set anticache -q -s /capture/addon.py
     volumes:
       - mitm_data:/home/mitmproxy/.mitmproxy
+      - ./llmitm_v2/capture:/capture
+    depends_on:
+      juiceshop:
+        condition: service_healthy
 
 volumes:
   neo4j_data:

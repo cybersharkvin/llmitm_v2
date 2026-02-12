@@ -1,4 +1,4 @@
-.PHONY: up down schema reset snapshot restore snapshot-baseline restore-baseline test run break-graph fix-graph seed
+.PHONY: up down schema reset snapshot restore snapshot-baseline restore-baseline test run run-live break-graph fix-graph seed
 
 NAME ?= latest
 PYTHON ?= .venv/bin/python3
@@ -44,6 +44,9 @@ test:
 
 run:
 	$(PYTHON) -m llmitm_v2
+
+run-live:
+	CAPTURE_MODE=live $(PYTHON) -m llmitm_v2
 
 break-graph:
 	./scripts/break-graph.sh

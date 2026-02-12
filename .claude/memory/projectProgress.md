@@ -132,12 +132,22 @@
   - Completed: Feb 11, 2026
   - Validation: 87 tests passing, 1 skipped
 
+- ✅ **Live Recon Agent Integration**: LLM-driven active reconnaissance through mitmproxy
+  - Recon models: ReconReport, DiscoveredEndpoint, AttackOpportunity, ReconCriticFeedback
+  - Capture subsystem: mitmproxy addon, launcher (quick_fingerprint + run_recon), recon tools
+  - Agent factories: create_recon_agent (tools), create_recon_critic_agent (no tools)
+  - Context assembly: assemble_recon_context, assemble_compilation_context_from_recon
+  - CLI: capture_mode=live/file branching with warm-start fast path
+  - Completed: Feb 11, 2026
+  - Validation: 100 tests passing (13 new), 1 skipped, 0 regressions
+
 ## In Progress
 
 - None
 
 ## Pending Features
 
+- E2E verification of live recon against running Juice Shop
 - Pre-recorded demo capture (terminal session + Neo4j Browser screenshots)
 
 ## Known Issues
