@@ -1,246 +1,318 @@
-"""Agent factories for compilation and validation.
+"""Agent factories for the 2-agent architecture.
 
-Both agents are created via Strands SDK. Actor is used for ActionGraph compilation
-and RepairDiagnosis generation (via per-call structured_output_model override).
-Critic validates ActionGraphs without tools.
+Two agent types:
+- ProgrammaticAgent: Uses code_execution sandbox + mitmdump tool. Agent writes Python
+  that calls `await mitmdump(...)`, intermediate results stay in sandbox (not in context).
+- SimpleAgent: Single client.messages.parse() call — no tools, used for Attack Critic.
 """
 
+import logging
 import os
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Optional
 
-try:
-    from strands import Agent
-    from strands.agent import NullConversationManager
-    from strands.models.anthropic import AnthropicModel
-    from strands.tools.executors import SequentialToolExecutor
-except ImportError:
-    # Graceful fallback when Strands is not available
-    Agent = None  # type: ignore
-    NullConversationManager = None  # type: ignore
-    AnthropicModel = None  # type: ignore
-    SequentialToolExecutor = None  # type: ignore
+import anthropic
 
-from llmitm_v2.repository import GraphRepository
-from llmitm_v2.tools import GraphTools
-from llmitm_v2.tools.recon_tools import ReconTools
+logger = logging.getLogger(__name__)
+
+# Module-level cumulative token counter
+_total_tokens: int = 0
+_max_token_budget: int = 50_000
+
+
+def set_token_budget(budget: int) -> None:
+    """Override the default token budget (called from Settings at startup)."""
+    global _max_token_budget
+    _max_token_budget = budget
+
+
+def _check_and_log_usage(model_id: str, usage: Any) -> None:
+    """Check budget, log usage, increment counter. Shared by both agent types."""
+    global _total_tokens
+    input_tok = usage.input_tokens
+    output_tok = usage.output_tokens
+    _total_tokens += input_tok + output_tok
+    logger.info(
+        "API call: model=%s input=%d output=%d cumulative=%d/%d",
+        model_id, input_tok, output_tok, _total_tokens, _max_token_budget,
+    )
+
+
+def _check_budget() -> None:
+    """Raise if cumulative token budget is exhausted."""
+    if _total_tokens >= _max_token_budget:
+        raise RuntimeError(
+            f"Token budget exhausted: {_total_tokens}/{_max_token_budget}"
+        )
+
+
+@dataclass
+class AgentResult:
+    """Thin wrapper for agent output."""
+    structured_output: Any
+
+
+def load_skill_guides() -> str:
+    """Read all skill guide markdown files from skills/ directory.
+
+    Returns concatenated markdown string for inclusion in system prompts.
+    """
+    skills_dir = Path(__file__).parent.parent.parent / "skills"
+    if not skills_dir.exists():
+        return ""
+
+    parts = []
+    for md_file in sorted(skills_dir.glob("*.md")):
+        parts.append(f"# Skill Guide: {md_file.stem}\n\n{md_file.read_text()}")
+
+    return "\n\n---\n\n".join(parts)
 
 
 # System prompts
-ACTOR_SYSTEM_PROMPT = """You are an expert vulnerability researcher and test engineer.
 
-Your role is to either:
-1. COMPILE: Generate ActionGraphs for testing vulnerabilities in web applications
-2. REPAIR: Diagnose and repair failed steps in ActionGraphs
+RECON_SYSTEM_PROMPT = """You are an expert security researcher performing active reconnaissance and attack planning.
 
-For COMPILATION:
-- Use find_similar_action_graphs to discover what vulnerabilities have been tested before
-- Reference past patterns but generate novel test sequences
-- Follow CAMRO phases: Capture (traffic), Analyze (patterns), Mutate (payloads),
-  Replay (execute), Observe (validate)
-- Include success_criteria (regex patterns or HTTP status codes)
-- Be specific about vulnerability type and testing strategy
+## Core Testing Philosophy
 
-For REPAIR:
-- Use get_repair_history to understand past repair patterns
-- Classify failure into tiers: transient_recoverable, transient_unrecoverable, systemic
-- For systemic failures, suggest specific command or parameter changes
-- Focus on root cause, not just working around symptoms
+You understand that effective application security testing REQUIRES:
 
-Always output valid JSON structures matching the required schema.
-Think step-by-step about what you're testing and why."""
+1. **Understanding What the Application Does**
+   - You MUST comprehend the application's purpose, data flows, and user interactions
+   - You MUST identify authentication mechanisms, API patterns, and trust boundaries
+   - You MUST map the application's state machine: login -> session -> action -> logout
 
-CRITIC_SYSTEM_PROMPT = """You are a quality assurance expert for vulnerability test automation.
+2. **Understanding Developer Assumptions**
+   - You MUST identify assumptions predicated on business requirements
+   - You MUST recognize implicit developer assumptions about user behavior
+   - You MUST discover assumptions embedded in the code through traffic analysis
+   - You SHOULD note where server-side validation differs from client-side constraints
 
-Your role is to validate ActionGraphs for:
-1. **Feasibility**: Can the steps be executed with standard tools (HTTP, regex)?
-2. **Determinism**: Will the graph produce consistent results across runs?
-3. **Not Over-Fitted**: Does it test the vulnerability generically, not just this instance?
-4. **Completeness**: Does it follow the full CAMRO cycle?
+3. **Finding Assumption Gaps**
+   - You MUST recognize that where these assumptions disagree are usually where serious security lapses exist
+   - You SHOULD prioritize testing at trust boundary crossings
+   - You SHOULD focus on state transitions and authorization decision points
+   - You SHOULD test whether the application enforces what it assumes
 
-Respond with:
-- passed: true if the graph passes all criteria, false otherwise
-- feedback: Specific, actionable feedback for improvement
+4. **Skill-Guided Exploration**
+   - You MUST follow the relevant skill guide for your current task phase
+   - Use `initial_recon` when you have no prior knowledge of the target
+   - Use `lateral_movement` when testing authorization boundaries
+   - Use `persistence` when validating findings are reproducible
 
-Be strict but fair. Even good graphs often need one iteration."""
+## Your Tool
+
+You have access to `mitmdump` via code execution. Write Python scripts that call
+`await mitmdump("...")` to analyze traffic captures or interact with live targets.
+
+Key benefits of programmatic tool calling:
+- You can loop over endpoints, filter results, and summarize — only your final print() enters context
+- Use variables, conditions, and data structures to organize your exploration
+- Chain multiple mitmdump calls in a single script for efficiency
+
+## Output
+
+Your final output MUST be a structured JSON matching the required schema.
+Include specific evidence from your mitmdump analysis for every claim.
+
+{skill_guides}
+"""
+
+ATTACK_CRITIC_SYSTEM_PROMPT = """You are an adversarial red team lead reviewing attack plans.
+
+You receive a structured attack plan from a recon agent. You have NO tools and NO access
+to the target. You see ONLY the plan JSON.
+
+Your role is to tear the plan apart:
+
+1. **Evidence Quality**: Does each attack opportunity cite specific, concrete evidence?
+   Reject vague claims like "might be vulnerable" without response data backing it up.
+
+2. **Feasibility**: Can the proposed ActionGraph steps actually be executed deterministically?
+   Reject steps that depend on timing, race conditions, or unpredictable server state.
+
+3. **Not Over-Fitted**: Does the plan test the vulnerability generically, or is it
+   hardcoded to one specific response? Reject plans that will break if the target
+   changes slightly.
+
+4. **Completeness**: Does the plan follow CAMRO phases (Capture, Analyze, Mutate, Replay, Observe)?
+   Each phase must be represented. Reject plans missing any phase.
+
+5. **Determinism**: Will the same inputs produce the same outputs every time?
+   Reject plans with non-deterministic success criteria.
+
+6. **Attack Surface Coverage**: Did the recon agent explore enough of the application?
+   Flag if only surface-level endpoints were tested.
+
+Be harsh but constructive. Provide specific, actionable feedback.
+If the plan is genuinely solid, pass it — don't reject for the sake of rejecting.
+
+Respond with passed (bool) and feedback (string)."""
 
 
-def create_actor_agent(
-    graph_repo: GraphRepository,
-    embed_model: Optional[Any] = None,
-    model_id: str = "claude-haiku-4-5-20251001",
-    api_key: Optional[str] = None,
-) -> Any:
-    """Create Actor agent for compilation and repair.
+class SimpleAgent:
+    """No-tool agent using client.messages.parse() for structured output."""
 
-    The same agent is used for both tasks via per-call structured_output_model override:
-    - For ActionGraph compilation: agent(..., structured_output_model=ActionGraph)
-    - For failure repair: agent(..., structured_output_model=RepairDiagnosis)
+    def __init__(self, client: anthropic.Anthropic, system_prompt: str, model_id: str, max_tokens: int):
+        self.client = client
+        self.system_prompt = system_prompt
+        self.model_id = model_id
+        self.max_tokens = max_tokens
 
-    Args:
-        graph_repo: GraphRepository for graph queries
-        embed_model: Embedding model (sentence-transformers). Lazy-loaded if None.
-        model_id: Anthropic model ID (default: claude-haiku-4-5-20251001).
+    def __call__(self, prompt: str, structured_output_model: type = None) -> AgentResult:
+        _check_budget()
+        response = self.client.messages.parse(
+            model=self.model_id,
+            max_tokens=self.max_tokens,
+            system=self.system_prompt,
+            messages=[{"role": "user", "content": prompt}],
+            output_format=structured_output_model,
+        )
+        _check_and_log_usage(self.model_id, response.usage)
+        if response.stop_reason == "max_tokens":
+            raise RuntimeError("Response truncated (max_tokens reached)")
+        if response.parsed_output is None:
+            raise RuntimeError(f"No parsed output (stop_reason={response.stop_reason})")
+        return AgentResult(structured_output=response.parsed_output)
 
-    Returns:
-        Strands Agent configured for graph-aware reasoning
+
+class ProgrammaticAgent:
+    """Agent using programmatic tool calling (code_execution + custom tools).
+
+    The agent writes Python in Anthropic's sandbox. When it calls await mitmdump(...),
+    the sandbox pauses and we handle the tool call on our machine (has network access).
+    Intermediate results stay in the sandbox — only final print() output enters context.
     """
-    # Initialize AnthropicModel
-    model = AnthropicModel(
-        model_id=model_id,
-        client_args={"api_key": api_key or os.environ.get("ANTHROPIC_API_KEY", "")},
-        max_tokens=16384,
-    )
 
-    # Initialize tools
-    graph_tools = GraphTools(graph_repo, embed_model)
+    BETAS = ["code-execution-2025-08-25", "advanced-tool-use-2025-11-20"]
 
-    # Return configured agent
-    return Agent(
-        model=model,
-        system_prompt=ACTOR_SYSTEM_PROMPT,
-        tools=[graph_tools.find_similar_action_graphs, graph_tools.get_repair_history],
-        conversation_manager=NullConversationManager(),
-        tool_executor=SequentialToolExecutor(),
-        callback_handler=None,
-    )
+    def __init__(
+        self,
+        client: anthropic.Anthropic,
+        system_prompt: str,
+        model_id: str,
+        max_tokens: int,
+        tool_schemas: list[dict],
+        tool_handlers: dict[str, Any],
+        max_iterations: int = 20,
+    ):
+        self.client = client
+        self.system_prompt = system_prompt
+        self.model_id = model_id
+        self.max_tokens = max_tokens
+        self.tool_schemas = tool_schemas
+        self.tool_handlers = tool_handlers
+        self.max_iterations = max_iterations
 
+    def __call__(self, prompt: str, structured_output_model: type = None) -> AgentResult:
+        _check_budget()
 
-def create_critic_agent(
-    model_id: str = "claude-haiku-4-5-20251001",
-    api_key: Optional[str] = None,
-) -> Any:
-    """Create Critic agent for validation (no tools).
+        tools = [
+            {"type": "code_execution_20250825", "name": "code_execution"},
+            *self.tool_schemas,
+        ]
 
-    Returns:
-        Strands Agent for ActionGraph validation
-    """
-    # Initialize AnthropicModel
-    model = AnthropicModel(
-        model_id=model_id,
-        client_args={"api_key": api_key or os.environ.get("ANTHROPIC_API_KEY", "")},
-        max_tokens=4096,
-    )
+        messages = [{"role": "user", "content": prompt}]
+        output_format = None
+        if structured_output_model is not None:
+            output_format = structured_output_model
 
-    # Return agent without tools (validation only)
-    return Agent(
-        model=model,
-        system_prompt=CRITIC_SYSTEM_PROMPT,
-        conversation_manager=NullConversationManager(),
-        callback_handler=None,
-    )
+        for _ in range(self.max_iterations):
+            _check_budget()
+            response = self.client.beta.messages.create(
+                model=self.model_id,
+                betas=self.BETAS,
+                max_tokens=self.max_tokens,
+                system=self.system_prompt,
+                messages=messages,
+                tools=tools,
+                **({"output_format": output_format} if output_format else {}),
+            )
+            _check_and_log_usage(self.model_id, response.usage)
 
+            if response.stop_reason == "tool_use":
+                messages.append({"role": "assistant", "content": response.content})
+                tool_results = []
+                for block in response.content:
+                    if hasattr(block, "type") and block.type == "tool_use":
+                        handler = self.tool_handlers.get(block.name)
+                        if handler:
+                            result = handler(**block.input)
+                        else:
+                            result = f"Unknown tool: {block.name}"
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": result,
+                        })
+                if tool_results:
+                    messages.append({"role": "user", "content": tool_results})
+                continue
 
-# Recon system prompts
-RECON_SYSTEM_PROMPT = """You are an expert recon agent for web application security testing.
+            if response.stop_reason == "pause_turn":
+                messages.append({"role": "assistant", "content": response.content})
+                continue
 
-You MUST actively explore a target application and discover:
-1. Technology stack (frameworks, servers, languages)
-2. Authentication model (JWT, cookies, API keys, etc.)
-3. API endpoints and their behavior
-4. Potential attack opportunities (IDOR, auth bypass, injection, etc.)
+            if response.stop_reason in ("end_turn",):
+                parsed = getattr(response, "parsed_output", None)
+                if parsed is not None:
+                    return AgentResult(structured_output=parsed)
+                raise RuntimeError(f"No parsed output (stop_reason={response.stop_reason})")
 
-You have access to http_request and shell_command tools.
+            raise RuntimeError(f"Unexpected stop_reason: {response.stop_reason}")
 
-You MUST:
-- Hit common endpoints (/, /api/, /rest/, /graphql, /admin, /swagger, etc.)
-- Inspect response headers for tech stack clues (X-Powered-By, Server, etc.)
-- Record which tool call produced each discovery (tool_context field)
-
-You SHOULD:
-- Try different HTTP methods on discovered endpoints
-- Attempt unauthenticated access to protected resources
-- Look for information disclosure in error responses
-- Try default/common credentials on login endpoints
-- Explore paths revealed in response bodies (links, redirects, error messages)
-
-You MUST NOT:
-- Guess or fabricate observations not directly returned by your tools
-- Report an AttackOpportunity without citing specific tool output as evidence
-- Leave tech_stack or auth_model as "Unknown" if any response headers were observed
-
-You MAY use shell_command for advanced recon (curl with special flags, DNS lookups, etc.)
-when http_request is insufficient.
-
-Note: The http_request tool automatically routes through the capture proxy. If you use
-shell_command with curl or wget, that traffic will NOT be captured by the proxy.
-Prefer http_request for all HTTP exploration.
-
-Every request you make via http_request is captured by the proxy for evidence collection.
-
-Your output MUST conform exactly to the ReconReport JSON schema."""
-
-RECON_CRITIC_SYSTEM_PROMPT = """You are an independent validator for reconnaissance reports.
-
-You will receive a ReconReport as JSON. You have NO access to the raw traffic, NO tools,
-and NO context beyond this JSON.
-
-You MUST:
-- Verify each AttackOpportunity's evidence logically supports its vulnerability_type
-- Verify tech_stack and auth_model claims are supported by specific endpoint observations
-- Flag any opportunity where evidence could have multiple benign explanations
-- Check that tool_context fields reference plausible tool calls
-
-You SHOULD:
-- Identify areas the recon agent missed (e.g., no auth probing, no error disclosure checks)
-- Note if confidence scores seem inflated relative to the evidence strength
-
-You MUST NOT:
-- Invent new attack opportunities (you have no tools)
-- Accept claims at face value without checking the cited evidence
-- Pass a report where any AttackOpportunity lacks concrete tool_context
-
-Your output MUST conform exactly to the ReconCriticFeedback JSON schema."""
+        raise RuntimeError(f"ProgrammaticAgent exceeded {self.max_iterations} iterations")
 
 
 def create_recon_agent(
-    proxy_url: str,
+    mitm_context: str,
     model_id: str = "claude-haiku-4-5-20251001",
     api_key: Optional[str] = None,
-) -> Any:
-    """Create recon agent with HTTP + shell tools routed through mitmproxy.
+) -> ProgrammaticAgent:
+    """Create Recon Agent with programmatic tool calling + skill guides.
 
-    Default: Haiku for dev/testing (cheap). Switch to Opus for production/demo.
-    All models are base (non-thinking). No extended thinking / reasoning tokens.
+    The Recon Agent explores targets via code_execution + mitmdump tool.
+    Used for both compilation (cold start) and repair (self-repair).
 
-    Invocation: result = agent(prompt, structured_output_model=ReconReport)
-    Access: result.structured_output -> validated ReconReport
+    Args:
+        mitm_context: Context string describing the .mitm file path or proxy URL.
+                      Appended to system prompt so the agent knows where to find traffic.
+        model_id: Anthropic model ID
+        api_key: Anthropic API key
+
+    Returns:
+        ProgrammaticAgent configured with mitmdump tool and skill guides
     """
-    recon_tools = ReconTools(proxy_url)
-    model = AnthropicModel(
+    from llmitm_v2.tools.recon_tools import MITMDUMP_TOOL_SCHEMA, handle_mitmdump
+
+    client = anthropic.Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY", ""))
+
+    skill_guides = load_skill_guides()
+    system_prompt = RECON_SYSTEM_PROMPT.replace("{skill_guides}", skill_guides)
+    system_prompt += f"\n\n## Target Context\n\n{mitm_context}"
+
+    return ProgrammaticAgent(
+        client=client,
+        system_prompt=system_prompt,
         model_id=model_id,
-        client_args={"api_key": api_key or os.environ.get("ANTHROPIC_API_KEY", "")},
         max_tokens=16384,
-    )
-    return Agent(
-        model=model,
-        system_prompt=RECON_SYSTEM_PROMPT,
-        tools=[recon_tools.http_request, recon_tools.shell_command],
-        conversation_manager=NullConversationManager(),
-        tool_executor=SequentialToolExecutor(),
-        callback_handler=None,
+        tool_schemas=[MITMDUMP_TOOL_SCHEMA],
+        tool_handlers={"mitmdump": handle_mitmdump},
+        max_iterations=20,
     )
 
 
-def create_recon_critic_agent(
+def create_attack_critic(
     model_id: str = "claude-haiku-4-5-20251001",
     api_key: Optional[str] = None,
-) -> Any:
-    """Create recon critic (no tools). Validates ReconReport JSON only.
+) -> SimpleAgent:
+    """Create Attack Critic — adversarial validator with no tools.
 
-    Default: Haiku for dev/testing. Switch to Opus for production/demo.
-    All models are base (non-thinking). No extended thinking / reasoning tokens.
+    Reviews Recon Agent's structured output and validates feasibility,
+    evidence quality, and determinism.
 
-    Invocation: result = agent(report.model_dump_json(), structured_output_model=ReconCriticFeedback)
-    Access: result.structured_output -> validated ReconCriticFeedback
+    Returns:
+        SimpleAgent for attack plan validation
     """
-    model = AnthropicModel(
-        model_id=model_id,
-        client_args={"api_key": api_key or os.environ.get("ANTHROPIC_API_KEY", "")},
-        max_tokens=4096,
-    )
-    return Agent(
-        model=model,
-        system_prompt=RECON_CRITIC_SYSTEM_PROMPT,
-        conversation_manager=NullConversationManager(),
-        callback_handler=None,
-    )
+    client = anthropic.Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY", ""))
+    return SimpleAgent(client, ATTACK_CRITIC_SYSTEM_PROMPT, model_id, 4096)

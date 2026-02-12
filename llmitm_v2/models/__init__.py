@@ -15,7 +15,6 @@ from llmitm_v2.models.fingerprint import Fingerprint
 from llmitm_v2.models.recon import (
     AttackOpportunity,
     DiscoveredEndpoint,
-    ReconCriticFeedback,
     ReconReport,
 )
 from llmitm_v2.models.step import Step
@@ -36,5 +35,4 @@ __all__ = [
     "DiscoveredEndpoint",
     "AttackOpportunity",
     "ReconReport",
-    "ReconCriticFeedback",
 ]

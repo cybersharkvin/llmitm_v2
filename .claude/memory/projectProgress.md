@@ -149,24 +149,55 @@
   - Completed: Feb 11, 2026
   - Validation: 100 tests passing, 1 skipped, 0 regressions
 
+- ✅ **Strands → Anthropic Native SDK Migration**: Replaced Strands SDK with Anthropic native structured output
+  - agents.py: SimpleAgent (messages.parse) and ToolAgent (beta.messages.tool_runner) replace Strands Agent
+  - tools: @beta_tool closures via create_recon_tools() and create_graph_tools() factories
+  - orchestrator.py: Removed Strands exception imports, broad Exception catches
+  - Expected API call reduction: ~1300 → ~16 per E2E run (grammar-constrained decoding vs fake tool calls)
+  - Completed: Feb 12, 2026
+  - Validation: 100 tests passing, 1 skipped, 0 regressions
+
+- ✅ **API Cost Protections**: Defense-in-depth against runaway API costs
+  - max_iterations on tool_runner: 20 for recon, 10 for actor-with-tools
+  - Per-call token logging: model, input, output, cumulative/budget
+  - Cumulative token budget: 500K tokens (~$0.25 worst case at Haiku), raises RuntimeError if exceeded
+  - max_critic_iterations reduced 5→3 (6 API calls worst case instead of 10)
+  - set_token_budget() wired from Settings via __main__.py
+  - Completed: Feb 12, 2026
+  - Validation: 100 tests passing, 1 skipped, 0 regressions
+
+- ✅ **2-Agent Architecture Consolidation**: Programmatic tool calling + skill guides
+  - Consolidated 4 agents (actor, critic, recon, recon_critic) into 2 (Recon Agent + Attack Critic)
+  - ProgrammaticAgent: code_execution sandbox + mitmdump tool (agent writes Python, intermediate results stay in sandbox)
+  - SimpleAgent: unchanged, used for Attack Critic
+  - Skill guides: 4 markdown files (mitmdump, initial_recon, lateral_movement, persistence) loaded into system prompt
+  - Unified .mitm binary format for both file and live modes
+  - Token budget tightened 500K→50K
+  - Removed: ToolAgent, ApprovalHook, ReconCriticFeedback, assemble_compilation_context[_from_recon]
+  - Completed: Feb 12, 2026
+  - Validation: 98 tests passing, 1 skipped, 0 regressions
+
 ## In Progress
 
 - None
 
 ## Pending Features
 
-- E2E verification of live recon against running Juice Shop
+- Capture demo/juice_shop.mitm binary capture file
+- E2E smoke test with ProgrammaticAgent + mitmdump tool
 - Pre-recorded demo capture (terminal session + Neo4j Browser screenshots)
 
 ## Known Issues
 
 - Cold start compilation is unreliable: LLM hallucinates wrong credentials for Juice Shop users
 - LLM repair occasionally drops variable initialization prefixes (e.g., TOKEN=$(cat file) && ...)
+- graph_tools.py still uses @beta_tool closures — may need update if tool_runner is fully removed
 
 ## Technical Debt
 
 - setup_schema() runs on every CLI invocation (adds ~1s latency); could skip if schema exists
 - APOC Cypher export in snapshot script fails silently (binary dump still works)
+- demo/juice_shop_traffic.txt still exists but no longer referenced by config
 
 ## Version History
 
@@ -174,9 +205,12 @@
 - **Version**: 0.1.0
 - **Status**: All Hackathon Deliverables Complete
 - **Primary Branch**: main
-- **Test Suite**: 100 passing, 1 skipped, 0 failed
+- **Test Suite**: 98 passing, 1 skipped, 0 failed
 
 ### Recent Milestones
+- **Feb 12, 2026**: 2-agent architecture consolidation (ProgrammaticAgent + skill guides + .mitm format + 50K budget)
+- **Feb 12, 2026**: API cost protections (max_iterations, token logging, cumulative budget, max_critic_iterations 5→3)
+- **Feb 12, 2026**: Strands → Anthropic native SDK migration (SimpleAgent/ToolAgent, @beta_tool, grammar-constrained structured output)
 - **Feb 11, 2026**: Live recon E2E bug fixes (3 critical: proxy routing, hash mismatch, dead code wiring)
 - **Feb 11, 2026**: All three hackathon demos verified (warm start, self-repair, persistence) — 5 bugs fixed, demo polished
 - **Feb 11, 2026**: E2E cold start + warm start verified against live Juice Shop (7 integration bugs fixed)

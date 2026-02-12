@@ -56,6 +56,7 @@
 - **Description**: Two single-shot LLM calls in while loop: Actor produces, Critic validates
 - **When to Use**: ActionGraph compilation and major repairs (at *compile time*, not runtime)
 - **Example**: Actor generates graph → Critic validates → loop until `critic_result.passed` or max iterations
+- **Implementation**: `SimpleAgent(client.messages.parse(output_format=Model))` — 1 API call per agent per iteration. Grammar-constrained decoding, no fake tool calls
 - **Rationale**: Quality control on LLM outputs, catches over-fitting and logic errors. Used for compilation, not execution
 
 ### Abstract Base Class + Concrete Implementation
@@ -76,12 +77,25 @@
 - **Example**: `driver = GraphDatabase.driver(uri, auth)` → passed to all Repository instances
 - **Rationale**: Official Neo4j best practice. Manages connection pool efficiently
 
-### Recon Agent / Critic Pattern
-- **Description**: LLM-driven recon agent with tools explores target through mitmproxy, critic validates the structured ReconReport
-- **When to Use**: Live target exploration (capture_mode=live) replacing static traffic files
-- **Example**: `recon_agent(prompt, structured_output_model=ReconReport)` → critic validates → deterministic fingerprint from `quick_fingerprint()` used for Neo4j storage (not `ReconReport.to_fingerprint()` which produces inconsistent hashes)
-- **Key Files**: `capture/launcher.py` (lifecycle), `tools/recon_tools.py` (http_request/shell_command), `models/recon.py` (ReconReport), `orchestrator/agents.py` (create_recon_agent)
-- **Rationale**: LLM-driven exploration discovers more endpoints and identifies vulns that rule-based fingerprinting misses. tool_context audit trail lets critic verify claims.
+### 2-Agent Architecture (Recon Agent + Attack Critic)
+- **Description**: Two agents handle all LLM tasks. Recon Agent (ProgrammaticAgent) explores targets via code_execution sandbox + mitmdump tool. Attack Critic (SimpleAgent) adversarially validates plans.
+- **When to Use**: Compilation (cold start) and repair (self-repair). Same agent types for both file and live modes.
+- **Example**: `recon_agent(prompt, structured_output_model=ActionGraph)` → `attack_critic(ag.model_dump_json(), structured_output_model=CriticFeedback)` → loop until passed
+- **Key Files**: `orchestrator/agents.py` (ProgrammaticAgent, SimpleAgent, factories), `tools/recon_tools.py` (MITMDUMP_TOOL_SCHEMA, handle_mitmdump), `skills/*.md` (skill guides)
+- **Rationale**: Consolidates 4 agents to 2. Programmatic tool calling reduces token usage dramatically.
+
+### Skill Guide Pattern
+- **Description**: Markdown files in `skills/` loaded into Recon Agent's system prompt. Each guide teaches methodology for a specific testing phase.
+- **Files**: `mitmdump.md`, `initial_recon.md`, `lateral_movement.md`, `persistence.md`
+- **Implementation**: `load_skill_guides()` reads `skills/*.md`, concatenates, injected into RECON_SYSTEM_PROMPT
+- **Rationale**: Teaches the agent HOW to think about each phase. Version-controlled, editable, extensible.
+
+### Programmatic Tool Calling Pattern
+- **Description**: Agent writes Python in Anthropic's code_execution sandbox. Custom tools called via `await tool(...)` from sandbox. Our code handles tool call on host.
+- **Beta Headers**: `code-execution-2025-08-25`, `advanced-tool-use-2025-11-20`
+- **Key Benefit**: Intermediate mitmdump outputs don't enter context window. Only final `print()` output does.
+- **Implementation**: `ProgrammaticAgent.__call__()` handles tool result loop manually. Dispatches to `tool_handlers` dict.
+- **Rationale**: Replaces `tool_runner().until_done()` which counted every intermediate result toward tokens.
 
 ### Quick Fingerprint Fast Path
 - **Description**: Send 3 deterministic HTTP requests, extract fingerprint from headers — zero LLM cost for known targets
@@ -124,9 +138,12 @@
 
 ```
 Python Orchestrator (Custom Logic — programmatic flow control)
-├── Anthropic API via Strands (reasoning — compilation and repair only)
+├── Anthropic API via native SDK (reasoning — compilation and repair only)
+│   ├── SimpleAgent: client.messages.parse(output_format=Model) — Attack Critic
+│   └── ProgrammaticAgent: beta.messages.create(code_execution + mitmdump) — Recon Agent
 ├── Neo4j via GraphRepository (knowledge — action graphs, fingerprints, findings)
-├── mitmdump via subprocess (execution — deterministic CAMRO operations)
+├── mitmdump (execution — capture analysis, traffic replay, CAMRO operations)
+├── Skill Guides (skills/*.md — methodology docs loaded into Recon Agent system prompt)
 └── Pydantic (contract enforcement — every boundary)
 ```
 

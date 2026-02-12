@@ -7,7 +7,6 @@ import pytest
 from llmitm_v2.models.recon import (
     AttackOpportunity,
     DiscoveredEndpoint,
-    ReconCriticFeedback,
     ReconReport,
 )
 
@@ -87,17 +86,3 @@ class TestReconReport:
     def test_serialization(self, sample_report):
         data = json.loads(sample_report.model_dump_json())
         assert ReconReport(**data) == sample_report
-
-
-class TestReconCriticFeedback:
-    def test_passed(self):
-        fb = ReconCriticFeedback(passed=True, feedback="Looks good")
-        assert fb.passed is True and fb.false_positives == []
-
-    def test_rejected_with_details(self):
-        fb = ReconCriticFeedback(passed=False, feedback="Bad evidence", false_positives=["SQLi"], missing_coverage=["GraphQL"])
-        assert not fb.passed and len(fb.false_positives) == 1
-
-    def test_serialization(self):
-        fb = ReconCriticFeedback(passed=True, feedback="OK")
-        assert ReconCriticFeedback(**json.loads(fb.model_dump_json())) == fb

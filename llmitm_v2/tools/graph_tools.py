@@ -1,24 +1,18 @@
-"""Graph-oriented tools for LLM reasoning via Strands SDK.
+"""Graph-oriented tools for LLM reasoning via Anthropic beta_tool.
 
 Provides semantic access to knowledge graph for discovering similar vulnerabilities
 and past repair patterns. All tools return formatted text for LLM interpretation.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
-try:
-    from strands import tool
-except ImportError:
-    # Graceful fallback: define stub decorator
-    def tool(func):  # type: ignore
-        """Stub tool decorator when Strands is not available."""
-        return func
+from anthropic import beta_tool
 
 from llmitm_v2.repository import GraphRepository
 
 
 class GraphTools:
-    """LLM tools for graph queries and reasoning. Use via Strands Agent."""
+    """LLM tools for graph queries and reasoning."""
 
     def __init__(self, repo: GraphRepository, embed_model: Optional[Any] = None):
         """Initialize tools with repository and embedding model.
@@ -39,29 +33,13 @@ class GraphTools:
             self._embed_model = SentenceTransformer("all-MiniLM-L6-v2")
         return self._embed_model
 
-    @tool
     def find_similar_action_graphs(self, description: str, top_k: int = 5) -> str:
-        """Find ActionGraphs for targets similar to the one described.
-
-        Searches for similar fingerprints using embedding-based similarity,
-        then retrieves associated ActionGraphs for each match.
-
-        Args:
-            description: Description of target system or vulnerability type
-            top_k: Number of similar results to return (default 5)
-
-        Returns:
-            Formatted text describing similar ActionGraphs, or "No similar graphs found"
-        """
-        # Convert description to embedding
+        """Find ActionGraphs for targets similar to the one described."""
         embedding = self.embed_model.encode(description).tolist()
-
-        # Find similar fingerprints
         similar_fps = self.repo.find_similar_fingerprints(embedding, top_k)
         if not similar_fps:
             return "No similar graphs found in knowledge base."
 
-        # Fetch ActionGraphs for each similar fingerprint
         results = []
         for fp_match in similar_fps:
             fp_data = fp_match.get("fingerprint", {})
@@ -82,7 +60,6 @@ class GraphTools:
         if not results:
             return "Similar fingerprints found but no compiled ActionGraphs yet."
 
-        # Format results for LLM
         output_lines = []
         for i, result in enumerate(results, 1):
             fp = result["fingerprint"]
@@ -103,7 +80,7 @@ class GraphTools:
             steps = ag.get("steps", [])
             if steps:
                 output_lines.append(f"  Steps ({len(steps)}):")
-                for step in steps[:5]:  # Show first 5 steps
+                for step in steps[:5]:
                     output_lines.append(
                         f"    - {step.get('phase')} ({step.get('type')}): "
                         f"{step.get('command', 'no command')}"
@@ -113,24 +90,12 @@ class GraphTools:
 
         return "\n".join(output_lines)
 
-    @tool
     def get_repair_history(
         self,
         fingerprint_hash: str,
         max_results: int = 10,
     ) -> str:
-        """Retrieve historical repair attempts for a fingerprint.
-
-        Shows how similar systems' ActionGraphs were repaired when they failed,
-        helping inform current repair strategy.
-
-        Args:
-            fingerprint_hash: Hash of the target Fingerprint
-            max_results: Maximum number of repair records to return (default 10)
-
-        Returns:
-            Formatted text describing past repairs, or "No repair history found"
-        """
+        """Retrieve historical repair attempts for a fingerprint."""
         repairs = self.repo.get_repair_history(fingerprint_hash, max_results)
 
         if not repairs:
@@ -154,3 +119,38 @@ class GraphTools:
             )
 
         return "\n".join(output_lines)
+
+
+def create_graph_tools(repo: GraphRepository, embed_model: Optional[Any] = None) -> list:
+    """Create @beta_tool closures bound to a GraphTools instance.
+
+    Returns list of BetaFunctionTool objects for use with tool_runner().
+    """
+    gt = GraphTools(repo, embed_model)
+
+    @beta_tool
+    def find_similar_action_graphs(description: str, top_k: int = 5) -> str:
+        """Find ActionGraphs for targets similar to the one described.
+
+        Searches for similar fingerprints using embedding-based similarity,
+        then retrieves associated ActionGraphs for each match.
+
+        Args:
+            description: Description of target system or vulnerability type
+            top_k: Number of similar results to return (default 5)
+        """
+        return gt.find_similar_action_graphs(description, top_k)
+
+    @beta_tool
+    def get_repair_history(fingerprint_hash: str, max_results: int = 10) -> str:
+        """Retrieve historical repair attempts for a fingerprint.
+
+        Shows how similar systems' ActionGraphs were repaired when they failed.
+
+        Args:
+            fingerprint_hash: Hash of the target Fingerprint
+            max_results: Maximum number of repair records to return (default 10)
+        """
+        return gt.get_repair_history(fingerprint_hash, max_results)
+
+    return [find_similar_action_graphs, get_repair_history]

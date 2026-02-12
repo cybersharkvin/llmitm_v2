@@ -1,16 +1,15 @@
-"""Tests for orchestration layer: agents, context, failure classification, hooks."""
+"""Tests for orchestration layer: agents, context, failure classification."""
 
 import pytest
 
 from llmitm_v2.constants import FailureType, StepPhase, StepType
-from llmitm_v2.hooks import ApprovalHook
 from llmitm_v2.models import Fingerprint, Step
 from llmitm_v2.orchestrator import (
-    assemble_compilation_context,
+    assemble_recon_context,
     assemble_repair_context,
     classify_failure,
-    create_actor_agent,
-    create_critic_agent,
+    create_attack_critic,
+    create_recon_agent,
 )
 
 try:
@@ -63,35 +62,19 @@ class TestFailureClassification:
 class TestContextAssembly:
     """Tests for context assembly functions."""
 
-    def test_assemble_compilation_context_includes_fingerprint(self):
-        fp = Fingerprint(
-            tech_stack="Express.js",
-            auth_model="JWT",
-            endpoint_pattern="/api/v1/*",
-            security_signals=["CORS enabled", "no CSRF tokens"],
-            observation_text="",
-        )
-        traffic = "GET /api/v1/users HTTP/1.1\nAuthorization: Bearer token"
+    def test_assemble_recon_context_file_mode(self):
+        ctx = assemble_recon_context(mitm_file="demo/juice_shop.mitm")
+        assert "juice_shop.mitm" in ctx
+        assert "TASK:" in ctx
 
-        ctx = assemble_compilation_context(fp, traffic)
-        assert "Express.js" in ctx
-        assert "JWT" in ctx
-        assert "/api/v1/*" in ctx
-        assert "CORS enabled" in ctx
+    def test_assemble_recon_context_live_mode(self):
+        ctx = assemble_recon_context(proxy_url="http://127.0.0.1:8080")
+        assert "127.0.0.1:8080" in ctx
+        assert "TASK:" in ctx
 
-    def test_assemble_compilation_context_truncates_long_traffic(self):
-        fp = Fingerprint(
-            tech_stack="Django",
-            auth_model="Session",
-            endpoint_pattern="/admin/*",
-            security_signals=[],
-            observation_text="",
-        )
-        traffic = "X" * 10000  # Long traffic log
-
-        ctx = assemble_compilation_context(fp, traffic)
-        assert "[... truncated ...]" in ctx
-        assert len(ctx) < len(traffic)
+    def test_assemble_recon_context_error_when_no_args(self):
+        ctx = assemble_recon_context()
+        assert "ERROR" in ctx
 
     def test_assemble_repair_context_includes_step_and_error(self):
         step = Step(
@@ -101,26 +84,12 @@ class TestContextAssembly:
             command="POST /api/users",
             parameters={"payload": "test"},
         )
-        error = "401 Unauthorized"
-        history = ["Step 0 output: login successful"]
-
-        ctx = assemble_repair_context(step, error, history)
-        assert "MUTATE" in ctx
-        assert "http_request" in ctx
-        assert "401 Unauthorized" in ctx
-        assert "login successful" in ctx
+        ctx = assemble_repair_context(step, "401 Unauthorized", ["login successful"])
+        assert "MUTATE" in ctx and "401 Unauthorized" in ctx
 
     def test_assemble_repair_context_truncates_error_log(self):
-        step = Step(
-            order=0,
-            phase=StepPhase.CAPTURE,
-            type=StepType.HTTP_REQUEST,
-            command="GET /",
-            parameters={},
-        )
-        error = "E" * 5000
-
-        ctx = assemble_repair_context(step, error, [])
+        step = Step(order=0, phase=StepPhase.CAPTURE, type=StepType.HTTP_REQUEST, command="GET /", parameters={})
+        ctx = assemble_repair_context(step, "E" * 5000, [])
         assert "[... truncated ...]" in ctx
 
 
@@ -133,7 +102,6 @@ class TestGraphTools:
         try:
             from llmitm_v2.tools import GraphTools
             from neo4j import GraphDatabase
-
             driver = GraphDatabase.driver("neo4j://localhost:7687", auth=("neo4j", "password"))
             repo = GraphRepository(driver)
             tools = GraphTools(repo)
@@ -148,7 +116,6 @@ class TestGraphTools:
         try:
             from llmitm_v2.tools import GraphTools
             from neo4j import GraphDatabase
-
             driver = GraphDatabase.driver("neo4j://localhost:7687", auth=("neo4j", "password"))
             repo = GraphRepository(driver)
             tools = GraphTools(repo)
@@ -159,54 +126,36 @@ class TestGraphTools:
             pytest.skip(f"sentence-transformers or dependencies unavailable: {e}")
 
 
-class TestApprovalHook:
-    """Tests for approval hook."""
-
-    def test_approval_hook_is_hook_provider(self):
-        try:
-            from strands.hooks import HookProvider
-        except ImportError:
-            pytest.skip("Strands SDK unavailable")
-        hook = ApprovalHook()
-        assert isinstance(hook, HookProvider)
-
-    def test_approval_hook_accepts_custom_patterns(self):
-        patterns = ["CUSTOM", "PATTERNS"]
-        hook = ApprovalHook(destructive_patterns=patterns)
-        assert hook.destructive_patterns == patterns
-
-    def test_approval_hook_has_default_patterns(self):
-        hook = ApprovalHook()
-        assert "DELETE" in hook.destructive_patterns
-        assert "DROP" in hook.destructive_patterns
-
-
 class TestAgentFactories:
-    """Integration tests for agent factories (require Strands + Anthropic API)."""
+    """Tests for 2-agent factory functions."""
 
     @pytest.mark.integration
-    def test_create_actor_agent_returns_agent(self):
-        if not HAS_NEO4J:
-            pytest.skip("Neo4j driver unavailable")
-        try:
-            from neo4j import GraphDatabase
-
-            driver = GraphDatabase.driver("neo4j://localhost:7687", auth=("neo4j", "password"))
-            repo = GraphRepository(driver)
-            agent = create_actor_agent(repo)
-            from strands import Agent
-
-            assert isinstance(agent, Agent)
-            driver.close()
-        except Exception as e:
-            pytest.skip(f"Neo4j or Strands unavailable: {e}")
+    def test_create_recon_agent_returns_programmatic_agent(self):
+        from llmitm_v2.orchestrator.agents import ProgrammaticAgent
+        agent = create_recon_agent(mitm_context="demo/juice_shop.mitm")
+        assert isinstance(agent, ProgrammaticAgent)
 
     @pytest.mark.integration
-    def test_create_critic_agent_returns_agent(self):
-        try:
-            agent = create_critic_agent()
-            from strands import Agent
+    def test_create_attack_critic_returns_simple_agent(self):
+        from llmitm_v2.orchestrator.agents import SimpleAgent
+        agent = create_attack_critic()
+        assert isinstance(agent, SimpleAgent)
 
-            assert isinstance(agent, Agent)
-        except Exception as e:
-            pytest.skip(f"Strands SDK unavailable: {e}")
+    @pytest.mark.integration
+    def test_recon_agent_has_mitmdump_tool(self):
+        agent = create_recon_agent(mitm_context="demo/juice_shop.mitm")
+        assert "mitmdump" in agent.tool_handlers
+
+
+class TestSkillGuides:
+    """Tests for skill guide loading."""
+
+    def test_load_skill_guides_returns_string(self):
+        from llmitm_v2.orchestrator.agents import load_skill_guides
+        guides = load_skill_guides()
+        assert isinstance(guides, str) and len(guides) > 0
+
+    def test_load_skill_guides_includes_mitmdump(self):
+        from llmitm_v2.orchestrator.agents import load_skill_guides
+        guides = load_skill_guides()
+        assert "mitmdump" in guides.lower()

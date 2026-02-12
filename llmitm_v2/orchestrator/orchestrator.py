@@ -1,14 +1,13 @@
-"""Main orchestration loop: cold start, warm start, and self-repair."""
+"""Main orchestration loop: cold start, warm start, and self-repair.
+
+Uses 2-agent architecture:
+- Recon Agent (ProgrammaticAgent): explores target via code_execution + mitmdump
+- Attack Critic (SimpleAgent): adversarially validates the plan
+"""
 
 import logging
 import re
 from typing import Optional
-
-try:
-    from strands.types.exceptions import MaxTokensReachedException, StructuredOutputException
-except ImportError:
-    StructuredOutputException = Exception  # type: ignore
-    MaxTokensReachedException = Exception  # type: ignore
 
 from llmitm_v2.config import Settings
 from llmitm_v2.constants import FailureType
@@ -25,11 +24,9 @@ from llmitm_v2.models import (
     Step,
     StepResult,
 )
-from llmitm_v2.orchestrator.agents import create_actor_agent, create_critic_agent
-from llmitm_v2.models.recon import ReconReport
+from llmitm_v2.orchestrator.agents import create_attack_critic, create_recon_agent
 from llmitm_v2.orchestrator.context import (
-    assemble_compilation_context,
-    assemble_compilation_context_from_recon,
+    assemble_recon_context,
     assemble_repair_context,
 )
 from llmitm_v2.orchestrator.failure_classifier import classify_failure
@@ -51,17 +48,23 @@ class Orchestrator:
     def run(
         self,
         fingerprint: Fingerprint,
-        traffic_log: str,
-        recon_report: Optional[ReconReport] = None,
+        mitm_file: str = "",
+        proxy_url: str = "",
     ) -> OrchestratorResult:
-        """Main entry point. Decides cold vs warm start, executes, handles repair."""
+        """Main entry point. Decides cold vs warm start, executes, handles repair.
+
+        Args:
+            fingerprint: Target fingerprint for Neo4j lookup
+            mitm_file: Path to .mitm capture file (file mode)
+            proxy_url: Live proxy URL (live mode)
+        """
         fingerprint.ensure_hash()
         self.graph_repo.save_fingerprint(fingerprint)
 
         ag = self._try_warm_start(fingerprint)
         compiled = False
         if ag is None:
-            ag = self._compile(fingerprint, traffic_log, recon_report)
+            ag = self._compile(fingerprint, mitm_file=mitm_file, proxy_url=proxy_url)
             compiled = True
 
         result = self._execute(ag, fingerprint)
@@ -85,23 +88,36 @@ class Orchestrator:
     def _compile(
         self,
         fingerprint: Fingerprint,
-        traffic_log: str,
-        recon_report: Optional[ReconReport] = None,
+        mitm_file: str = "",
+        proxy_url: str = "",
     ) -> ActionGraph:
-        """Actor/Critic loop -> validated ActionGraph -> save to Neo4j."""
-        if recon_report is not None:
-            context = assemble_compilation_context_from_recon(recon_report)
+        """Recon Agent + Attack Critic loop -> validated ActionGraph -> save to Neo4j."""
+        # Build mitm_context for the recon agent's system prompt
+        if mitm_file:
+            mitm_context = f"Pre-recorded capture file: {mitm_file}"
+        elif proxy_url:
+            mitm_context = f"Live proxy: {proxy_url}"
         else:
-            context = assemble_compilation_context(fingerprint, traffic_log)
-        actor = create_actor_agent(self.graph_repo, model_id=self.settings.model_id, api_key=self.settings.anthropic_api_key)
-        critic = create_critic_agent(model_id=self.settings.model_id, api_key=self.settings.anthropic_api_key)
+            mitm_context = "No target context available."
+
+        recon = create_recon_agent(
+            mitm_context=mitm_context,
+            model_id=self.settings.model_id,
+            api_key=self.settings.anthropic_api_key,
+        )
+        critic = create_attack_critic(
+            model_id=self.settings.model_id,
+            api_key=self.settings.anthropic_api_key,
+        )
+
+        context = assemble_recon_context(mitm_file=mitm_file, proxy_url=proxy_url)
 
         for i in range(self.settings.max_critic_iterations):
             try:
-                actor_result = actor(context, structured_output_model=ActionGraph)
-                ag = actor_result.structured_output
-            except (StructuredOutputException, MaxTokensReachedException) as e:
-                logger.warning("Actor failed on iteration %d: %s", i, type(e).__name__)
+                recon_result = recon(context, structured_output_model=ActionGraph)
+                ag = recon_result.structured_output
+            except Exception as e:
+                logger.warning("Recon agent failed on iteration %d: %s", i, type(e).__name__)
                 continue
 
             try:
@@ -109,8 +125,8 @@ class Orchestrator:
                     ag.model_dump_json(), structured_output_model=CriticFeedback
                 )
                 feedback = critic_result.structured_output
-            except (StructuredOutputException, MaxTokensReachedException) as e:
-                logger.warning("Critic failed on iteration %d: %s", i, type(e).__name__)
+            except Exception as e:
+                logger.warning("Attack critic failed on iteration %d: %s", i, type(e).__name__)
                 continue
 
             if feedback.passed:
@@ -200,13 +216,11 @@ class Orchestrator:
         failure_type = classify_failure(error_log, result.status_code or 0)
 
         if failure_type == FailureType.TRANSIENT_RECOVERABLE and not retried:
-            # Retry once
             handler = get_handler(step.type)
             retry_result = handler.execute(step, context)
             if not retry_result.stderr:
                 context.previous_outputs.append(retry_result.stdout)
                 return "retry"
-            # Escalate to systemic on retry failure
             failure_type = FailureType.SYSTEMIC
 
         if failure_type == FailureType.TRANSIENT_UNRECOVERABLE:
@@ -259,17 +273,33 @@ class Orchestrator:
         execution_history: list[str],
         fingerprint_hash: Optional[str],
     ) -> ActionGraph:
-        """LLM diagnoses systemic failure, repairs step chain in Neo4j."""
-        context = assemble_repair_context(failed_step, error_log, execution_history)
-        repair_agent = create_critic_agent(model_id=self.settings.model_id, api_key=self.settings.anthropic_api_key)
+        """Recon Agent diagnoses systemic failure, repairs step chain in Neo4j."""
+        # Determine target context for repair agent
+        mitm_file = ""
+        proxy_url = ""
+        if self.settings.capture_mode == "file":
+            mitm_file = str(self.settings.traffic_file)
+        else:
+            proxy_url = f"http://127.0.0.1:{self.settings.mitm_port}"
+
+        context = assemble_repair_context(
+            failed_step, error_log, execution_history,
+            mitm_file=mitm_file, proxy_url=proxy_url,
+        )
+
+        # Use Attack Critic (SimpleAgent) for repair diagnosis — no tools needed
+        repair_agent = create_attack_critic(
+            model_id=self.settings.model_id,
+            api_key=self.settings.anthropic_api_key,
+        )
 
         try:
             repair_result = repair_agent(
                 context, structured_output_model=RepairDiagnosis
             )
             diagnosis = repair_result.structured_output
-        except StructuredOutputException:
-            raise RuntimeError("Repair diagnosis failed: structured output error")
+        except Exception as e:
+            raise RuntimeError(f"Repair diagnosis failed: {type(e).__name__}: {e}")
 
         if diagnosis.suggested_fix:
             new_step = Step(

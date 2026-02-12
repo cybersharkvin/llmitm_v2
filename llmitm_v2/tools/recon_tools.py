@@ -1,56 +1,49 @@
-"""Recon tools for LLM-driven active reconnaissance via mitmproxy.
+"""Mitmdump tool for programmatic tool calling.
 
-All HTTP requests route through the mitmproxy reverse proxy so the addon captures everything.
+Defines the tool schema and handler for the mitmdump tool used by ProgrammaticAgent.
+The agent writes Python in Anthropic's code_execution sandbox; when it calls
+`await mitmdump(...)`, our handler runs the actual subprocess on the host.
 """
 
 import subprocess
 
-import httpx
+# Tool schema for Anthropic API — used by ProgrammaticAgent
+MITMDUMP_TOOL_SCHEMA = {
+    "name": "mitmdump",
+    "description": (
+        "Execute a mitmdump command. Returns stdout and stderr. "
+        "See skill guides in system prompt for flags and filters. "
+        "Example: mitmdump -nr capture.mitm --flow-detail 3 -B '~u /api/'"
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "command": {
+                "type": "string",
+                "description": "mitmdump CLI arguments (do NOT include 'mitmdump' prefix)",
+            }
+        },
+        "required": ["command"],
+    },
+    "allowed_callers": ["code_execution_20250825"],
+}
 
-try:
-    from strands import tool
-except ImportError:
-    def tool(func):  # type: ignore
-        """Stub tool decorator when Strands is not available."""
-        return func
 
+def handle_mitmdump(command: str) -> str:
+    """Execute mitmdump with given arguments. Returns truncated stdout + stderr.
 
-class ReconTools:
-    """Tools the recon agent uses to explore a target through mitmproxy."""
+    Args:
+        command: CLI arguments for mitmdump (without 'mitmdump' prefix)
 
-    def __init__(self, proxy_url: str):
-        """Initialize with proxy URL (e.g., http://localhost:8080)."""
-        self.proxy_url = proxy_url
-        self.client = httpx.Client(timeout=30, verify=False)
-
-    @tool
-    def http_request(self, method: str, path: str, headers: dict = None, body: str = "") -> str:
-        """Send HTTP request through the proxy. Returns status + headers + body.
-
-        Args:
-            method: HTTP method (GET, POST, PUT, DELETE, etc.)
-            path: URL path relative to target root (e.g., /api/Users)
-            headers: Optional HTTP headers dict
-            body: Optional request body string
-
-        Returns:
-            Formatted string with STATUS, HEADERS, and BODY sections
-        """
-        url = self.proxy_url.rstrip("/") + "/" + path.lstrip("/")
-        resp = self.client.request(method, url, headers=headers or {}, content=body)
-        return f"STATUS: {resp.status_code}\nHEADERS: {dict(resp.headers)}\nBODY: {resp.text[:4000]}"
-
-    @tool
-    def shell_command(self, command: str) -> str:
-        """Run a shell command (curl, nmap, etc.) for advanced recon.
-
-        Args:
-            command: Shell command to execute
-
-        Returns:
-            Formatted string with STDOUT and STDERR sections
-        """
-        result = subprocess.run(
-            command, shell=True, capture_output=True, timeout=30,
-        )
-        return f"STDOUT: {result.stdout.decode()[:4000]}\nSTDERR: {result.stderr.decode()[:1000]}"
+    Returns:
+        Formatted string with STDOUT and STDERR sections
+    """
+    result = subprocess.run(
+        f"mitmdump {command}",
+        shell=True,
+        capture_output=True,
+        timeout=30,
+    )
+    stdout = result.stdout.decode(errors="replace")[:4000]
+    stderr = result.stderr.decode(errors="replace")[:1000]
+    return f"STDOUT:\n{stdout}\nSTDERR:\n{stderr}"

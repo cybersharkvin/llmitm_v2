@@ -59,10 +59,3 @@ class ReconReport(BaseModel):
         return fp
 
 
-class ReconCriticFeedback(BaseModel):
-    """Independent validation of a ReconReport by a tool-free critic agent."""
-
-    passed: bool = Field(description="True if the recon report is sound and attack opportunities are plausible. False if significant issues found.")
-    false_positives: List[str] = Field(default_factory=list, description="Which attack opportunities look bogus or unsupported by the cited evidence")
-    missing_coverage: List[str] = Field(default_factory=list, description="Areas the recon agent should have explored but didn't (e.g., 'no GraphQL introspection attempted')")
-    feedback: str = Field(description="Specific, actionable feedback. If passed=false, explain what needs to change.")

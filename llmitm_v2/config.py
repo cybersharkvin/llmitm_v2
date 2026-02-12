@@ -26,8 +26,9 @@ class Settings(BaseSettings):
     target_url: str = "http://localhost:3000"
 
     # Compilation and repair
-    max_critic_iterations: int = 5
+    max_critic_iterations: int = 3
     similarity_threshold: float = 0.85
+    max_token_budget: int = 50_000
 
     # Embedding model
     embedding_model: str = "all-MiniLM-L6-v2"
@@ -39,10 +40,7 @@ class Settings(BaseSettings):
 
     # Capture/Recon settings
     capture_mode: str = "file"  # "live" or "file"
-    traffic_file: str = "demo/juice_shop_traffic.txt"
-    flows_file: str = "llmitm_v2/capture/flows.json"  # Docker mount, read by run_recon()
-    recon_model_id: str = "claude-haiku-4-5-20251001"
-    recon_max_iterations: int = 3
+    traffic_file: str = "demo/juice_shop.mitm"
 
     # Logging
     log_level: str = "INFO"

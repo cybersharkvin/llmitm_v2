@@ -3,7 +3,7 @@
 ## Tech Stack
 
 **Language**: Python 3.12+
-**LLM SDK**: Strands Agents SDK (latest)
+**LLM SDK**: Anthropic Python SDK (v0.79.0+) — native structured output via grammar-constrained decoding
 **Schema Validation**: Pydantic v2
 **Graph Database**: Neo4j 5.x
 **Query Language**: Cypher
@@ -17,8 +17,7 @@
 ## Dependencies
 
 ### Core Framework
-- **strands-agents** (latest): LLM orchestration. Used as **library**, not framework. `Agent` is called by our code for single-shot LLM tasks
-- **strands-agents-tools** (latest): Built-in tool collection, selectively imported where needed
+- **anthropic** (v0.79.0+): Native Anthropic SDK. `client.messages.parse(output_format=Model)` for structured output (grammar-constrained decoding, 1 API call). `client.beta.messages.tool_runner(tools, output_format=Model)` for tool-using agents. `@beta_tool` decorator for tool definitions.
 
 ### Data Validation
 - **pydantic** (v2): All DTOs, LLM structured output, graph serialization. Serves triple duty: validation, type safety, contracts
@@ -44,7 +43,7 @@
 
 ### Installation
 ```bash
-pip install strands-agents pydantic neo4j mitmproxy httpx pytest ruff
+pip install anthropic pydantic neo4j mitmproxy httpx pytest ruff
 ```
 
 ### Development Server
@@ -67,11 +66,13 @@ docker run --env-file .env llmitm:latest
 - **Connection pool sizing**: Affects concurrent performance, default pool size = 100
 - **Cypher query complexity**: Deep traversals (>5 hops) can be slow, require optimization
 
-### Strands SDK
-- **Pydantic v2 required**: Structured output validation relies on Pydantic v2 features
-- **Tool serialization**: Tool functions must be serializable (no closures with external state)
-- **NullConversationManager**: No memory between calls unless explicitly managed via context assembly
-- **Tool call dependencies**: Sequential tool execution required to preserve dependency chains
+### Anthropic SDK
+- **Pydantic v2 required**: `output_format=` param validates against Pydantic v2 models
+- **`@beta_tool` on closures**: Works on standalone functions; class methods need closure wrappers (see `create_recon_tools()`, `create_graph_tools()`)
+- **`tool_runner` is beta**: API may change; fallback is manual 20-line while loop
+- **Grammar compilation latency**: First call per schema has extra latency (~1-2s), cached 24h server-side
+- **No conversation memory**: Each `messages.parse()` / `tool_runner()` call is stateless; context managed via assembly functions
+- **`max_iterations` on tool_runner**: Caps tool loop. Default unlimited; we set 20 (recon) and 10 (actor-tools) to prevent runaway loops
 
 ### mitmproxy
 - **Certificate trust**: Target must trust mitm certificate for HTTPS interception
@@ -129,19 +130,18 @@ Content-Type: application/json
 - `NEO4J_USERNAME`: Neo4j username (default: `neo4j`)
 - `NEO4J_PASSWORD`: Neo4j password
 - `NEO4J_DATABASE`: Database name (default: `neo4j`)
-- `ANTHROPIC_API_KEY`: API key for Claude via Strands SDK
+- `ANTHROPIC_API_KEY`: API key for Claude via Anthropic SDK
 - `TARGET_URL`: Base URL of target application (e.g., `http://localhost:3000`)
 
 **Optional**:
-- `MAX_CRITIC_ITERATIONS`: Maximum actor/critic loops (default: 5)
+- `MAX_CRITIC_ITERATIONS`: Maximum actor/critic loops (default: 3)
+- `MAX_TOKEN_BUDGET`: Cumulative token limit across all API calls in one run (default: 500000). Raises RuntimeError if exceeded
 - `DEFAULT_SIMILARITY_THRESHOLD`: Fingerprint similarity cutoff (default: 0.85)
 - `MITM_PORT`: mitmproxy listen port (default: 8080)
 - `MITM_CERT_PATH`: Path to mitm certificate (default: `~/.mitmproxy/mitmproxy-ca-cert.pem`)
 - `LOG_LEVEL`: Python logging level (default: `INFO`)
 - `CAPTURE_MODE`: `file` (static traffic file) or `live` (LLM-driven recon through mitmproxy). Default: `file`
-- `TRAFFIC_FILE`: Path to static traffic file (default: `demo/juice_shop_traffic.txt`). Only used when `CAPTURE_MODE=file`
-- `RECON_MODEL_ID`: Model for recon agent/critic (default: `claude-haiku-4-5-20251001`). Use Opus for demo
-- `RECON_MAX_ITERATIONS`: Max recon/critic loop iterations (default: 3)
+- `TRAFFIC_FILE`: Path to .mitm capture file (default: `demo/juice_shop.mitm`). Only used when `CAPTURE_MODE=file`
 
 ### docker-compose.yml
 - **neo4j service**: Neo4j 5.x with APOC and vector plugins enabled, APOC file I/O enabled, `./snapshots` bind-mounted to `/var/lib/neo4j/import/snapshots`
@@ -161,21 +161,19 @@ Content-Type: application/json
 - **Ruff config**: Line length 100, Python 3.12 target
 - **Pytest config**: Test discovery patterns, coverage settings
 
-## Strands SDK Usage
+## Anthropic SDK Usage
 
 | Feature | Used? | Rationale |
 |---------|-------|-----------|
-| `Agent` class | **Yes** | Single-shot LLM calls with tools and structured output |
-| `@tool` decorator | **Yes** | Graph-oriented reasoning tools exposed to LLM |
-| `structured_output_model` | **Yes** | Pydantic schema enforcement on every LLM response |
-| `SequentialToolExecutor` | **Yes** | Preserves dependency chain in tool calls |
-| `BeforeToolCallEvent` hook | **Yes** | Human-in-the-loop approval for destructive actions |
-| `NullConversationManager` | **Yes** | Disables conversational history; each call is fresh |
-| `SlidingWindowConversationManager` | **No** | Context managed explicitly via assembly functions |
-| `SessionManager` / `FileSessionManager` | **No** | Neo4j is single source of truth for all state |
-| `AgentState` | **No** | State lives in graph, not SDK |
-| `Swarm` / `Graph` multi-agent | **No** | Single orchestrator architecture |
-| `ConcurrentToolExecutor` | **No** | Would break tool call dependency chains |
+| `client.messages.parse()` | **Yes** | Single-shot structured output via grammar-constrained decoding. Used by SimpleAgent for Attack Critic |
+| `client.beta.messages.create()` | **Yes** | Programmatic tool calling with code_execution sandbox + custom tools. Used by ProgrammaticAgent for Recon Agent |
+| `code_execution_20250825` tool | **Yes** | Agent writes Python in sandbox, calls `await mitmdump(...)`. Intermediate results stay in sandbox |
+| `allowed_callers` on custom tools | **Yes** | mitmdump tool callable only from code_execution sandbox, not directly by Claude |
+| Beta headers | **Yes** | `code-execution-2025-08-25` + `advanced-tool-use-2025-11-20` required for ProgrammaticAgent |
+| `output_format=PydanticModel` | **Yes** | Grammar-constrained decoding ensures valid JSON matching Pydantic schema |
+| `response.parsed_output` | **Yes** | Pre-validated Pydantic instance from structured output response |
+| `response.usage` | **Yes** | Logged after every API call. Cumulative counter enforces 50K token budget |
+| `@beta_tool` decorator | **Partial** | Still used in `graph_tools.py` for embedding-based queries. Not used by main agent pipeline |
 
 ## Neo4j Capabilities Used
 

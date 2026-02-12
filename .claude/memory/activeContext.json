@@ -1,57 +1,91 @@
 {
-  "session": "Live Recon E2E Bug Fixes (Feb 11, 2026)",
-  "completed_phase": "Fix 3 E2E bugs in live recon pipeline",
-  "summary": "Fixed 3 bugs preventing live recon E2E: quick_fingerprint sent requests to nonexistent proxy, fingerprint hash mismatch between quick_fingerprint and recon, assemble_compilation_context_from_recon was dead code.",
-  "files_created": 0,
+  "session": "2-Agent Architecture Consolidation (Feb 12, 2026)",
+  "completed_phase": "Consolidated 4 agents to 2, added programmatic tool calling, skill guides, .mitm format",
+  "summary": "Replaced 4 agents (actor, critic, recon, recon_critic) with 2 (Recon Agent + Attack Critic). ProgrammaticAgent uses code_execution sandbox + mitmdump tool. Skill guides loaded as markdown. Budget tightened to 50K. 98 tests passing.",
+  "files_created": 4,
   "git_commits": [],
   "files_by_category": {
+    "created": [
+      {"path": "skills/mitmdump.md", "description": "mitmdump CLI reference skill guide"},
+      {"path": "skills/initial_recon.md", "description": "Initial recon methodology skill guide"},
+      {"path": "skills/lateral_movement.md", "description": "Lateral movement & auth testing skill guide"},
+      {"path": "skills/persistence.md", "description": "Finding validation & persistence skill guide"}
+    ],
     "modified": [
-      {"path": "llmitm_v2/capture/launcher.py", "description": "quick_fingerprint() sends directly to target_url, dropped proxy_port param"},
-      {"path": "llmitm_v2/__main__.py", "description": "Reuses deterministic fingerprint (not recon_report.to_fingerprint()), passes recon_report to orchestrator"},
-      {"path": "llmitm_v2/orchestrator/orchestrator.py", "description": "run() and _compile() accept Optional[ReconReport], use assemble_compilation_context_from_recon when present"},
-      {"path": "llmitm_v2/orchestrator/agents.py", "description": "RECON_SYSTEM_PROMPT notes that shell_command bypasses capture proxy"}
+      {"path": "llmitm_v2/orchestrator/agents.py", "description": "Replaced ToolAgent with ProgrammaticAgent. 2 factories: create_recon_agent (ProgrammaticAgent + mitmdump + skill guides), create_attack_critic (SimpleAgent). load_skill_guides() reads skills/*.md."},
+      {"path": "llmitm_v2/tools/recon_tools.py", "description": "Replaced ReconTools class + @beta_tool closures with MITMDUMP_TOOL_SCHEMA dict + handle_mitmdump() function."},
+      {"path": "llmitm_v2/orchestrator/orchestrator.py", "description": "Updated _compile() to use recon_agent + attack_critic loop. run() takes mitm_file/proxy_url instead of traffic_log. _repair() uses attack_critic."},
+      {"path": "llmitm_v2/orchestrator/context.py", "description": "Removed assemble_compilation_context[_from_recon]. Updated assemble_recon_context(mitm_file, proxy_url). Updated assemble_repair_context with mitm_file/proxy_url params."},
+      {"path": "llmitm_v2/__main__.py", "description": "Removed Fingerprinter import for file mode. Both modes use quick_fingerprint + orchestrator.run(mitm_file/proxy_url)."},
+      {"path": "llmitm_v2/config.py", "description": "max_token_budget 500K→50K. traffic_file→demo/juice_shop.mitm. Removed flows_file, recon_model_id, recon_max_iterations."},
+      {"path": "llmitm_v2/capture/launcher.py", "description": "Stripped to quick_fingerprint() only. Removed run_recon(), _format_traffic_log(), _wait_for_port()."},
+      {"path": "llmitm_v2/orchestrator/__init__.py", "description": "Updated exports: create_recon_agent, create_attack_critic, assemble_recon_context."},
+      {"path": "llmitm_v2/models/__init__.py", "description": "Removed ReconCriticFeedback export."},
+      {"path": "llmitm_v2/models/recon.py", "description": "Removed ReconCriticFeedback class."},
+      {"path": "llmitm_v2/hooks/__init__.py", "description": "Emptied — ApprovalHook removed."},
+      {"path": "tests/test_orchestrator.py", "description": "Updated for new factories, context assembly, skill guides. Removed ApprovalHook tests."},
+      {"path": "tests/test_recon_models.py", "description": "Removed ReconCriticFeedback tests."}
+    ],
+    "deleted": [
+      {"path": "llmitm_v2/hooks/approval_hook.py", "description": "Dead code — imported Strands SDK"}
     ]
   },
   "test_results": {
     "test_suite": "tests/",
-    "passed": 100,
+    "passed": 98,
     "failed": 0,
     "status": "✅ ALL PASSING",
-    "coverage": ["models", "handlers", "orchestrator", "fingerprinter", "context", "failure_classifier", "recon_models"],
-    "notes": "1 skipped (Neo4j Orchestrator init test). Zero regressions from bug fixes."
+    "coverage": ["models", "handlers", "orchestrator", "fingerprinter", "context", "failure_classifier", "recon_models", "skill_guides", "agent_factories"],
+    "notes": "1 skipped (Neo4j Orchestrator init test). Down from 100 due to removed ApprovalHook + ReconCriticFeedback tests."
   },
   "design_decisions": [
-    {"decision": "Deterministic fingerprint is canonical for hashing", "rationale": "quick_fingerprint() uses Fingerprinter (deterministic regex) producing consistent hashes. ReconReport.to_fingerprint() uses LLM free-form text producing inconsistent hashes. The deterministic fingerprint must be used for Neo4j lookup AND storage to ensure warm start works."},
-    {"decision": "ReconReport passed explicitly to orchestrator.run()", "rationale": "Option A from plan: explicit parameter, no hidden state. Pydantic-typed at every boundary."},
-    {"decision": "quick_fingerprint() probes target directly, no proxy", "rationale": "Only needs response headers for deterministic fingerprinting. No traffic capture needed at this stage."}
+    {"decision": "2-agent architecture (Recon Agent + Attack Critic)", "rationale": "Consolidates 4 agents into 2. Recon Agent handles both compilation and repair. Attack Critic is adversarial validator."},
+    {"decision": "ProgrammaticAgent with code_execution sandbox", "rationale": "Agent writes Python that calls await mitmdump(...). Intermediate results stay in sandbox (not in context window). Only final print() output enters context → massive token savings."},
+    {"decision": "Skill guides as markdown in system prompt", "rationale": "Teaches agent methodology (initial_recon, lateral_movement, persistence, mitmdump CLI). Loaded dynamically from skills/ directory."},
+    {"decision": "Budget tightened 500K→50K", "rationale": "Programmatic tool calling reduces token usage dramatically. 50K is generous for the new architecture."},
+    {"decision": "Kept Fingerprinter for quick_fingerprint()", "rationale": "Still needed for warm-start fast path. Parses deterministic HTTP probes into fingerprint hash for Neo4j lookup."}
   ],
   "next_phases": [
     {
-      "phase": "E2E Live Recon Verification",
-      "estimated_hours": 2,
+      "phase": "Capture demo .mitm file",
+      "estimated_hours": 0.5,
       "tasks": [
-        "CAPTURE_MODE=live make run-live against live Juice Shop (cold start)",
-        "Second run: verify warm start (zero LLM, zero mitmdump)",
-        "Verify recon/critic loop produces valid ReconReport with attack_opportunities",
-        "Verify actor agent sees attack_opportunities via assemble_compilation_context_from_recon"
+        "Start Juice Shop via Docker",
+        "Run mitmdump -w demo/juice_shop.mitm, browse key endpoints",
+        "Verify mitmdump -nr demo/juice_shop.mitm --flow-detail 1 shows captured flows"
       ]
+    },
+    {
+      "phase": "E2E Smoke Test",
+      "estimated_hours": 1,
+      "tasks": [
+        "CAPTURE_MODE=file — verify ProgrammaticAgent + mitmdump tool work for cold start",
+        "Watch token logging: should be ~2-6 API calls, not hundreds",
+        "Warm start: zero LLM calls",
+        "CAPTURE_MODE=live — verify live recon through proxy"
+      ]
+    },
+    {
+      "phase": "Commit All Changes",
+      "estimated_hours": 0.1,
+      "tasks": ["Git commit 2-agent consolidation on dev branch"]
     }
   ],
-  "blockers": "None — bugs fixed, ready for E2E verification with live services",
+  "blockers": "Need demo/juice_shop.mitm capture file for file-mode testing",
   "context_for_next_session": [
-    "3 bugs fixed in live recon pipeline — all code-reviewed, 100 tests passing",
-    "Bug 1: quick_fingerprint() now sends directly to target_url (was sending to nonexistent proxy)",
-    "Bug 2: __main__.py reuses deterministic fingerprint from quick_fingerprint(), not recon_report.to_fingerprint()",
-    "Bug 3: orchestrator.run() and _compile() now accept Optional[ReconReport] and use assemble_compilation_context_from_recon",
-    "Bug 4 (minor): RECON_SYSTEM_PROMPT warns that shell_command curl bypasses proxy",
-    "capture_mode=file path is completely unchanged — zero regression",
-    "Changes not yet committed to git",
-    "Next: CAPTURE_MODE=live make run-live against live Juice Shop"
+    "ALL CHANGES UNCOMMITTED on dev branch",
+    "2-agent architecture: ProgrammaticAgent (code_execution + mitmdump) + SimpleAgent (attack critic)",
+    "Skill guides in skills/: mitmdump.md, initial_recon.md, lateral_movement.md, persistence.md",
+    "ProgrammaticAgent uses beta headers: code-execution-2025-08-25, advanced-tool-use-2025-11-20",
+    "Token budget tightened to 50K (was 500K)",
+    "Fingerprinter still exists — used only by quick_fingerprint() for warm-start fast path",
+    "demo/juice_shop_traffic.txt still exists but config points to demo/juice_shop.mitm (not yet captured)",
+    "graph_tools.py still has @beta_tool closures for embedding-based graph queries — may need update if tool_runner is fully removed",
+    "98 tests passing, 1 skipped, 0 regressions"
   ],
   "files_to_reference": [
-    "llmitm_v2/capture/launcher.py — quick_fingerprint(target_url) sends directly to target",
-    "llmitm_v2/__main__.py — live branch reuses deterministic fingerprint, passes recon_report",
-    "llmitm_v2/orchestrator/orchestrator.py — run() and _compile() accept Optional[ReconReport]",
-    "llmitm_v2/orchestrator/agents.py — RECON_SYSTEM_PROMPT updated with proxy note"
+    "llmitm_v2/orchestrator/agents.py — ProgrammaticAgent, SimpleAgent, create_recon_agent, create_attack_critic, load_skill_guides",
+    "llmitm_v2/tools/recon_tools.py — MITMDUMP_TOOL_SCHEMA, handle_mitmdump",
+    "skills/ — 4 skill guide markdown files"
   ]
 }
