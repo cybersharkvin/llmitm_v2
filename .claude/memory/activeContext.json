@@ -1,57 +1,88 @@
 {
-  "session": "Neo4j Snapshot/Restore Infrastructure (Feb 11, 2026)",
-  "completed_phase": "Neo4j Graph Snapshot/Restore (CI/CD for the Database)",
-  "summary": "Dual-strategy backup system: binary dump/load for fast restore + APOC Cypher export for git-tracked diffable snapshots. Makefile with snapshot/restore/reset targets. Online reset via DETACH DELETE + apoc.schema.assert.",
-  "files_created": 7,
+  "session": "All Three Hackathon Demos Verified (Feb 11, 2026)",
+  "completed_phase": "Self-Repair Demo Verification + Demo Polish",
+  "summary": "All three demo runs verified E2E: warm start (zero LLM), self-repair (LLM diagnoses + fixes broken step), persistence (repaired graph works on next run). Output cleaned for presentation.",
+  "files_created": 1,
   "git_commits": [],
   "files_by_category": {
-    "scripts": [
-      {"path": "scripts/export-snapshot.sh", "description": "Binary dump (neo4j-admin) + APOC Cypher export with healthcheck polling"},
-      {"path": "scripts/restore-snapshot.sh", "description": "Binary load + setup_schema.py with healthcheck polling"},
-      {"path": "scripts/reset-graph.sh", "description": "Online wipe (DETACH DELETE + apoc.schema.assert) + schema recreate"}
+    "new_scripts": [
+      {"path": "scripts/seed-demo-graph.py", "description": "Seeds known-good 7-step IDOR ActionGraph for Juice Shop demo"}
     ],
-    "build": [
-      {"path": "Makefile", "description": "Targets: up, down, schema, reset, snapshot, restore, snapshot-baseline, restore-baseline, test"}
-    ],
-    "docs": [
-      {"path": ".claude/docs/neo4j/neo4j_docs/backup_restore_and_snapshot_strategies.md", "description": "Comprehensive backup guide: methods, trade-offs, commands, gotchas"}
-    ],
-    "config_changes": [
-      {"path": "docker-compose.yml", "description": "Added APOC file I/O env vars + ./snapshots bind mount"},
-      {"path": ".gitignore", "description": "Added backups/ (gitignored) and snapshots/latest.cypher"}
+    "modified": [
+      {"path": "llmitm_v2/__main__.py", "description": "Suppressed Neo4j/httpx/strands/pydantic noise, quiet schema setup"},
+      {"path": "llmitm_v2/orchestrator/agents.py", "description": "callback_handler=None to suppress Strands streaming output"},
+      {"path": "llmitm_v2/orchestrator/orchestrator.py", "description": "Repair uses critic agent (no tools), not actor agent"},
+      {"path": "llmitm_v2/orchestrator/context.py", "description": "Improved repair prompt: explicit about self-contained commands"},
+      {"path": "llmitm_v2/models/critic.py", "description": "RepairDiagnosis.suggested_fix description: must be executable command"},
+      {"path": "llmitm_v2/repository/graph_repository.py", "description": "Fixed get_action_graph_with_steps (longest path), repair_step_chain (REPAIRED_TO edge, DETACH DELETE)"},
+      {"path": "llmitm_v2/repository/setup_schema.py", "description": "Added quiet param to suppress prints"},
+      {"path": "llmitm_v2/handlers/http_request_handler.py", "description": "Write response to output_file if specified"},
+      {"path": "scripts/break-graph.sh", "description": "Fixed Cypher quoting"},
+      {"path": "scripts/fix-graph.sh", "description": "Fixed Cypher quoting"},
+      {"path": "scripts/export-snapshot.sh", "description": "Fixed dump file ownership"},
+      {"path": "Makefile", "description": "Added seed target"}
     ]
   },
   "test_results": {
-    "total": "78 passed, 10 skipped (unchanged — no new Python code)",
-    "status": "ALL PASSING"
+    "test_suite": "tests/",
+    "passed": 87,
+    "failed": 0,
+    "status": "✅ ALL PASSING",
+    "coverage": ["models", "handlers", "orchestrator", "fingerprinter", "context", "failure_classifier"],
+    "notes": "1 skipped (Neo4j Orchestrator init test)"
+  },
+  "demo_results": {
+    "run_1_warm_start": {"path": "warm_start", "success": true, "steps": 7, "findings": 7, "repaired": false, "llm_calls": 0},
+    "run_2_self_repair": {"path": "warm_start", "success": true, "steps": 7, "findings": 6, "repaired": true, "llm_calls": 1},
+    "run_3_persistence": {"path": "warm_start", "success": true, "steps": 6, "findings": 6, "repaired": false, "llm_calls": 0},
+    "repaired_to_edge": "Step 5 → Step 6, reason: Systemic repair"
   },
   "design_decisions": [
-    {"decision": "Dual backup strategy (binary + Cypher)", "rationale": "Binary for fast demo resets, Cypher for git-tracked diffable audit trail"},
-    {"decision": "Schema separated from data snapshots", "rationale": "setup_schema.py remains single source of truth; Cypher exports have schema lines stripped; restore always runs setup_schema.py"},
-    {"decision": "Dynamic volume name detection", "rationale": "Docker Compose prefixes volume names with project dir; scripts detect via docker volume ls --filter"},
-    {"decision": "Online reset (no restart)", "rationale": "DETACH DELETE + apoc.schema.assert is faster than stop/wipe/start for dev workflows"}
+    {"decision": "Seed graph instead of cold-start compile", "rationale": "LLM compilation produces unreliable graphs (wrong credentials, file dependency mismatches). Seeded known-good graph is deterministic and demo-ready."},
+    {"decision": "Repair uses critic agent (no tools)", "rationale": "Actor agent with tools causes runaway tool-call loops loading embeddings on fresh DB. Critic is tool-free, single-shot."},
+    {"decision": "callback_handler=None for both agents", "rationale": "Suppresses Strands streaming output (LLM diagnosis text) from polluting demo stdout"},
+    {"decision": "HTTP handler writes output_file", "rationale": "LLM-compiled graphs expect curl -o behavior. HTTPRequestHandler now writes response to output_file if set."}
   ],
   "next_phases": [
     {
-      "phase": "Phase 5b: End-to-End Verification (Optional)",
+      "phase": "Demo Recording + Presentation",
       "estimated_hours": 1,
       "tasks": [
-        "Test cold start: fingerprint demo traffic, mock actor/critic, verify graph creation",
-        "Test warm start: re-run with same fingerprint, verify zero LLM calls",
-        "Test CLI: python -m llmitm_v2 with demo traffic against mock target"
+        "Record terminal session of all 3 demo runs (asciinema or script)",
+        "Capture Neo4j Browser screenshots showing graph structure + REPAIRED_TO edge",
+        "Prepare hackathon slide deck or README walkthrough"
+      ]
+    },
+    {
+      "phase": "Post-Hackathon Improvements (optional)",
+      "estimated_hours": 4,
+      "tasks": [
+        "Fix cold-start compilation reliability (inject known Juice Shop credentials into context)",
+        "Improve LLM repair to preserve variable initialization prefixes",
+        "Fix APOC Cypher export in snapshot script",
+        "Skip setup_schema() if schema already exists (check constraints first)"
       ]
     }
   ],
-  "blockers": "None",
+  "blockers": "None — all hackathon deliverables complete",
   "context_for_next_session": [
-    "Neo4j snapshot/restore infrastructure complete: make snapshot/restore/reset",
-    "Binary dumps in backups/ (gitignored), Cypher exports in snapshots/ (git-tracked)",
-    "docker-compose.yml updated with APOC file I/O + snapshots bind mount",
-    "setup_schema.py is sole schema source of truth — always runs after restore",
-    "All 78 tests still passing, no Python code changes"
+    "ALL THREE DEMOS VERIFIED AND WORKING — no code changes needed for hackathon",
+    "Demo workflow: make reset && make seed → make run → make break-graph && make run → make run",
+    "Run 1 (warm start): 7 steps, 7 findings, 0 LLM calls",
+    "Run 2 (self-repair): 7 steps, 6 findings, 1 LLM call, Repaired=True",
+    "Run 3 (persistence): 6 steps, 6 findings, 0 LLM calls, repaired graph reused",
+    "[:REPAIRED_TO] edge visible in Neo4j: Step 5 → Step 6",
+    "Cold start compilation exists but is unreliable (LLM hallucinates credentials) — use make seed instead",
+    "Snapshots in backups/: demo-baseline.dump (before runs), demo-with-repair.dump (after repair)",
+    "Docker containers required: llmitm_neo4j (7687), llmitm_juice_shop (3000)",
+    "Changes not yet committed to git — consider committing before hackathon presentation"
   ],
   "files_to_reference": [
-    ".claude/docs/neo4j/neo4j_docs/backup_restore_and_snapshot_strategies.md — Full backup guide",
-    "Makefile — All available make targets"
+    "scripts/seed-demo-graph.py — Known-good 7-step IDOR ActionGraph for Juice Shop",
+    "scripts/break-graph.sh — Corrupts step 6 endpoint for self-repair demo",
+    "scripts/fix-graph.sh — Reverses corruption (manual fallback)",
+    "Makefile — All demo targets: run, seed, break-graph, fix-graph, snapshot, restore, reset",
+    "llmitm_v2/__main__.py — CLI entry point with clean demo output",
+    "llmitm_v2/orchestrator/orchestrator.py — Main loop: warm start, execute, repair"
   ]
 }

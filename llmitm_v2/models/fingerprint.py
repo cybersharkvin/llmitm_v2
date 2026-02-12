@@ -26,7 +26,7 @@ class Fingerprint(BaseModel):
     )
     observation_embedding: Optional[List[float]] = Field(
         default=None,
-        description="Vector (1536-dim for text-embedding-3-small) for similarity search"
+        description="Vector (384-dim for all-MiniLM-L6-v2) for similarity search"
     )
 
     def compute_hash(self) -> str:

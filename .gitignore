@@ -66,6 +66,12 @@ backups/
 !backups/.gitkeep
 snapshots/latest.cypher
 
+# Hackathon event docs (not part of project)
+hackathon_event_details.md
+
+# Runtime output (handler temp files)
+llmitm_v2/tmp/
+
 # Build artifacts
 *.tar.gz
 *.whl

@@ -1,6 +1,7 @@
 """HTTP request handler using httpx."""
 
 import re
+from pathlib import Path
 
 import httpx
 
@@ -28,6 +29,10 @@ class HTTPRequestHandler(StepHandler):
                 # Extract Set-Cookie values back into context for orchestrator
                 for name, value in response.cookies.items():
                     context.cookies[name] = value
+                if step.output_file:
+                    tmp_dir = Path(__file__).resolve().parent.parent / "tmp"
+                    tmp_dir.mkdir(exist_ok=True)
+                    (tmp_dir / Path(step.output_file).name).write_text(response.text)
                 matched = bool(
                     step.success_criteria and re.search(step.success_criteria, response.text)
                 )

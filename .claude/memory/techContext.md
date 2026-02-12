@@ -62,7 +62,7 @@ docker run --env-file .env llmitm:latest
 ## Technical Constraints
 
 ### Neo4j
-- **Vector dimensions**: Limited to 4096 maximum (using 1536 for text-embedding-3-small)
+- **Vector dimensions**: Limited to 4096 maximum (using 384 for all-MiniLM-L6-v2)
 - **HNSW index build time**: Grows with data size, requires periodic maintenance
 - **Connection pool sizing**: Affects concurrent performance, default pool size = 100
 - **Cypher query complexity**: Deep traversals (>5 hops) can be slow, require optimization
@@ -177,11 +177,11 @@ Content-Type: application/json
 
 | Capability | Purpose | Implementation |
 |------------|---------|----------------|
-| **Vector Indexes** | Fuzzy fingerprint matching | `CREATE VECTOR INDEX observation_idx FOR (f:Fingerprint) ON f.observation_embedding WITH {dimension: 1536, similarity_function: 'cosine'}` |
+| **Vector Indexes** | Fuzzy fingerprint matching | `CREATE VECTOR INDEX observation_idx FOR (f:Fingerprint) ON f.observation_embedding WITH {dimension: 384, similarity_function: 'cosine'}` |
 | **Cypher Queries** | All graph operations | Via GraphRepository methods |
 | **Constraints** | Data integrity | `CREATE CONSTRAINT fingerprint_hash_unique FOR (f:Fingerprint) REQUIRE f.hash IS UNIQUE` |
 | **Managed Transactions** | Reliability | `session.execute_read()` / `execute_write()` with auto-retry |
-| **Native Vectors** | Efficient similarity search | HNSW algorithm, 1536 dimensions for text-embedding-3-small |
+| **Native Vectors** | Efficient similarity search | HNSW algorithm, 384 dimensions for all-MiniLM-L6-v2 |
 | **Subqueries** | Complex retrievals | `CALL`, `EXISTS`, `COUNT`, `COLLECT` subqueries for context assembly |
 | **APOC** (optional) | Extended procedures | Batch operations, graph algorithms, utility functions |
 
@@ -225,7 +225,7 @@ class CriticFeedback(BaseModel):
 
 class RepairDiagnosis(BaseModel):
     failure_type: str  # transient_recoverable, transient_unrecoverable, systemic
-    suggested_repair_command: Optional[str] = None
+    suggested_fix: Optional[str] = None
 ```
 
 ### Context Assembly Models
@@ -233,13 +233,13 @@ class RepairDiagnosis(BaseModel):
 class CompilationContext(BaseModel):
     fingerprint: Fingerprint
     traffic_log: str
-    similar_graphs: List[ActionGraph] = Field(default_factory=list)
+    similar_graphs: List[Dict[str, Any]] = Field(default_factory=list)
 
 class RepairContext(BaseModel):
     failed_step: Step
     error_log: str
     graph_execution_history: List[str]
-    past_repair_attempts: List[RepairRecord]
+    past_repair_attempts: List[Dict[str, Any]]
 ```
 
 ### Execution Models

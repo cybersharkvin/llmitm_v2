@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     # Anthropic API
     anthropic_api_key: str
-    model_id: str = "claude-sonnet-4-5-20250929"
+    model_id: str = "claude-haiku-4-5-20251001"
 
     # Target application
     target_url: str = "http://localhost:3000"

@@ -10,7 +10,7 @@ from typing import Any, Optional
 
 try:
     from strands import Agent
-    from strands.conversation import NullConversationManager
+    from strands.agent import NullConversationManager
     from strands.models.anthropic import AnthropicModel
     from strands.tools.executors import SequentialToolExecutor
 except ImportError:
@@ -66,6 +66,8 @@ Be strict but fair. Even good graphs often need one iteration."""
 def create_actor_agent(
     graph_repo: GraphRepository,
     embed_model: Optional[Any] = None,
+    model_id: str = "claude-haiku-4-5-20251001",
+    api_key: Optional[str] = None,
 ) -> Any:
     """Create Actor agent for compilation and repair.
 
@@ -76,15 +78,16 @@ def create_actor_agent(
     Args:
         graph_repo: GraphRepository for graph queries
         embed_model: Embedding model (sentence-transformers). Lazy-loaded if None.
+        model_id: Anthropic model ID (default: claude-haiku-4-5-20251001).
 
     Returns:
         Strands Agent configured for graph-aware reasoning
     """
     # Initialize AnthropicModel
     model = AnthropicModel(
-        model_id="claude-sonnet-4-20250514",
-        client_args={"api_key": os.environ.get("ANTHROPIC_API_KEY", "")},
-        max_tokens=4096,
+        model_id=model_id,
+        client_args={"api_key": api_key or os.environ.get("ANTHROPIC_API_KEY", "")},
+        max_tokens=16384,
     )
 
     # Initialize tools
@@ -97,10 +100,14 @@ def create_actor_agent(
         tools=[graph_tools.find_similar_action_graphs, graph_tools.get_repair_history],
         conversation_manager=NullConversationManager(),
         tool_executor=SequentialToolExecutor(),
+        callback_handler=None,
     )
 
 
-def create_critic_agent() -> Any:
+def create_critic_agent(
+    model_id: str = "claude-haiku-4-5-20251001",
+    api_key: Optional[str] = None,
+) -> Any:
     """Create Critic agent for validation (no tools).
 
     Returns:
@@ -108,9 +115,9 @@ def create_critic_agent() -> Any:
     """
     # Initialize AnthropicModel
     model = AnthropicModel(
-        model_id="claude-sonnet-4-20250514",
-        client_args={"api_key": os.environ.get("ANTHROPIC_API_KEY", "")},
-        max_tokens=1024,
+        model_id=model_id,
+        client_args={"api_key": api_key or os.environ.get("ANTHROPIC_API_KEY", "")},
+        max_tokens=4096,
     )
 
     # Return agent without tools (validation only)
@@ -118,4 +125,5 @@ def create_critic_agent() -> Any:
         model=model,
         system_prompt=CRITIC_SYSTEM_PROMPT,
         conversation_manager=NullConversationManager(),
+        callback_handler=None,
     )

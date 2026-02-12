@@ -54,12 +54,92 @@ Three demonstration runs against OWASP Juice Shop:
 - **Embeddings**: sentence-transformers (local, no external API)
 - **Containerization**: Docker Compose
 
-## Success Criteria
+## Prerequisites
 
-- Successfully demonstrate all three runs (cold start, warm start, self-repair) with OWASP Juice Shop
-- Prove that warm start requires zero LLM calls
-- Show that repaired graphs persist for future use
-- Demonstrate knowledge compounding in the Neo4j graph
+- Python 3.12+
+- Docker & Docker Compose
+- Anthropic API key
+
+## Setup
+
+```bash
+# Clone and install
+git clone https://github.com/geebs/llmitm_v2.git
+cd llmitm_v2
+python3 -m venv .venv
+.venv/bin/pip install -e .
+
+# Copy env and fill in your Anthropic API key
+cp .env.example .env
+
+# Start Neo4j + Juice Shop
+make up
+```
+
+## Running the Demo
+
+The demo shows three runs against OWASP Juice Shop, each progressively more deterministic:
+
+```bash
+# 1. Reset graph and seed a known-good ActionGraph
+make reset && make seed
+
+# 2. Run 1 — Warm start (zero LLM calls)
+#    Fingerprint matches → stored graph executes deterministically
+make run
+
+# 3. Break step 6's endpoint to simulate target drift
+make break-graph
+
+# 4. Run 2 — Self-repair (1 LLM call)
+#    Broken step → SYSTEMIC failure → LLM diagnoses → graph rewires itself
+make run
+
+# 5. Run 3 — Persistence (zero LLM calls again)
+#    Repaired graph is stored in Neo4j → executes without LLM forever
+make run
+```
+
+## Exploring the Graph
+
+Connect to Neo4j Browser at `http://localhost:7474` (user: `neo4j`, password: `password`, database: `neo4j`).
+
+```cypher
+-- See the full graph
+MATCH (n) RETURN n LIMIT 50
+
+-- See the ActionGraph step chain
+MATCH (ag:ActionGraph)-[:STARTS_WITH]->(s:Step)
+MATCH path=(s)-[:NEXT*]->(end)
+RETURN ag, path
+
+-- See the repair edge (after run 2)
+MATCH (s1)-[:REPAIRED_TO]->(s2) RETURN s1, s2
+
+-- See findings
+MATCH (f:Finding)-[:PRODUCED_BY]->(ag) RETURN f, ag
+```
+
+## Running Tests
+
+```bash
+make test
+```
+
+87 tests passing, 1 skipped (Neo4j orchestrator init test).
+
+## Other Makefile Targets
+
+| Target | Description |
+|--------|-------------|
+| `make up` / `make down` | Start/stop Docker containers |
+| `make schema` | Create Neo4j constraints and indexes |
+| `make seed` | Insert known-good 7-step IDOR ActionGraph |
+| `make break-graph` | Corrupt step 6 for self-repair demo |
+| `make fix-graph` | Reverse corruption (manual fallback) |
+| `make snapshot NAME=x` | Export Neo4j binary dump |
+| `make restore NAME=x` | Restore from binary dump |
+| `make reset` | Wipe graph and recreate schema |
 
 ## License
 

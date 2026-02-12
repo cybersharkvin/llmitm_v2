@@ -31,5 +31,5 @@ class RepairDiagnosis(BaseModel):
     )
     suggested_fix: Optional[str] = Field(
         default=None,
-        description="Suggested repair command if systemic"
+        description="If systemic: the exact replacement shell command or URL to use. Must be a valid executable command, NOT prose or explanation."
     )

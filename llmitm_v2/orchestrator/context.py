@@ -93,15 +93,13 @@ RECENT EXECUTION HISTORY (last 3 steps):
 {recent_outputs}
 
 TASK:
-Classify the failure and suggest a repair strategy.
-
-Use get_repair_history to understand how similar failures were repaired before.
+Classify the failure and suggest a repair.
 
 Respond with:
-- failure_type: One of 'transient_recoverable' (retry immediately), 'transient_unrecoverable' (restart graph), or 'systemic' (needs repair)
-- suggested_repair_command: Optional new command or parameters to fix the failure
-
-Consider:
-1. Is this a temporary network/load issue? → transient_recoverable
-2. Is this an endpoint/session lost? → transient_unrecoverable
-3. Does the strategy itself need to change? → systemic"""
+- failure_type: One of 'transient_recoverable', 'transient_unrecoverable', or 'systemic'
+- diagnosis: Brief explanation of what went wrong
+- suggested_fix: If systemic, provide the COMPLETE replacement shell command.
+  IMPORTANT: The suggested_fix must be a fully self-contained, executable command.
+  It must include ALL variable assignments (e.g., TOKEN=$(cat /tmp/file.txt) && curl ...).
+  Do NOT reference undefined shell variables. Do NOT include prose or explanation.
+  The command replaces the failed step's command field exactly."""

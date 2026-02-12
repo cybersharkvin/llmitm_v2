@@ -1,6 +1,7 @@
-.PHONY: up down schema reset snapshot restore snapshot-baseline restore-baseline test
+.PHONY: up down schema reset snapshot restore snapshot-baseline restore-baseline test run break-graph fix-graph seed
 
 NAME ?= latest
+PYTHON ?= .venv/bin/python3
 
 up:
 	docker compose up -d
@@ -21,7 +22,7 @@ schema:
 	NEO4J_DATABASE=neo4j \
 	ANTHROPIC_API_KEY=dummy \
 	TARGET_URL=http://localhost:3000 \
-	python3 -m llmitm_v2.repository.setup_schema
+	$(PYTHON) -m llmitm_v2.repository.setup_schema
 
 reset:
 	./scripts/reset-graph.sh
@@ -39,4 +40,16 @@ restore-baseline:
 	$(MAKE) restore NAME=phase5-baseline
 
 test:
-	python3 -m pytest tests/
+	$(PYTHON) -m pytest tests/
+
+run:
+	$(PYTHON) -m llmitm_v2
+
+break-graph:
+	./scripts/break-graph.sh
+
+fix-graph:
+	./scripts/fix-graph.sh
+
+seed:
+	$(PYTHON) scripts/seed-demo-graph.py

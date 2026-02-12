@@ -2,6 +2,7 @@
 
 import logging
 import sys
+import warnings
 from pathlib import Path
 
 from neo4j import GraphDatabase
@@ -9,9 +10,15 @@ from neo4j import GraphDatabase
 from llmitm_v2.config import Settings
 from llmitm_v2.fingerprinter import Fingerprinter
 from llmitm_v2.orchestrator import Orchestrator
-from llmitm_v2.repository import GraphRepository, setup_schema
+from llmitm_v2.repository import GraphRepository
+from llmitm_v2.repository.setup_schema import setup_schema
 
 logging.basicConfig(level=logging.INFO)
+logging.getLogger("neo4j").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("strands").setLevel(logging.WARNING)
+logging.getLogger("anthropic").setLevel(logging.WARNING)
+warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 logger = logging.getLogger(__name__)
 
 
@@ -28,7 +35,7 @@ def main():
 
     try:
         # Setup schema
-        setup_schema()
+        setup_schema(quiet=True)
         logger.info("Neo4j schema initialized")
 
         # Create repository and orchestrator

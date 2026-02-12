@@ -88,34 +88,80 @@
   - Schema separated from data: setup_schema.py runs after every restore
   - Completed: Feb 11, 2026
 
+- ✅ **Pre-E2E Audit: Model ID + Vector Dims + Doc Drift + Repair Bug**
+  - Wired model_id through agent factories (env-configurable, default Haiku for cheap E2E)
+  - Fixed hardcoded claude-sonnet-4-20250514 in agents.py → uses Settings.model_id
+  - Fixed self-repair re-execution bug: repaired steps now re-run via index-based while loop
+  - Fixed 1536→384 dimension refs in fingerprint.py, neo4jSchema.md, techContext.md
+  - Fixed techContext.md schema drift: suggested_fix, Dict types match actual Pydantic models
+  - Completed: Feb 11, 2026
+  - Validation: 78 tests passing, 10 skipped, 0 regressions
+
+- ✅ **E2E Cold Start + Warm Start Verified**: First live demo runs against Juice Shop
+  - Fixed 7 integration bugs discovered during first real E2E run:
+    1. `setup_schema` module vs function import in __main__.py
+    2. Strands SDK import path: `strands.conversation` → `strands.agent` (NullConversationManager moved)
+    3. API key not reaching Anthropic: added `api_key` param to agent factories, wired from Settings
+    4. Actor max_tokens 4096 → 16384 (ActionGraph JSON too large for 4K)
+    5. Critic max_tokens 1024 → 4096 (CriticFeedback structured output needs room)
+    6. `STARTS_WITH` edge not created: hardcoded `order: 0` but LLM generates steps starting at 1; fixed to use MIN(order)
+    7. Neo4j DateTime not serializable to Pydantic str: added `iso_format()` conversion in get_action_graph_with_steps
+  - Also: `MaxTokensReachedException` added to compile loop catch block
+  - Also: Makefile updated with `PYTHON` variable pointing to .venv, added `make run` target
+  - Also: reset-graph.sh updated to use venv python
+  - Cold start: Actor/Critic loop (3 iterations), compiled IDOR ActionGraph, executed 2 steps against live Juice Shop, found 1 vulnerability
+  - Warm start: Zero LLM calls, graph fetched from Neo4j, executed 1 step, found 1 finding
+  - Completed: Feb 11, 2026
+  - Validation: 87 tests passing (previously skipped tests now run with full deps in venv), 1 skipped
+
+- ✅ **Self-Repair Demo Infrastructure**: Break/fix graph scripts
+  - scripts/break-graph.sh: Corrupts step 6 endpoint (/api/Users/1 → /api/Users/1/bogus-subpath)
+  - scripts/fix-graph.sh: Reverses corruption (manual fallback)
+  - Makefile targets: break-graph, fix-graph
+  - Strategy: bogus subpath → 500/error → SYSTEMIC classification → LLM repair
+  - Completed: Feb 11, 2026
+
+- ✅ **All Three Hackathon Demos Verified**: Warm start, self-repair, persistence
+  - Fixed 5 bugs: get_action_graph_with_steps (shortest→longest path), repair_step_chain (REPAIRED_TO edge fanout, DETACH DELETE syntax), Cypher quoting in break/fix scripts, snapshot file ownership
+  - Added: seed-demo-graph.py (known-good 7-step IDOR graph), output_file support in HTTPRequestHandler, quiet mode for setup_schema, callback_handler=None for clean output, improved repair prompt
+  - Repair uses critic agent (no tools) to avoid runaway tool-call loops
+  - Run 1 (warm start): Success=True, 7 steps, 7 findings, 0 LLM calls
+  - Run 2 (self-repair): Repaired=True, Success=True, 7 steps, 6 findings, 1 LLM call
+  - Run 3 (persistence): Success=True, 6 steps, 6 findings, 0 LLM calls, [:REPAIRED_TO] edge verified
+  - Snapshots: demo-baseline.dump, demo-with-repair.dump
+  - Completed: Feb 11, 2026
+  - Validation: 87 tests passing, 1 skipped
+
 ## In Progress
 
-- **None**: All infrastructure ready for demonstrations
+- None
 
 ## Pending Features
 
-**Phase 5b: End-to-End Verification (Optional)**
-- Cold start verification: fingerprint demo traffic → compile with mock LLM → verify graph creation
-- Warm start verification: re-run with same fingerprint → verify zero LLM calls
-- Self-repair verification: simulate target change → trigger repair → verify persistence
+- Pre-recorded demo capture (terminal session + Neo4j Browser screenshots)
 
 ## Known Issues
 
-- **None**: All identified bugs fixed (3 orchestrator bugs resolved, 1 deferred)
+- Cold start compilation is unreliable: LLM hallucinates wrong credentials for Juice Shop users
+- LLM repair occasionally drops variable initialization prefixes (e.g., TOKEN=$(cat file) && ...)
 
 ## Technical Debt
 
-- **None**: Foundation complete, code clean, all tests passing
+- setup_schema() runs on every CLI invocation (adds ~1s latency); could skip if schema exists
+- APOC Cypher export in snapshot script fails silently (binary dump still works)
 
 ## Version History
 
 ### Current State
 - **Version**: 0.1.0
-- **Status**: Production Ready for Hackathon Demos (All 5 Phases Complete)
+- **Status**: All Hackathon Deliverables Complete
 - **Primary Branch**: main
-- **Test Suite**: 78 passing, 10 skipped, 0 failed
+- **Test Suite**: 87 passing, 1 skipped, 0 failed
 
 ### Recent Milestones
+- **Feb 11, 2026**: All three hackathon demos verified (warm start, self-repair, persistence) — 5 bugs fixed, demo polished
+- **Feb 11, 2026**: E2E cold start + warm start verified against live Juice Shop (7 integration bugs fixed)
+- **Feb 11, 2026**: Pre-E2E audit fixes (model_id wiring, vector dim corrections, repair re-execution bug)
 - **Feb 11, 2026**: Neo4j snapshot/restore infrastructure (Makefile, scripts, dual backup strategy)
 - **Feb 11, 2026**: Phase 5 complete (Fingerprinter, demo traffic, CLI, bug fixes: 78 tests passing)
 - **Feb 10, 2026**: Phase 4 complete (Orchestrator main loop: cold/warm/repair flows, 70 tests passing)
@@ -125,13 +171,17 @@
 
 ## Deployment Status
 
-- **Environment**: Local development (Docker Compose ready)
-- **Installation**: `pip install -e .` (with dependencies from pyproject.toml)
-- **Schema Setup**: `make schema` or `python3 -m llmitm_v2.repository.setup_schema`
-- **Testing**: `make test` or `python3 -m pytest tests/`
-- **Snapshot**: `make snapshot NAME=x` (binary dump + Cypher export)
-- **Restore**: `make restore NAME=x` (binary load + schema apply)
+- **Environment**: Local development (Docker Compose + .venv)
+- **Installation**: `python3 -m venv .venv && .venv/bin/pip install -e .`
+- **Run**: `make run` or `.venv/bin/python3 -m llmitm_v2`
+- **Schema Setup**: `make schema`
+- **Testing**: `make test`
+- **Snapshot**: `make snapshot NAME=x`
+- **Restore**: `make restore NAME=x`
 - **Reset**: `make reset` (online wipe + schema recreate)
+- **Seed Demo**: `make seed` (insert known-good IDOR ActionGraph)
+- **Break for Repair Demo**: `make break-graph` (corrupt step 6)
+- **Fix Manually**: `make fix-graph` (reverse corruption)
 
 ---
 

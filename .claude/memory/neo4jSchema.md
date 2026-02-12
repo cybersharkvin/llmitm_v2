@@ -21,7 +21,7 @@ Target identity and characteristics, used for matching similar targets.
 - `auth_model`: String — Authentication model (e.g., "Bearer token in Authorization header")
 - `endpoint_pattern`: String — API endpoint pattern (e.g., "/api/v1/*")
 - `security_signals`: List[String] — Security indicators (e.g., ["CORS enabled", "CSP present"])
-- `observation_embedding`: List[Float] (1536-dim) — Vector for similarity search
+- `observation_embedding`: List[Float] (384-dim) — Vector for similarity search
 - `observation_text`: String — Original text used for embedding generation
 
 **Constraints:**
@@ -37,7 +37,7 @@ FOR (f:Fingerprint)
 ON f.observation_embedding
 OPTIONS {
   indexConfig: {
-    `vector.dimensions`: 1536,
+    `vector.dimensions`: 384,
     `vector.similarity_function`: 'cosine',
     `vector.quantization.enabled`: true,
     `vector.hnsw.m`: 16,
@@ -104,7 +104,7 @@ Discovered vulnerabilities and observations from ActionGraph executions.
 - `observation`: String — Vulnerability description
 - `severity`: String — critical, high, medium, low
 - `evidence_summary`: String — Proof of exploitation
-- `observation_embedding`: List[Float] (1536-dim) — Vector for similarity search
+- `observation_embedding`: List[Float] (384-dim) — Vector for similarity search
 - `discovered_at`: DateTime — Timestamp of discovery
 - `target_url`: String — URL where vulnerability was found
 
@@ -115,7 +115,7 @@ FOR (f:Finding)
 ON f.observation_embedding
 OPTIONS {
   indexConfig: {
-    `vector.dimensions`: 1536,
+    `vector.dimensions`: 384,
     `vector.similarity_function`: 'cosine'
   }
 }

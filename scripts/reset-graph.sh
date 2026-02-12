@@ -31,7 +31,7 @@ NEO4J_PASSWORD=password \
 NEO4J_DATABASE=neo4j \
 ANTHROPIC_API_KEY=dummy \
 TARGET_URL=http://localhost:3000 \
-    python3 -m llmitm_v2.repository.setup_schema
+    "${PROJECT_DIR}/.venv/bin/python3" -m llmitm_v2.repository.setup_schema
 
 echo ""
 echo "=== Reset complete ==="

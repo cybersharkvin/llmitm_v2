@@ -193,11 +193,12 @@ class GraphRepository:
                     ag_id=action_graph.id,
                 )
 
-                # Set [:STARTS_WITH] entry point
+                # Set [:STARTS_WITH] entry point (first step by order)
                 tx.run(
                     """
-                    MATCH (ag:ActionGraph {id: $ag_id})-[:HAS_STEP]->(first:Step {order: 0})
-                    CREATE (ag)-[:STARTS_WITH]->(first)
+                    MATCH (ag:ActionGraph {id: $ag_id})-[:HAS_STEP]->(s:Step)
+                    WITH ag, s ORDER BY s.order LIMIT 1
+                    CREATE (ag)-[:STARTS_WITH]->(s)
                     """,
                     ag_id=action_graph.id,
                 )
@@ -226,12 +227,13 @@ class GraphRepository:
                 MATCH (f:Fingerprint {hash: $fingerprint_hash})-[:TRIGGERS]->(ag:ActionGraph)
                 MATCH (ag)-[:STARTS_WITH]->(first:Step)
                 MATCH path = (first)-[:NEXT*0..100]->(s:Step)
+                WITH ag, path, length(path) AS pathLen
+                ORDER BY pathLen DESC
+                LIMIT 1
                 WITH ag, nodes(path) AS steps
                 RETURN
                     properties(ag) AS graph_props,
                     [step IN steps | properties(step)] AS step_props
-                ORDER BY ag.confidence DESC
-                LIMIT 1
                 """,
                 fingerprint_hash=fingerprint_hash,
             )
@@ -240,8 +242,13 @@ class GraphRepository:
                 return None
 
             # Reconstruct ActionGraph with deserialized steps
-            ag_data = record["graph_props"]
+            ag_data = dict(record["graph_props"])
             steps_data = record["step_props"]
+
+            # Convert Neo4j DateTime objects to ISO strings
+            for key in ("created_at", "updated_at"):
+                if key in ag_data and hasattr(ag_data[key], "iso_format"):
+                    ag_data[key] = ag_data[key].iso_format()
 
             # Deserialize parameters JSON
             for step_data in steps_data:
@@ -312,22 +319,23 @@ class GraphRepository:
         """
 
         def tx_func(tx: Session) -> None:
-            # Find the failed step and its neighbors
+            # Delete [:NEXT] edges into failed step
             tx.run(
                 """
                 MATCH (ag:ActionGraph {id: $ag_id})-[:HAS_STEP]->(failed:Step {order: $failed_order})
-                OPTIONAL MATCH (before:Step)-[:NEXT]->(failed)
-                OPTIONAL MATCH (failed)-[:NEXT]->(after:Step)
-                WITH failed, before, after
-                // Delete [:NEXT] edges connected to failed step
-                FOREACH (_ IN CASE WHEN before IS NOT NULL THEN [1] ELSE [] END |
-                    DELETE (before)-[:NEXT]->(failed)
-                )
-                FOREACH (_ IN CASE WHEN after IS NOT NULL THEN [1] ELSE [] END |
-                    DELETE (failed)-[:NEXT]->(after)
-                )
-                // Delete failed step
-                DELETE failed
+                OPTIONAL MATCH (before:Step)-[r:NEXT]->(failed)
+                DELETE r
+                """,
+                ag_id=action_graph_id,
+                failed_order=failed_step_order,
+            )
+            # Delete [:NEXT] edges out of failed step, then delete it
+            tx.run(
+                """
+                MATCH (ag:ActionGraph {id: $ag_id})-[:HAS_STEP]->(failed:Step {order: $failed_order})
+                OPTIONAL MATCH (failed)-[r:NEXT]->(after:Step)
+                DELETE r
+                DETACH DELETE failed
                 """,
                 ag_id=action_graph_id,
                 failed_order=failed_step_order,
@@ -393,19 +401,21 @@ class GraphRepository:
                     last_new_order=last_new_order,
                 )
 
-                # Create [:REPAIRED_TO] edge
+                # Create [:REPAIRED_TO] edge from predecessor to new step
                 tx.run(
                     """
-                    MATCH (ag:ActionGraph {id: $ag_id})-[:HAS_STEP]->(old_step)
-                    OPTIONAL MATCH (old_repaired:Step {order: $first_new_order})
-                    WHERE old_repaired IS NOT NULL
-                    CREATE (old_step)-[:REPAIRED_TO {
+                    MATCH (ag:ActionGraph {id: $ag_id})-[:HAS_STEP]->(before:Step {order: $before_order})
+                    MATCH (ag)-[:HAS_STEP]->(new_step:Step {order: $first_new_order})
+                    CREATE (before)-[:REPAIRED_TO {
                         reason: $reason,
+                        repaired_order: $failed_order,
                         timestamp: datetime()
-                    }]->(old_repaired)
+                    }]->(new_step)
                     """,
                     ag_id=action_graph_id,
+                    before_order=failed_step_order - 1,
                     first_new_order=first_new_order,
+                    failed_order=failed_step_order,
                     reason="Systemic repair",
                 )
 

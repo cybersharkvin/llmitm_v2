@@ -5,9 +5,10 @@ import re
 from typing import Optional
 
 try:
-    from strands.types.exceptions import StructuredOutputException
+    from strands.types.exceptions import MaxTokensReachedException, StructuredOutputException
 except ImportError:
     StructuredOutputException = Exception  # type: ignore
+    MaxTokensReachedException = Exception  # type: ignore
 
 from llmitm_v2.config import Settings
 from llmitm_v2.constants import FailureType
@@ -77,15 +78,15 @@ class Orchestrator:
     def _compile(self, fingerprint: Fingerprint, traffic_log: str) -> ActionGraph:
         """Actor/Critic loop -> validated ActionGraph -> save to Neo4j."""
         context = assemble_compilation_context(fingerprint, traffic_log)
-        actor = create_actor_agent(self.graph_repo)
-        critic = create_critic_agent()
+        actor = create_actor_agent(self.graph_repo, model_id=self.settings.model_id, api_key=self.settings.anthropic_api_key)
+        critic = create_critic_agent(model_id=self.settings.model_id, api_key=self.settings.anthropic_api_key)
 
         for i in range(self.settings.max_critic_iterations):
             try:
                 actor_result = actor(context, structured_output_model=ActionGraph)
                 ag = actor_result.structured_output
-            except StructuredOutputException:
-                logger.warning("Actor structured output failed on iteration %d", i)
+            except (StructuredOutputException, MaxTokensReachedException) as e:
+                logger.warning("Actor failed on iteration %d: %s", i, type(e).__name__)
                 continue
 
             try:
@@ -93,8 +94,8 @@ class Orchestrator:
                     ag.model_dump_json(), structured_output_model=CriticFeedback
                 )
                 feedback = critic_result.structured_output
-            except StructuredOutputException:
-                logger.warning("Critic structured output failed on iteration %d", i)
+            except (StructuredOutputException, MaxTokensReachedException) as e:
+                logger.warning("Critic failed on iteration %d: %s", i, type(e).__name__)
                 continue
 
             if feedback.passed:
@@ -121,7 +122,9 @@ class Orchestrator:
 
         sorted_steps = sorted(action_graph.steps, key=lambda s: s.order)
 
-        for step in sorted_steps:
+        i = 0
+        while i < len(sorted_steps):
+            step = sorted_steps[i]
             interpolated = self._interpolate_params(step, ctx)
             handler = get_handler(interpolated.type)
             result = handler.execute(interpolated, ctx)
@@ -156,8 +159,14 @@ class Orchestrator:
                         error_log=result.stderr or result.stdout,
                         repaired=repaired,
                     )
-                if action == "repaired":
+                if isinstance(action, tuple) and action[0] == "repaired":
                     repaired = True
+                    new_ag = action[1]
+                    sorted_steps = sorted(new_ag.steps, key=lambda s: s.order)
+                    action_graph = new_ag
+                    continue  # Re-run from current index (repaired step)
+
+            i += 1
 
         return ExecutionResult(
             success=True, findings=findings, steps_executed=steps_executed, repaired=repaired
@@ -170,8 +179,8 @@ class Orchestrator:
         context: ExecutionContext,
         action_graph: ActionGraph,
         retried: bool,
-    ) -> str:
-        """Classify failure -> 'retry' / 'abort' / 'repaired'. Returns action taken."""
+    ) -> "str | tuple[str, ActionGraph]":
+        """Classify failure -> 'retry' / 'abort' / ('repaired', new_ag). Returns action taken."""
         error_log = result.stderr or result.stdout
         failure_type = classify_failure(error_log, result.status_code or 0)
 
@@ -190,14 +199,14 @@ class Orchestrator:
 
         if failure_type == FailureType.SYSTEMIC:
             try:
-                self._repair(
+                new_ag = self._repair(
                     action_graph,
                     step,
                     error_log,
                     context.previous_outputs,
                     context.fingerprint.hash,
                 )
-                return "repaired"
+                return ("repaired", new_ag)
             except Exception:
                 logger.exception("Repair failed for step %d", step.order)
                 return "abort"
@@ -237,10 +246,10 @@ class Orchestrator:
     ) -> ActionGraph:
         """LLM diagnoses systemic failure, repairs step chain in Neo4j."""
         context = assemble_repair_context(failed_step, error_log, execution_history)
-        actor = create_actor_agent(self.graph_repo)
+        repair_agent = create_critic_agent(model_id=self.settings.model_id, api_key=self.settings.anthropic_api_key)
 
         try:
-            repair_result = actor(
+            repair_result = repair_agent(
                 context, structured_output_model=RepairDiagnosis
             )
             diagnosis = repair_result.structured_output

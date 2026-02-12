@@ -33,7 +33,8 @@ docker run --rm \
     neo4j/neo4j-admin:5-community \
     neo4j-admin database dump neo4j --to-path=/backups --overwrite-destination=true
 
-# Rename to the requested name
+# Fix ownership (dump is created as neo4j UID 7474) and rename
+docker run --rm -v "$BACKUPS_DIR:/backups" alpine chown -R "$(id -u):$(id -g)" /backups
 if [ -f "$BACKUPS_DIR/neo4j.dump" ]; then
     mv "$BACKUPS_DIR/neo4j.dump" "$BACKUPS_DIR/$NAME.dump"
 fi
