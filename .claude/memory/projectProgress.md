@@ -141,6 +141,14 @@
   - Completed: Feb 11, 2026
   - Validation: 100 tests passing (13 new), 1 skipped, 0 regressions
 
+- ✅ **Live Recon E2E Bug Fixes**: 3 critical bugs preventing live pipeline execution
+  - quick_fingerprint() sent requests to nonexistent proxy → fixed to send directly to target_url
+  - Fingerprint hash mismatch: quick_fingerprint (deterministic) vs recon_report.to_fingerprint (LLM free-form) → reuse deterministic fingerprint as canonical hash
+  - assemble_compilation_context_from_recon() was dead code → wired through orchestrator.run() and _compile() via Optional[ReconReport] param
+  - Recon system prompt updated to warn shell_command bypasses capture proxy
+  - Completed: Feb 11, 2026
+  - Validation: 100 tests passing, 1 skipped, 0 regressions
+
 ## In Progress
 
 - None
@@ -166,9 +174,10 @@
 - **Version**: 0.1.0
 - **Status**: All Hackathon Deliverables Complete
 - **Primary Branch**: main
-- **Test Suite**: 87 passing, 1 skipped, 0 failed
+- **Test Suite**: 100 passing, 1 skipped, 0 failed
 
 ### Recent Milestones
+- **Feb 11, 2026**: Live recon E2E bug fixes (3 critical: proxy routing, hash mismatch, dead code wiring)
 - **Feb 11, 2026**: All three hackathon demos verified (warm start, self-repair, persistence) — 5 bugs fixed, demo polished
 - **Feb 11, 2026**: E2E cold start + warm start verified against live Juice Shop (7 integration bugs fixed)
 - **Feb 11, 2026**: Pre-E2E audit fixes (model_id wiring, vector dim corrections, repair re-execution bug)

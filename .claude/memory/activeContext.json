@@ -1,26 +1,15 @@
 {
-  "session": "Live Recon Agent Integration (Feb 11, 2026)",
-  "completed_phase": "Live mitmproxy Recon Agent — Full Implementation",
-  "summary": "Implemented LLM-driven recon agent that actively explores targets through mitmproxy, replacing static traffic file + deterministic Fingerprinter. Recon/critic loop validates discoveries before ActionGraph compilation.",
-  "files_created": 6,
+  "session": "Live Recon E2E Bug Fixes (Feb 11, 2026)",
+  "completed_phase": "Fix 3 E2E bugs in live recon pipeline",
+  "summary": "Fixed 3 bugs preventing live recon E2E: quick_fingerprint sent requests to nonexistent proxy, fingerprint hash mismatch between quick_fingerprint and recon, assemble_compilation_context_from_recon was dead code.",
+  "files_created": 0,
   "git_commits": [],
   "files_by_category": {
-    "new_files": [
-      {"path": "llmitm_v2/models/recon.py", "description": "DiscoveredEndpoint, AttackOpportunity, ReconReport, ReconCriticFeedback Pydantic models"},
-      {"path": "llmitm_v2/capture/__init__.py", "description": "Capture subsystem package"},
-      {"path": "llmitm_v2/capture/addon.py", "description": "mitmproxy addon: LLMitMCaptureAddon captures all flows, dumps JSON on shutdown"},
-      {"path": "llmitm_v2/capture/launcher.py", "description": "quick_fingerprint() (zero LLM) and run_recon() (full LLM recon/critic loop)"},
-      {"path": "llmitm_v2/tools/recon_tools.py", "description": "ReconTools class: http_request and shell_command @tool methods through proxy"},
-      {"path": "tests/test_recon_models.py", "description": "13 tests for recon models, serialization, to_fingerprint(), confidence bounds"}
-    ],
     "modified": [
-      {"path": "llmitm_v2/models/__init__.py", "description": "Added recon model exports"},
-      {"path": "llmitm_v2/orchestrator/agents.py", "description": "Added create_recon_agent, create_recon_critic_agent + system prompts"},
-      {"path": "llmitm_v2/orchestrator/context.py", "description": "Added assemble_recon_context, assemble_compilation_context_from_recon"},
-      {"path": "llmitm_v2/config.py", "description": "Added capture_mode, traffic_file, recon_model_id, recon_max_iterations"},
-      {"path": "llmitm_v2/__main__.py", "description": "Conditional live/file branching with warm-start fast path"},
-      {"path": "docker-compose.yml", "description": "mitmproxy: reverse proxy mode, addon.py volume, depends_on juiceshop"},
-      {"path": "Makefile", "description": "Added run-live target"}
+      {"path": "llmitm_v2/capture/launcher.py", "description": "quick_fingerprint() sends directly to target_url, dropped proxy_port param"},
+      {"path": "llmitm_v2/__main__.py", "description": "Reuses deterministic fingerprint (not recon_report.to_fingerprint()), passes recon_report to orchestrator"},
+      {"path": "llmitm_v2/orchestrator/orchestrator.py", "description": "run() and _compile() accept Optional[ReconReport], use assemble_compilation_context_from_recon when present"},
+      {"path": "llmitm_v2/orchestrator/agents.py", "description": "RECON_SYSTEM_PROMPT notes that shell_command bypasses capture proxy"}
     ]
   },
   "test_results": {
@@ -29,44 +18,40 @@
     "failed": 0,
     "status": "✅ ALL PASSING",
     "coverage": ["models", "handlers", "orchestrator", "fingerprinter", "context", "failure_classifier", "recon_models"],
-    "notes": "1 skipped (Neo4j Orchestrator init test). 13 new recon model tests."
+    "notes": "1 skipped (Neo4j Orchestrator init test). Zero regressions from bug fixes."
   },
   "design_decisions": [
-    {"decision": "Recon agent replaces static traffic + Fingerprinter", "rationale": "LLM-driven exploration discovers more endpoints and identifies vulns that rule-based fingerprinting misses"},
-    {"decision": "quick_fingerprint() as warm-start fast path", "rationale": "Send 3 deterministic requests, extract fingerprint from headers — zero LLM cost for known targets"},
-    {"decision": "tool_context audit trail on endpoints and opportunities", "rationale": "Critic can verify claims against the tool calls that produced them"},
-    {"decision": "traffic_log populated by launcher, not LLM", "rationale": "LLM should not fabricate traffic. Addon captures real flows, launcher formats them."},
-    {"decision": "capture_mode=file preserves existing demo", "rationale": "Zero regression — all 87 original tests + make run still work unchanged"}
+    {"decision": "Deterministic fingerprint is canonical for hashing", "rationale": "quick_fingerprint() uses Fingerprinter (deterministic regex) producing consistent hashes. ReconReport.to_fingerprint() uses LLM free-form text producing inconsistent hashes. The deterministic fingerprint must be used for Neo4j lookup AND storage to ensure warm start works."},
+    {"decision": "ReconReport passed explicitly to orchestrator.run()", "rationale": "Option A from plan: explicit parameter, no hidden state. Pydantic-typed at every boundary."},
+    {"decision": "quick_fingerprint() probes target directly, no proxy", "rationale": "Only needs response headers for deterministic fingerprinting. No traffic capture needed at this stage."}
   ],
   "next_phases": [
     {
       "phase": "E2E Live Recon Verification",
       "estimated_hours": 2,
       "tasks": [
-        "Test CAPTURE_MODE=live make run-live against live Juice Shop",
-        "Verify quick_fingerprint warm-start path (second run = zero LLM)",
-        "Verify recon/critic loop produces valid ReconReport",
-        "Verify assemble_compilation_context_from_recon feeds actor agent correctly"
+        "CAPTURE_MODE=live make run-live against live Juice Shop (cold start)",
+        "Second run: verify warm start (zero LLM, zero mitmdump)",
+        "Verify recon/critic loop produces valid ReconReport with attack_opportunities",
+        "Verify actor agent sees attack_opportunities via assemble_compilation_context_from_recon"
       ]
     }
   ],
-  "blockers": "None — implementation complete, needs E2E verification with live services",
+  "blockers": "None — bugs fixed, ready for E2E verification with live services",
   "context_for_next_session": [
-    "Live recon agent fully implemented — 6 new files, 7 modified files",
-    "capture_mode=file (default) preserves all existing demo functionality unchanged",
-    "capture_mode=live activates: quick_fingerprint → run_recon → recon/critic loop → ReconReport",
-    "Run: CAPTURE_MODE=live make run-live (requires mitmdump installed + Juice Shop running)",
-    "ReconReport.to_fingerprint() bridges recon output to existing Neo4j warm-start system",
-    "100 tests passing (13 new), 1 skipped, 0 failures",
-    "Docker mitmproxy service updated to reverse proxy mode with addon.py",
-    "Changes not yet committed to git"
+    "3 bugs fixed in live recon pipeline — all code-reviewed, 100 tests passing",
+    "Bug 1: quick_fingerprint() now sends directly to target_url (was sending to nonexistent proxy)",
+    "Bug 2: __main__.py reuses deterministic fingerprint from quick_fingerprint(), not recon_report.to_fingerprint()",
+    "Bug 3: orchestrator.run() and _compile() now accept Optional[ReconReport] and use assemble_compilation_context_from_recon",
+    "Bug 4 (minor): RECON_SYSTEM_PROMPT warns that shell_command curl bypasses proxy",
+    "capture_mode=file path is completely unchanged — zero regression",
+    "Changes not yet committed to git",
+    "Next: CAPTURE_MODE=live make run-live against live Juice Shop"
   ],
   "files_to_reference": [
-    "llmitm_v2/models/recon.py — ReconReport, DiscoveredEndpoint, AttackOpportunity, ReconCriticFeedback",
-    "llmitm_v2/capture/launcher.py — quick_fingerprint() and run_recon() lifecycle management",
-    "llmitm_v2/capture/addon.py — mitmproxy addon for passive traffic capture",
-    "llmitm_v2/tools/recon_tools.py — ReconTools with http_request and shell_command",
-    "llmitm_v2/orchestrator/agents.py — create_recon_agent, create_recon_critic_agent",
-    "llmitm_v2/orchestrator/context.py — assemble_recon_context, assemble_compilation_context_from_recon"
+    "llmitm_v2/capture/launcher.py — quick_fingerprint(target_url) sends directly to target",
+    "llmitm_v2/__main__.py — live branch reuses deterministic fingerprint, passes recon_report",
+    "llmitm_v2/orchestrator/orchestrator.py — run() and _compile() accept Optional[ReconReport]",
+    "llmitm_v2/orchestrator/agents.py — RECON_SYSTEM_PROMPT updated with proxy note"
   ]
 }

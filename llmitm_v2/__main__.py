@@ -46,7 +46,7 @@ def main():
             from llmitm_v2.capture.launcher import quick_fingerprint, run_recon
 
             # Fast path: deterministic fingerprint, check Neo4j for warm start
-            fingerprint = quick_fingerprint(settings.target_url, settings.mitm_port)
+            fingerprint = quick_fingerprint(settings.target_url)
             if fingerprint:
                 fingerprint.ensure_hash()
                 existing_ag = graph_repo.get_action_graph_with_steps(fingerprint.hash)
@@ -56,13 +56,18 @@ def main():
                 else:
                     logger.info("Known fingerprint but no ActionGraph — running full recon")
                     recon_report = run_recon(settings)
-                    fingerprint = recon_report.to_fingerprint()
-                    result = orchestrator.run(fingerprint, recon_report.traffic_log)
+                    # Reuse DETERMINISTIC fingerprint (not recon_report.to_fingerprint())
+                    # to ensure same hash for both lookup and storage
+                    result = orchestrator.run(
+                        fingerprint, recon_report.traffic_log, recon_report=recon_report
+                    )
             else:
                 logger.info("No quick fingerprint — running full recon")
                 recon_report = run_recon(settings)
                 fingerprint = recon_report.to_fingerprint()
-                result = orchestrator.run(fingerprint, recon_report.traffic_log)
+                result = orchestrator.run(
+                    fingerprint, recon_report.traffic_log, recon_report=recon_report
+                )
         else:
             # Static file path (unchanged)
             traffic_path = Path(__file__).parent.parent / settings.traffic_file

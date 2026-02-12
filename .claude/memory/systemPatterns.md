@@ -79,14 +79,14 @@
 ### Recon Agent / Critic Pattern
 - **Description**: LLM-driven recon agent with tools explores target through mitmproxy, critic validates the structured ReconReport
 - **When to Use**: Live target exploration (capture_mode=live) replacing static traffic files
-- **Example**: `recon_agent(prompt, structured_output_model=ReconReport)` → critic validates → `ReconReport.to_fingerprint()` → existing warm-start flow
+- **Example**: `recon_agent(prompt, structured_output_model=ReconReport)` → critic validates → deterministic fingerprint from `quick_fingerprint()` used for Neo4j storage (not `ReconReport.to_fingerprint()` which produces inconsistent hashes)
 - **Key Files**: `capture/launcher.py` (lifecycle), `tools/recon_tools.py` (http_request/shell_command), `models/recon.py` (ReconReport), `orchestrator/agents.py` (create_recon_agent)
 - **Rationale**: LLM-driven exploration discovers more endpoints and identifies vulns that rule-based fingerprinting misses. tool_context audit trail lets critic verify claims.
 
 ### Quick Fingerprint Fast Path
 - **Description**: Send 3 deterministic HTTP requests, extract fingerprint from headers — zero LLM cost for known targets
 - **When to Use**: First step in live mode before invoking expensive recon agent
-- **Example**: `quick_fingerprint(target_url, proxy_port)` → Fingerprint → check Neo4j → if match, skip recon entirely
+- **Example**: `quick_fingerprint(target_url)` → Fingerprint → check Neo4j → if match, skip recon entirely. Sends directly to target (no proxy needed)
 - **Rationale**: Preserves "convergence toward zero LLM cost" thesis. Second run against same target = zero tokens.
 
 ### Dependency Injection

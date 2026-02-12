@@ -161,7 +161,11 @@ You MUST NOT:
 You MAY use shell_command for advanced recon (curl with special flags, DNS lookups, etc.)
 when http_request is insufficient.
 
-Every request you make is captured by the proxy for evidence collection.
+Note: The http_request tool automatically routes through the capture proxy. If you use
+shell_command with curl or wget, that traffic will NOT be captured by the proxy.
+Prefer http_request for all HTTP exploration.
+
+Every request you make via http_request is captured by the proxy for evidence collection.
 
 Your output MUST conform exactly to the ReconReport JSON schema."""
 

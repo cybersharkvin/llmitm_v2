@@ -26,8 +26,10 @@ from llmitm_v2.models import (
     StepResult,
 )
 from llmitm_v2.orchestrator.agents import create_actor_agent, create_critic_agent
+from llmitm_v2.models.recon import ReconReport
 from llmitm_v2.orchestrator.context import (
     assemble_compilation_context,
+    assemble_compilation_context_from_recon,
     assemble_repair_context,
 )
 from llmitm_v2.orchestrator.failure_classifier import classify_failure
@@ -46,7 +48,12 @@ class Orchestrator:
         self.graph_repo = graph_repo
         self.settings = settings
 
-    def run(self, fingerprint: Fingerprint, traffic_log: str) -> OrchestratorResult:
+    def run(
+        self,
+        fingerprint: Fingerprint,
+        traffic_log: str,
+        recon_report: Optional[ReconReport] = None,
+    ) -> OrchestratorResult:
         """Main entry point. Decides cold vs warm start, executes, handles repair."""
         fingerprint.ensure_hash()
         self.graph_repo.save_fingerprint(fingerprint)
@@ -54,7 +61,7 @@ class Orchestrator:
         ag = self._try_warm_start(fingerprint)
         compiled = False
         if ag is None:
-            ag = self._compile(fingerprint, traffic_log)
+            ag = self._compile(fingerprint, traffic_log, recon_report)
             compiled = True
 
         result = self._execute(ag, fingerprint)
@@ -75,9 +82,17 @@ class Orchestrator:
             return None
         return ActionGraph(**data)
 
-    def _compile(self, fingerprint: Fingerprint, traffic_log: str) -> ActionGraph:
+    def _compile(
+        self,
+        fingerprint: Fingerprint,
+        traffic_log: str,
+        recon_report: Optional[ReconReport] = None,
+    ) -> ActionGraph:
         """Actor/Critic loop -> validated ActionGraph -> save to Neo4j."""
-        context = assemble_compilation_context(fingerprint, traffic_log)
+        if recon_report is not None:
+            context = assemble_compilation_context_from_recon(recon_report)
+        else:
+            context = assemble_compilation_context(fingerprint, traffic_log)
         actor = create_actor_agent(self.graph_repo, model_id=self.settings.model_id, api_key=self.settings.anthropic_api_key)
         critic = create_critic_agent(model_id=self.settings.model_id, api_key=self.settings.anthropic_api_key)
 

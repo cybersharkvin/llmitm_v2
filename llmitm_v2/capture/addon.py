@@ -27,12 +27,23 @@ class LLMitMCaptureAddon:
             "response_body": flow.response.get_text(strict=False) or "",
         })
 
-    def done(self):
-        """On shutdown, dump all flows as JSON to stdout."""
-        import json
-        import sys
+        # Write all flows to file on Docker volume mount so host can read
+        self._write_flows_to_file()
 
-        json.dump(self.flows, sys.stdout)
+    def _write_flows_to_file(self) -> None:
+        """Write current flows list to /capture/flows.json (mounted volume)."""
+        import json
+        from pathlib import Path
+
+        try:
+            Path("/capture/flows.json").write_text(json.dumps(self.flows))
+        except Exception as e:
+            # Silently fail if can't write (e.g., not in Docker or no mount)
+            pass
+
+    def done(self):
+        """On shutdown, ensure all flows are written to file."""
+        self._write_flows_to_file()
 
 
 addons = [LLMitMCaptureAddon()]

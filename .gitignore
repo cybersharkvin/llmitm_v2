@@ -68,6 +68,7 @@ snapshots/latest.cypher
 
 # Hackathon event docs (not part of project)
 hackathon_event_details.md
+Mitmproxy_for_Penetration_Testing_A_Professional_Guide.md
 
 # Runtime output (handler temp files)
 llmitm_v2/tmp/
