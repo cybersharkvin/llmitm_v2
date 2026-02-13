@@ -377,10 +377,8 @@ class GraphRepository:
                 # Link before → first_new_step
                 tx.run(
                     """
-                    MATCH (ag:ActionGraph {id: $ag_id})
-                    MATCH (before:Step)-[:NEXT]->(old:Step {order: $before_order})
-                    WHERE NOT EXISTS {(old)-[:NEXT]->(:Step)}
-                    MATCH (first:Step {order: $first_new_order})
+                    MATCH (ag:ActionGraph {id: $ag_id})-[:HAS_STEP]->(before:Step {order: $before_order})
+                    MATCH (ag)-[:HAS_STEP]->(first:Step {order: $first_new_order})
                     CREATE (before)-[:NEXT]->(first)
                     """,
                     ag_id=action_graph_id,
@@ -391,9 +389,8 @@ class GraphRepository:
                 # Link last_new_step → after
                 tx.run(
                     """
-                    MATCH (ag:ActionGraph {id: $ag_id})
-                    MATCH (after:Step {order: $after_order})
-                    MATCH (last:Step {order: $last_new_order})
+                    MATCH (ag:ActionGraph {id: $ag_id})-[:HAS_STEP]->(last:Step {order: $last_new_order})
+                    MATCH (ag)-[:HAS_STEP]->(after:Step {order: $after_order})
                     CREATE (last)-[:NEXT]->(after)
                     """,
                     ag_id=action_graph_id,

@@ -78,11 +78,11 @@
 - **Rationale**: Official Neo4j best practice. Manages connection pool efficiently
 
 ### 2-Agent Architecture (Recon Agent + Attack Critic)
-- **Description**: Two agents handle all LLM tasks. Recon Agent (ProgrammaticAgent) explores targets via code_execution sandbox + mitmdump tool. Attack Critic (SimpleAgent) adversarially validates plans.
-- **When to Use**: Compilation (cold start) and repair (self-repair). Same agent types for both file and live modes.
-- **Example**: `recon_agent(prompt, structured_output_model=ActionGraph)` → `attack_critic(ag.model_dump_json(), structured_output_model=CriticFeedback)` → loop until passed
-- **Key Files**: `orchestrator/agents.py` (ProgrammaticAgent, SimpleAgent, factories), `tools/recon_tools.py` (MITMDUMP_TOOL_SCHEMA, handle_mitmdump), `skills/*.md` (skill guides)
-- **Rationale**: Consolidates 4 agents to 2. Programmatic tool calling reduces token usage dramatically.
+- **Description**: Two agents handle all LLM tasks. Recon Agent (ProgrammaticAgent) explores targets via code_execution sandbox + mitmdump tool. Attack Critic (SimpleAgent) adversarially validates plans. Both compilation and repair use the same Recon+Critic loop.
+- **When to Use**: Cold start compilation AND self-repair both use Recon + Critic loop. Repair prepends failure context via `_compile(repair_context=...)`.
+- **Example**: `recon_agent(context, structured_output_model=ActionGraph)` → `attack_critic(ag.model_dump_json(), structured_output_model=CriticFeedback)` → loop until passed.
+- **Key Files**: `orchestrator/agents.py` (ProgrammaticAgent, SimpleAgent, create_recon_agent, create_attack_critic), `tools/recon_tools.py` (MITMDUMP_TOOL_SCHEMA, handle_mitmdump), `skills/*.md` (skill guides)
+- **Rationale**: Repair is just recompilation with enriched context. No separate repair agent needed — the Recon Agent doesn't know it's "repairing", it just produces a new ActionGraph that accounts for the failure.
 
 ### Skill Guide Pattern
 - **Description**: Markdown files in `skills/` loaded into Recon Agent's system prompt. Each guide teaches methodology for a specific testing phase.
@@ -99,9 +99,22 @@
 
 ### Quick Fingerprint Fast Path
 - **Description**: Send 3 deterministic HTTP requests, extract fingerprint from headers — zero LLM cost for known targets
-- **When to Use**: First step in live mode before invoking expensive recon agent
-- **Example**: `quick_fingerprint(target_url)` → Fingerprint → check Neo4j → if match, skip recon entirely. Sends directly to target (no proxy needed)
+- **When to Use**: Live mode — first step before invoking expensive recon agent
+- **Example**: `quick_fingerprint(target_url)` → Fingerprint → check Neo4j → if match, skip recon entirely
 - **Rationale**: Preserves "convergence toward zero LLM cost" thesis. Second run against same target = zero tokens.
+
+### Offline Fingerprint from .mitm File
+- **Description**: Extract fingerprint from a .mitm capture file using `mitmdump -nr` — no live target needed
+- **When to Use**: File mode — fingerprint derived from captured traffic for warm-start matching
+- **Example**: `fingerprint_from_mitm("demo/juice_shop.mitm")` → Fingerprint with same hash every time
+- **Key Files**: `capture/launcher.py` (fingerprint_from_mitm)
+- **Rationale**: File mode must work fully offline. Previous approach used quick_fingerprint() which required live target.
+
+### OBSERVE-Only Findings
+- **Description**: Only OBSERVE-phase steps produce Findings. CAPTURE/ANALYZE/MUTATE/REPLAY steps that match success criteria are prerequisites, not vulnerability discoveries.
+- **When to Use**: In `_execute()` when checking `success_criteria_matched`
+- **Implementation**: `step.phase == StepPhase.OBSERVE` guard on Finding creation
+- **Rationale**: CAMRO design — only the final observation validates a vulnerability. Without this, login/token-extraction steps pollute Neo4j with false "findings".
 
 ### Dependency Injection
 - **Description**: Dependencies passed explicitly to constructors throughout the stack

@@ -1,8 +1,8 @@
 """Context assembly for LLM reasoning phases.
 
 Builds minimal, phase-specific prompts. Two functions:
-- assemble_recon_context(): For Recon Agent (cold start compilation)
-- assemble_repair_context(): For Recon Agent (self-repair at failure point)
+- assemble_recon_context(): Full prompt for Recon Agent (cold start / repair compilation)
+- assemble_repair_context(): Enrichment string prepended to recon context on repair
 """
 
 from llmitm_v2.models import Step
@@ -74,19 +74,19 @@ vulnerability you discover."""
 
 def assemble_repair_context(
     failed_step: Step, error_log: str, execution_history: list[str],
-    mitm_file: str = "", proxy_url: str = "",
 ) -> str:
-    """Assemble context for Recon Agent to diagnose and repair a failed step.
+    """Build context enrichment string describing a failed execution.
+
+    This string gets prepended to the normal recon context in _compile(),
+    so the Recon Agent sees what failed and can account for it.
 
     Args:
         failed_step: Step that failed
         error_log: Error message or status output
         execution_history: Previous step outputs
-        mitm_file: Path to .mitm capture file (file mode)
-        proxy_url: Live proxy URL (live mode)
 
     Returns:
-        Formatted prompt string for Recon Agent (structured output: RepairDiagnosis)
+        Context enrichment string (not a full prompt)
     """
     max_error_chars = 2000
     truncated_error = error_log[:max_error_chars]
@@ -95,38 +95,19 @@ def assemble_repair_context(
 
     recent_outputs = "\n".join(execution_history[:3]) if execution_history else "(no previous steps)"
 
-    target_context = ""
-    if mitm_file:
-        target_context = f"Traffic capture available at: {mitm_file}"
-    elif proxy_url:
-        target_context = f"Live target accessible at: {proxy_url}"
+    return f"""## Previous Execution State
 
-    return f"""You are diagnosing a failed step in a vulnerability test.
+A prior ActionGraph was executed but failed at step {failed_step.order} ({failed_step.phase}, {failed_step.type}).
+Command: {failed_step.command}
+Parameters: {failed_step.parameters}
 
-FAILED STEP:
-- Phase: {failed_step.phase}
-- Type: {failed_step.type}
-- Command: {failed_step.command}
-- Parameters: {failed_step.parameters}
-
-ERROR OUTPUT:
+Error output:
 {truncated_error}
 
-RECENT EXECUTION HISTORY (last 3 steps):
+Steps that succeeded before failure:
 {recent_outputs}
 
-{target_context}
+Account for this failure in your new ActionGraph. The previous approach did not work —
+produce a corrected plan that avoids the same issue.
 
-TASK:
-Classify the failure and suggest a repair.
-
-You may use mitmdump to investigate the target's current state if needed.
-
-Respond with:
-- failure_type: One of 'transient_recoverable', 'transient_unrecoverable', or 'systemic'
-- diagnosis: Brief explanation of what went wrong
-- suggested_fix: If systemic, provide the COMPLETE replacement shell command.
-  IMPORTANT: The suggested_fix must be a fully self-contained, executable command.
-  It must include ALL variable assignments (e.g., TOKEN=$(cat /tmp/file.txt) && curl ...).
-  Do NOT reference undefined shell variables. Do NOT include prose or explanation.
-  The command replaces the failed step's command field exactly."""
+"""

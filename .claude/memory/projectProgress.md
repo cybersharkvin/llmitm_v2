@@ -177,6 +177,24 @@
   - Completed: Feb 12, 2026
   - Validation: 98 tests passing, 1 skipped, 0 regressions
 
+- ✅ **Bug Fixes + Dead Code Cleanup**: 4 bugs fixed, 2 dead models removed
+  - Bug 1: RegexMatchHandler source param — try/except around int() prevents crash on interpolated values
+  - Bug 2: Repair agent wrong system prompt — added REPAIR_SYSTEM_PROMPT + create_repair_agent() factory
+  - Bug 3: File mode required live target — added fingerprint_from_mitm() for offline fingerprinting from .mitm files
+  - Bug 4: Findings created for all steps — now only OBSERVE-phase steps produce findings
+  - Dead code: Removed CompilationContext and RepairContext models (never constructed)
+  - Completed: Feb 12, 2026
+  - Validation: 99 tests passing, 1 skipped, 0 regressions
+
+- ✅ **Unified Repair + FlowReader Fix**: Architectural cleanup + blocking bug fix
+  - fingerprint_from_mitm() rewritten with FlowReader (fixes format mismatch — was producing "Unknown" fingerprint)
+  - Repair unified into _compile() with repair_context enrichment (no separate repair agent)
+  - Deleted: REPAIR_SYSTEM_PROMPT, create_repair_agent()
+  - repair_step_chain() NEXT rewiring fixed (HAS_STEP-scoped queries)
+  - _execute() restarts from i=0 on repair (new graph = fresh execution)
+  - Completed: Feb 12, 2026
+  - Validation: 98 tests passing, 1 skipped, 0 regressions
+
 ## In Progress
 
 - None
@@ -184,13 +202,12 @@
 ## Pending Features
 
 - Capture demo/juice_shop.mitm binary capture file
-- E2E smoke test with ProgrammaticAgent + mitmdump tool
+- E2E smoke test with ProgrammaticAgent + mitmdump tool (cold start, warm start, self-repair, persistence)
 - Pre-recorded demo capture (terminal session + Neo4j Browser screenshots)
 
 ## Known Issues
 
 - Cold start compilation is unreliable: LLM hallucinates wrong credentials for Juice Shop users
-- LLM repair occasionally drops variable initialization prefixes (e.g., TOKEN=$(cat file) && ...)
 - graph_tools.py still uses @beta_tool closures — may need update if tool_runner is fully removed
 
 ## Technical Debt
@@ -208,6 +225,8 @@
 - **Test Suite**: 98 passing, 1 skipped, 0 failed
 
 ### Recent Milestones
+- **Feb 12, 2026**: Unified repair + FlowReader fix (fingerprint_from_mitm, _compile(repair_context=), deleted repair agent, 98 tests)
+- **Feb 12, 2026**: Bug fixes + dead code cleanup (4 bugs, 2 dead models removed, 99 tests)
 - **Feb 12, 2026**: 2-agent architecture consolidation (ProgrammaticAgent + skill guides + .mitm format + 50K budget)
 - **Feb 12, 2026**: API cost protections (max_iterations, token logging, cumulative budget, max_critic_iterations 5→3)
 - **Feb 12, 2026**: Strands → Anthropic native SDK migration (SimpleAgent/ToolAgent, @beta_tool, grammar-constrained structured output)

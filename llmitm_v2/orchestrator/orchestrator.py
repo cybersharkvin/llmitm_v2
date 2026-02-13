@@ -10,7 +10,7 @@ import re
 from typing import Optional
 
 from llmitm_v2.config import Settings
-from llmitm_v2.constants import FailureType
+from llmitm_v2.constants import FailureType, StepPhase
 from llmitm_v2.handlers.registry import get_handler
 from llmitm_v2.models import (
     ActionGraph,
@@ -20,7 +20,6 @@ from llmitm_v2.models import (
     Finding,
     Fingerprint,
     OrchestratorResult,
-    RepairDiagnosis,
     Step,
     StepResult,
 )
@@ -90,9 +89,13 @@ class Orchestrator:
         fingerprint: Fingerprint,
         mitm_file: str = "",
         proxy_url: str = "",
+        repair_context: str = "",
     ) -> ActionGraph:
-        """Recon Agent + Attack Critic loop -> validated ActionGraph -> save to Neo4j."""
-        # Build mitm_context for the recon agent's system prompt
+        """Recon Agent + Attack Critic loop -> validated ActionGraph -> save to Neo4j.
+
+        Args:
+            repair_context: If non-empty, prepended to recon context with failure details.
+        """
         if mitm_file:
             mitm_context = f"Pre-recorded capture file: {mitm_file}"
         elif proxy_url:
@@ -111,6 +114,8 @@ class Orchestrator:
         )
 
         context = assemble_recon_context(mitm_file=mitm_file, proxy_url=proxy_url)
+        if repair_context:
+            context = repair_context + context
 
         for i in range(self.settings.max_critic_iterations):
             try:
@@ -163,7 +168,7 @@ class Orchestrator:
             ctx.previous_outputs.append(result.stdout)
 
             # Check for finding
-            if result.success_criteria_matched and step.success_criteria:
+            if result.success_criteria_matched and step.success_criteria and step.phase == StepPhase.OBSERVE:
                 finding = Finding(
                     observation=f"Success criteria matched at step {step.order}",
                     severity="medium",
@@ -195,7 +200,11 @@ class Orchestrator:
                     new_ag = action[1]
                     sorted_steps = sorted(new_ag.steps, key=lambda s: s.order)
                     action_graph = new_ag
-                    continue  # Re-run from current index (repaired step)
+                    ctx = ExecutionContext(
+                        target_url=self.settings.target_url, fingerprint=fingerprint
+                    )
+                    i = 0
+                    continue  # Restart from step 0 with new graph
 
             i += 1
 
@@ -233,7 +242,7 @@ class Orchestrator:
                     step,
                     error_log,
                     context.previous_outputs,
-                    context.fingerprint.hash,
+                    context.fingerprint,
                 )
                 return ("repaired", new_ag)
             except Exception:
@@ -271,10 +280,9 @@ class Orchestrator:
         failed_step: Step,
         error_log: str,
         execution_history: list[str],
-        fingerprint_hash: Optional[str],
+        fingerprint: Fingerprint,
     ) -> ActionGraph:
-        """Recon Agent diagnoses systemic failure, repairs step chain in Neo4j."""
-        # Determine target context for repair agent
+        """Recompile via Recon+Critic with enriched context describing the failure."""
         mitm_file = ""
         proxy_url = ""
         if self.settings.capture_mode == "file":
@@ -282,40 +290,7 @@ class Orchestrator:
         else:
             proxy_url = f"http://127.0.0.1:{self.settings.mitm_port}"
 
-        context = assemble_repair_context(
-            failed_step, error_log, execution_history,
-            mitm_file=mitm_file, proxy_url=proxy_url,
+        enrichment = assemble_repair_context(failed_step, error_log, execution_history)
+        return self._compile(
+            fingerprint, mitm_file=mitm_file, proxy_url=proxy_url, repair_context=enrichment,
         )
-
-        # Use Attack Critic (SimpleAgent) for repair diagnosis — no tools needed
-        repair_agent = create_attack_critic(
-            model_id=self.settings.model_id,
-            api_key=self.settings.anthropic_api_key,
-        )
-
-        try:
-            repair_result = repair_agent(
-                context, structured_output_model=RepairDiagnosis
-            )
-            diagnosis = repair_result.structured_output
-        except Exception as e:
-            raise RuntimeError(f"Repair diagnosis failed: {type(e).__name__}: {e}")
-
-        if diagnosis.suggested_fix:
-            new_step = Step(
-                order=failed_step.order,
-                phase=failed_step.phase,
-                type=failed_step.type,
-                command=diagnosis.suggested_fix,
-                parameters=failed_step.parameters,
-                success_criteria=failed_step.success_criteria,
-            )
-            self.graph_repo.repair_step_chain(
-                action_graph.id, failed_step.order, [new_step]
-            )
-
-        # Re-fetch updated graph using fingerprint hash
-        if fingerprint_hash:
-            data = self.graph_repo.get_action_graph_with_steps(fingerprint_hash)
-            return ActionGraph(**data) if data else action_graph
-        return action_graph

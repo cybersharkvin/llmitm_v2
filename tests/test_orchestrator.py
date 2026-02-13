@@ -78,19 +78,16 @@ class TestContextAssembly:
 
     def test_assemble_repair_context_includes_step_and_error(self):
         step = Step(
-            order=1,
-            phase=StepPhase.MUTATE,
-            type=StepType.HTTP_REQUEST,
-            command="POST /api/users",
-            parameters={"payload": "test"},
+            order=1, phase=StepPhase.MUTATE, type=StepType.HTTP_REQUEST,
+            command="POST /api/users", parameters={"payload": "test"},
         )
         ctx = assemble_repair_context(step, "401 Unauthorized", ["login successful"])
-        assert "MUTATE" in ctx and "401 Unauthorized" in ctx
+        assert "MUTATE" in ctx and "401 Unauthorized" in ctx and "step 1" in ctx
 
     def test_assemble_repair_context_truncates_error_log(self):
         step = Step(order=0, phase=StepPhase.CAPTURE, type=StepType.HTTP_REQUEST, command="GET /", parameters={})
         ctx = assemble_repair_context(step, "E" * 5000, [])
-        assert "[... truncated ...]" in ctx
+        assert "[... truncated ...]" in ctx and "Previous Execution State" in ctx
 
 
 class TestGraphTools:

@@ -316,3 +316,5 @@ def create_attack_critic(
     """
     client = anthropic.Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY", ""))
     return SimpleAgent(client, ATTACK_CRITIC_SYSTEM_PROMPT, model_id, 4096)
+
+

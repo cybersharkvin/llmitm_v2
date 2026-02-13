@@ -21,7 +21,10 @@ class RegexMatchHandler(StepHandler):
         if source_index == "last":
             source = context.previous_outputs[-1]
         else:
-            source = context.previous_outputs[int(source_index)]
+            try:
+                source = context.previous_outputs[int(source_index)]
+            except (ValueError, IndexError):
+                source = str(source_index)
 
         match = re.search(pattern, source)
         if match:

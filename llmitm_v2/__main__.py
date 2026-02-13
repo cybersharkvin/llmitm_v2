@@ -73,9 +73,9 @@ def main():
                 logger.error("Traffic file not found: %s", traffic_path)
                 sys.exit(1)
 
-            # Use quick_fingerprint for warm-start check
-            from llmitm_v2.capture.launcher import quick_fingerprint
-            fingerprint = quick_fingerprint(settings.target_url)
+            # Extract fingerprint from .mitm file (no live target needed)
+            from llmitm_v2.capture.launcher import fingerprint_from_mitm
+            fingerprint = fingerprint_from_mitm(str(traffic_path))
             if fingerprint is None:
                 from llmitm_v2.models import Fingerprint
                 fingerprint = Fingerprint(
