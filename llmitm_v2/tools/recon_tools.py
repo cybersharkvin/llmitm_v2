@@ -5,7 +5,10 @@ The agent writes Python in Anthropic's code_execution sandbox; when it calls
 `await mitmdump(...)`, our handler runs the actual subprocess on the host.
 """
 
+import shlex
 import subprocess
+import sys
+from pathlib import Path
 
 # Tool schema for Anthropic API — used by ProgrammaticAgent
 MITMDUMP_TOOL_SCHEMA = {
@@ -28,6 +31,9 @@ MITMDUMP_TOOL_SCHEMA = {
     "allowed_callers": ["code_execution_20250825"],
 }
 
+# Resolve mitmdump binary from the same venv as the running Python
+_MITMDUMP_BIN = str(Path(sys.executable).parent / "mitmdump")
+
 
 def handle_mitmdump(command: str) -> str:
     """Execute mitmdump with given arguments. Returns truncated stdout + stderr.
@@ -38,9 +44,9 @@ def handle_mitmdump(command: str) -> str:
     Returns:
         Formatted string with STDOUT and STDERR sections
     """
+    args = [_MITMDUMP_BIN] + shlex.split(command)
     result = subprocess.run(
-        f"mitmdump {command}",
-        shell=True,
+        args,
         capture_output=True,
         timeout=30,
     )

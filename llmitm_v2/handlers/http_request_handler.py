@@ -1,5 +1,6 @@
 """HTTP request handler using httpx."""
 
+import json
 import re
 from pathlib import Path
 
@@ -25,10 +26,25 @@ class HTTPRequestHandler(StepHandler):
 
         try:
             with httpx.Client(cookies=context.cookies, timeout=timeout) as client:
-                response = client.request(method, url, headers=headers, content=body)
+                kwargs = {"headers": headers}
+                if isinstance(body, dict):
+                    kwargs["json"] = body
+                elif body is not None:
+                    kwargs["content"] = body
+                response = client.request(method, url, **kwargs)
                 # Extract Set-Cookie values back into context for orchestrator
                 for name, value in response.cookies.items():
                     context.cookies[name] = value
+                # Extract auth token from response body if step requests it
+                token_path = step.parameters.get("extract_token_path")
+                if token_path:
+                    try:
+                        data = response.json()
+                        for key in token_path.split("."):
+                            data = data[key]
+                        context.session_tokens["Authorization"] = f"Bearer {data}"
+                    except Exception:
+                        pass
                 if step.output_file:
                     tmp_dir = Path(__file__).resolve().parent.parent / "tmp"
                     tmp_dir.mkdir(exist_ok=True)

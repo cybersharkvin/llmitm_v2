@@ -14,14 +14,13 @@ authors = [
 license = {text = "MIT"}
 
 dependencies = [
-    "strands-agents>=0.1.0",
-    "strands-agents-tools>=0.1.0",
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
     "neo4j>=5.0",
     "httpx>=0.25.0",
     "sentence-transformers>=2.2.0",
     "anthropic>=0.20.0",
+    "mitmproxy>=10.0",
 ]
 
 [project.optional-dependencies]

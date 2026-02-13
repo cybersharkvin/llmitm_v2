@@ -1,9 +1,10 @@
 """Context models for different execution phases."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from llmitm_v2.models.finding import Finding
 from llmitm_v2.models.fingerprint import Fingerprint
 
 
@@ -53,7 +54,7 @@ class ExecutionResult(BaseModel):
     """Result of a full ActionGraph execution."""
 
     success: bool = Field(description="Whether execution completed successfully")
-    findings: List[Any] = Field(default_factory=list, description="Findings discovered during execution")
+    findings: List[Finding] = Field(default_factory=list, description="Findings discovered during execution")
     steps_executed: int = Field(default=0, description="Number of steps executed")
     error_log: Optional[str] = Field(default=None, description="Error details if execution failed")
     repaired: bool = Field(default=False, description="Whether ActionGraph was repaired during execution")
@@ -62,7 +63,7 @@ class ExecutionResult(BaseModel):
 class OrchestratorResult(BaseModel):
     """Result of a full orchestrator run (cold/warm start + execution)."""
 
-    path: str = Field(description="Execution path: 'cold_start' or 'warm_start'")
+    path: Literal["cold_start", "warm_start", "repair"] = Field(description="Execution path taken")
     action_graph_id: Optional[str] = Field(default=None, description="ID of ActionGraph used")
     execution: Optional[ExecutionResult] = Field(default=None, description="Execution result")
     compiled: bool = Field(default=False, description="Whether ActionGraph was compiled this run")

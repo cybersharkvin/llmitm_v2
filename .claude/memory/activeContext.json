@@ -1,69 +1,53 @@
 {
-  "session": "Unified Repair + FlowReader Fix (Feb 12, 2026)",
-  "completed_phase": "Unified repair into _compile(), fixed fingerprint_from_mitm(), deleted repair agent",
-  "summary": "fingerprint_from_mitm() now uses FlowReader (not subprocess). Repair calls _compile() with enriched context instead of dedicated repair agent. repair_step_chain NEXT rewiring fixed. 98 tests passing.",
+  "session": "Bug Fix Batch (Feb 12, 2026)",
+  "completed_phase": "12-issue audit: 8 fixed, 4 deferred as tech debt",
+  "summary": "Fixed 8 bugs across 6 files: pyproject.toml deps, command injection, httpx dict body, orchestrator path/append/repair, newest AG selection, type safety. 98 tests passing.",
   "files_created": 0,
-  "git_commits": [],
-  "files_by_category": {
-    "modified": [
-      {"path": "llmitm_v2/capture/launcher.py", "description": "fingerprint_from_mitm() uses mitmproxy.io.FlowReader instead of subprocess mitmdump. Builds >>> / <<< format."},
-      {"path": "llmitm_v2/orchestrator/orchestrator.py", "description": "_compile() accepts repair_context param. _repair() calls _compile() with enriched context. Restart from i=0 on repair. Removed RepairDiagnosis/create_repair_agent imports."},
-      {"path": "llmitm_v2/orchestrator/context.py", "description": "assemble_repair_context() returns enrichment string (not full prompt). Removed mitm_file/proxy_url params."},
-      {"path": "llmitm_v2/orchestrator/agents.py", "description": "Deleted REPAIR_SYSTEM_PROMPT and create_repair_agent() factory."},
-      {"path": "llmitm_v2/orchestrator/__init__.py", "description": "Removed create_repair_agent export."},
-      {"path": "llmitm_v2/repository/graph_repository.py", "description": "repair_step_chain NEXT rewiring uses HAS_STEP-scoped MATCH instead of broken NEXT traversal."},
-      {"path": "tests/test_orchestrator.py", "description": "Removed create_repair_agent test and import. Updated repair context test assertions."}
-    ]
-  },
+  "git_commits": ["87aedad — previous: Unify repair into compile, fix fingerprint_from_mitm FlowReader"],
+  "files_modified": [
+    {"path": "pyproject.toml", "issues": "B1: removed strands deps, added mitmproxy>=10.0"},
+    {"path": "llmitm_v2/tools/recon_tools.py", "issues": "B1+S1: resolve mitmdump from venv, shlex.split, no shell=True"},
+    {"path": "llmitm_v2/handlers/http_request_handler.py", "issues": "B2+B6: json= for dict body, extract_token_path for session_tokens"},
+    {"path": "llmitm_v2/orchestrator/orchestrator.py", "issues": "B3+B4+C1: store paths on self, append after success only, path='repair'"},
+    {"path": "llmitm_v2/repository/graph_repository.py", "issues": "B5: ORDER BY ag.created_at DESC LIMIT 1 before path match"},
+    {"path": "llmitm_v2/models/context.py", "issues": "T1+C2: List[Finding], Literal path type"}
+  ],
   "test_results": {
     "test_suite": "tests/",
     "passed": 98,
     "failed": 0,
-    "status": "✅ ALL PASSING",
-    "coverage": ["models", "handlers", "orchestrator", "fingerprinter", "context", "failure_classifier", "recon_models", "skill_guides", "agent_factories"],
-    "notes": "1 skipped (Neo4j). -1 from removed repair agent factory test."
+    "status": "ALL PASSING",
+    "notes": "1 skipped (Neo4j Orchestrator init). No regressions."
   },
-  "design_decisions": [
-    {"decision": "Unified repair via _compile()", "rationale": "No separate repair agent. Recon+Critic recompile with enriched context describing the failure. Simpler, reuses same code path."},
-    {"decision": "FlowReader for fingerprint_from_mitm()", "rationale": "mitmdump subprocess output doesn't use >>> / <<< delimiters. FlowReader reads .mitm binary directly and builds correct format."},
-    {"decision": "Restart from i=0 on repair", "rationale": "New ActionGraph is a complete recompilation. Must re-execute from step 0, not continue from failed index."},
-    {"decision": "HAS_STEP-scoped repair_step_chain queries", "rationale": "After DETACH DELETE, NEXT edges are gone. Must find steps by order via HAS_STEP relationship, not traverse deleted edges."}
+  "deferred_tech_debt": [
+    "T2: AgentResult.structured_output: Any (needs Generic[T])",
+    "T3: _handle_step_failure stringly-typed return (needs enum/dataclass)",
+    "Step.parameters: Dict[str, Any] (can't narrow without per-handler schemas)",
+    "get_repair_history() returns params as JSON strings"
   ],
-  "next_phases": [
-    {
-      "phase": "Capture demo/juice_shop.mitm",
-      "estimated_hours": 0.5,
-      "tasks": [
-        "make up — start Juice Shop + Neo4j via Docker Compose",
-        "mitmdump -w demo/juice_shop.mitm -p 8080",
-        "curl through proxy to hit key endpoints",
-        "Verify fingerprint_from_mitm() returns Express fingerprint"
-      ]
-    },
-    {
-      "phase": "E2E Smoke Tests",
-      "estimated_hours": 1,
-      "tasks": [
-        "Cold start: make reset && CAPTURE_MODE=file make run",
-        "Warm start: make run again (0 LLM calls)",
-        "Self-repair: make break-graph && make run",
-        "Persistence: make run again (0 LLM calls, 0 repairs)"
-      ]
-    }
+  "e2e_next_steps": [
+    "1. make up — start Docker services",
+    "2. Capture demo/juice_shop.mitm via mitmdump -w demo/juice_shop.mitm -p 9090",
+    "3. Run 4 E2E scenarios: cold start, warm start, self-repair, persistence",
+    "4. make test, snapshot, merge to main"
   ],
-  "blockers": "Need demo/juice_shop.mitm capture file before E2E testing.",
+  "blockers": "demo/juice_shop.mitm must be captured before any E2E test can run.",
   "context_for_next_session": [
-    "ALL CHANGES UNCOMMITTED on dev branch",
-    "Now 2 agent factories only: create_recon_agent (ProgrammaticAgent), create_attack_critic (SimpleAgent)",
-    "Repair = _compile() with repair_context enrichment prepended to recon context",
-    "fingerprint_from_mitm() uses FlowReader — no subprocess, no mitmdump format mismatch",
-    "repair_step_chain() NEXT rewiring fixed but repair flow no longer uses it (full recompilation instead)",
-    "demo/juice_shop.mitm does NOT exist yet — must capture before E2E",
-    "98 tests passing, 1 skipped, 0 regressions"
+    "All 8 code fixes applied on dev branch (not yet committed)",
+    "mitmdump now installed in venv (v12.2.1)",
+    "handle_mitmdump uses list-form subprocess (no shell injection)",
+    "HTTPRequestHandler supports json= for dict bodies + extract_token_path for auth",
+    "previous_outputs only appended on success (no double-append on retry)",
+    "_repair() uses self._mitm_file/self._proxy_url (absolute paths from run())",
+    "get_action_graph_with_steps() selects newest AG by created_at DESC",
+    "OrchestratorResult.path is Literal['cold_start', 'warm_start', 'repair']"
   ],
   "files_to_reference": [
-    "llmitm_v2/capture/launcher.py — fingerprint_from_mitm uses FlowReader",
-    "llmitm_v2/orchestrator/orchestrator.py — _compile(repair_context=), _repair() delegates to _compile()",
-    "llmitm_v2/orchestrator/context.py — assemble_repair_context() returns enrichment string"
+    "llmitm_v2/__main__.py — CLI entry",
+    "llmitm_v2/tools/recon_tools.py — mitmdump binary resolution + shlex",
+    "llmitm_v2/handlers/http_request_handler.py — json= kwarg + extract_token_path",
+    "llmitm_v2/orchestrator/orchestrator.py — self._mitm_file, append fix, path label",
+    "llmitm_v2/repository/graph_repository.py — newest AG selection",
+    "llmitm_v2/models/context.py — List[Finding], Literal path"
   ]
 }

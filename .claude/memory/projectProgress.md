@@ -195,6 +195,21 @@
   - Completed: Feb 12, 2026
   - Validation: 98 tests passing, 1 skipped, 0 regressions
 
+- ✅ **Bug Fix Batch (12-Issue Audit)**: 8 bugs fixed across 6 files
+  - B1: Removed dead strands deps, added mitmproxy>=10.0 to pyproject.toml
+  - B1+S1: Resolved mitmdump from venv bin dir, shlex.split + list-form subprocess (no shell injection)
+  - B2: HTTPRequestHandler uses json= kwarg for dict bodies (was crashing httpx)
+  - B3: _repair() uses self._mitm_file/self._proxy_url (absolute paths stored in run())
+  - B4: previous_outputs.append moved after failure check (no double-append on retry)
+  - B5: get_action_graph_with_steps() selects newest AG by created_at DESC
+  - B6: Added extract_token_path param for session_tokens["Authorization"] extraction
+  - C1: OrchestratorResult.path = "repair" when repaired
+  - T1: ExecutionResult.findings: List[Finding] (was List[Any])
+  - C2: OrchestratorResult.path: Literal["cold_start", "warm_start", "repair"]
+  - Deferred: T2 (AgentResult generic), T3 (stringly-typed failure return)
+  - Completed: Feb 12, 2026
+  - Validation: 98 tests passing, 1 skipped, 0 regressions
+
 ## In Progress
 
 - None
@@ -209,6 +224,8 @@
 
 - Cold start compilation is unreliable: LLM hallucinates wrong credentials for Juice Shop users
 - graph_tools.py still uses @beta_tool closures — may need update if tool_runner is fully removed
+- T2: AgentResult.structured_output: Any — needs Generic[T] (deferred)
+- T3: _handle_step_failure stringly-typed return — needs enum/dataclass (deferred)
 
 ## Technical Debt
 
@@ -225,6 +242,7 @@
 - **Test Suite**: 98 passing, 1 skipped, 0 failed
 
 ### Recent Milestones
+- **Feb 12, 2026**: Bug fix batch — 8 bugs fixed across 6 files (command injection, httpx dict body, orchestrator paths, newest AG selection, type safety)
 - **Feb 12, 2026**: Unified repair + FlowReader fix (fingerprint_from_mitm, _compile(repair_context=), deleted repair agent, 98 tests)
 - **Feb 12, 2026**: Bug fixes + dead code cleanup (4 bugs, 2 dead models removed, 99 tests)
 - **Feb 12, 2026**: 2-agent architecture consolidation (ProgrammaticAgent + skill guides + .mitm format + 50K budget)

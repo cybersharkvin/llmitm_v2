@@ -59,6 +59,8 @@ class Orchestrator:
         """
         fingerprint.ensure_hash()
         self.graph_repo.save_fingerprint(fingerprint)
+        self._mitm_file = mitm_file
+        self._proxy_url = proxy_url
 
         ag = self._try_warm_start(fingerprint)
         compiled = False
@@ -69,8 +71,9 @@ class Orchestrator:
         result = self._execute(ag, fingerprint)
         self.graph_repo.increment_execution_count(ag.id, result.success)
 
+        path = "repair" if result.repaired else ("cold_start" if compiled else "warm_start")
         return OrchestratorResult(
-            path="cold_start" if compiled else "warm_start",
+            path=path,
             action_graph_id=ag.id,
             execution=result,
             compiled=compiled,
@@ -165,7 +168,6 @@ class Orchestrator:
             handler = get_handler(interpolated.type)
             result = handler.execute(interpolated, ctx)
             steps_executed += 1
-            ctx.previous_outputs.append(result.stdout)
 
             # Check for finding
             if result.success_criteria_matched and step.success_criteria and step.phase == StepPhase.OBSERVE:
@@ -205,6 +207,8 @@ class Orchestrator:
                     )
                     i = 0
                     continue  # Restart from step 0 with new graph
+            else:
+                ctx.previous_outputs.append(result.stdout)
 
             i += 1
 
@@ -283,14 +287,8 @@ class Orchestrator:
         fingerprint: Fingerprint,
     ) -> ActionGraph:
         """Recompile via Recon+Critic with enriched context describing the failure."""
-        mitm_file = ""
-        proxy_url = ""
-        if self.settings.capture_mode == "file":
-            mitm_file = str(self.settings.traffic_file)
-        else:
-            proxy_url = f"http://127.0.0.1:{self.settings.mitm_port}"
-
         enrichment = assemble_repair_context(failed_step, error_log, execution_history)
         return self._compile(
-            fingerprint, mitm_file=mitm_file, proxy_url=proxy_url, repair_context=enrichment,
+            fingerprint, mitm_file=self._mitm_file, proxy_url=self._proxy_url,
+            repair_context=enrichment,
         )

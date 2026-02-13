@@ -225,6 +225,7 @@ class GraphRepository:
             result = tx.run(
                 """
                 MATCH (f:Fingerprint {hash: $fingerprint_hash})-[:TRIGGERS]->(ag:ActionGraph)
+                WITH ag ORDER BY ag.created_at DESC LIMIT 1
                 MATCH (ag)-[:STARTS_WITH]->(first:Step)
                 MATCH path = (first)-[:NEXT*0..100]->(s:Step)
                 WITH ag, path, length(path) AS pathLen
