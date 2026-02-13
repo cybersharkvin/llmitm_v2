@@ -11,6 +11,7 @@ from typing import Optional
 
 from llmitm_v2.config import Settings
 from llmitm_v2.constants import FailureType, StepPhase
+from llmitm_v2.debug_logger import log_event
 from llmitm_v2.handlers.registry import get_handler
 from llmitm_v2.models import (
     ActionGraph,
@@ -121,11 +122,12 @@ class Orchestrator:
             context = repair_context + context
 
         for i in range(self.settings.max_critic_iterations):
+            log_event("compile_iter", {"iteration": i})
             try:
                 recon_result = recon(context, structured_output_model=ActionGraph)
                 ag = recon_result.structured_output
             except Exception as e:
-                logger.warning("Recon agent failed on iteration %d: %s", i, type(e).__name__)
+                logger.warning("Recon agent failed on iteration %d: %s: %s", i, type(e).__name__, e)
                 continue
 
             try:
@@ -134,9 +136,10 @@ class Orchestrator:
                 )
                 feedback = critic_result.structured_output
             except Exception as e:
-                logger.warning("Attack critic failed on iteration %d: %s", i, type(e).__name__)
+                logger.warning("Attack critic failed on iteration %d: %s: %s", i, type(e).__name__, e)
                 continue
 
+            log_event("critic_result", {"passed": feedback.passed, "feedback": feedback.feedback[:500]})
             if feedback.passed:
                 ag.ensure_id()
                 self.graph_repo.save_action_graph(fingerprint.hash, ag)
@@ -168,6 +171,7 @@ class Orchestrator:
             handler = get_handler(interpolated.type)
             result = handler.execute(interpolated, ctx)
             steps_executed += 1
+            log_event("step_result", {"order": step.order, "type": step.type.value, "matched": result.success_criteria_matched})
 
             # Check for finding
             if result.success_criteria_matched and step.success_criteria and step.phase == StepPhase.OBSERVE:
@@ -227,6 +231,7 @@ class Orchestrator:
         """Classify failure -> 'retry' / 'abort' / ('repaired', new_ag). Returns action taken."""
         error_log = result.stderr or result.stdout
         failure_type = classify_failure(error_log, result.status_code or 0)
+        log_event("failure", {"step": step.order, "type": failure_type.value})
 
         if failure_type == FailureType.TRANSIENT_RECOVERABLE and not retried:
             handler = get_handler(step.type)

@@ -74,6 +74,9 @@ mitmdump-cheatsheet.md
 # Runtime output (handler temp files)
 llmitm_v2/tmp/
 
+# Debug logs (per-run agent pipeline traces)
+debug_logs/
+
 # Build artifacts
 *.tar.gz
 *.whl

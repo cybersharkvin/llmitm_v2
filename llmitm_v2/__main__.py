@@ -26,6 +26,9 @@ def main():
     from llmitm_v2.orchestrator.agents import set_token_budget
     set_token_budget(settings.max_token_budget)
 
+    from llmitm_v2.debug_logger import init_debug_logging, write_summary
+    init_debug_logging()
+
     # Connect to Neo4j
     driver = GraphDatabase.driver(
         settings.neo4j_uri,
@@ -39,55 +42,66 @@ def main():
         graph_repo = GraphRepository(driver)
         orchestrator = Orchestrator(graph_repo, settings)
 
-        if settings.capture_mode == "live":
-            from llmitm_v2.capture.launcher import quick_fingerprint
+        result = None
+        try:
+            if settings.capture_mode == "live":
+                from llmitm_v2.capture.launcher import quick_fingerprint
 
-            # Fast path: deterministic fingerprint, check Neo4j for warm start
-            fingerprint = quick_fingerprint(settings.target_url)
-            proxy_url = f"http://127.0.0.1:{settings.mitm_port}"
+                # Fast path: deterministic fingerprint, check Neo4j for warm start
+                fingerprint = quick_fingerprint(settings.target_url)
+                proxy_url = f"http://127.0.0.1:{settings.mitm_port}"
 
-            if fingerprint:
-                fingerprint.ensure_hash()
-                existing_ag = graph_repo.get_action_graph_with_steps(fingerprint.hash)
-                if existing_ag:
-                    logger.info("Warm start: matched fingerprint %s", fingerprint.hash[:12])
-                    result = orchestrator.run(fingerprint)
+                if fingerprint:
+                    fingerprint.ensure_hash()
+                    existing_ag = graph_repo.get_action_graph_with_steps(fingerprint.hash)
+                    if existing_ag:
+                        logger.info("Warm start: matched fingerprint %s", fingerprint.hash[:12])
+                        result = orchestrator.run(fingerprint)
+                    else:
+                        logger.info("Known fingerprint but no ActionGraph — running recon")
+                        result = orchestrator.run(fingerprint, proxy_url=proxy_url)
                 else:
-                    logger.info("Known fingerprint but no ActionGraph — running recon")
+                    logger.info("No quick fingerprint — running recon against live target")
+                    from llmitm_v2.models import Fingerprint
+                    fingerprint = Fingerprint(
+                        tech_stack="Unknown",
+                        auth_model="Unknown",
+                        endpoint_pattern="/",
+                        security_signals=[],
+                    )
                     result = orchestrator.run(fingerprint, proxy_url=proxy_url)
             else:
-                logger.info("No quick fingerprint — running recon against live target")
-                # Create minimal fingerprint from target URL
-                from llmitm_v2.models import Fingerprint
-                fingerprint = Fingerprint(
-                    tech_stack="Unknown",
-                    auth_model="Unknown",
-                    endpoint_pattern="/",
-                    security_signals=[],
-                )
-                result = orchestrator.run(fingerprint, proxy_url=proxy_url)
-        else:
-            # File mode: .mitm binary capture
-            traffic_path = Path(__file__).parent.parent / settings.traffic_file
-            if not traffic_path.exists():
-                logger.error("Traffic file not found: %s", traffic_path)
-                sys.exit(1)
+                # File mode: .mitm binary capture
+                traffic_path = Path(__file__).parent.parent / settings.traffic_file
+                if not traffic_path.exists():
+                    logger.error("Traffic file not found: %s", traffic_path)
+                    sys.exit(1)
 
-            # Extract fingerprint from .mitm file (no live target needed)
-            from llmitm_v2.capture.launcher import fingerprint_from_mitm
-            fingerprint = fingerprint_from_mitm(str(traffic_path))
-            if fingerprint is None:
-                from llmitm_v2.models import Fingerprint
-                fingerprint = Fingerprint(
-                    tech_stack="Unknown",
-                    auth_model="Unknown",
-                    endpoint_pattern="/",
-                    security_signals=[],
-                )
+                from llmitm_v2.capture.launcher import fingerprint_from_mitm
+                fingerprint = fingerprint_from_mitm(str(traffic_path))
+                if fingerprint is None:
+                    from llmitm_v2.models import Fingerprint
+                    fingerprint = Fingerprint(
+                        tech_stack="Unknown",
+                        auth_model="Unknown",
+                        endpoint_pattern="/",
+                        security_signals=[],
+                    )
 
-            result = orchestrator.run(
-                fingerprint, mitm_file=str(traffic_path)
-            )
+                result = orchestrator.run(
+                    fingerprint, mitm_file=str(traffic_path)
+                )
+        finally:
+            if result:
+                write_summary(
+                    path=result.path, compiled=result.compiled,
+                    repaired=result.repaired,
+                    success=result.execution.success if result.execution else None,
+                    steps_executed=result.execution.steps_executed if result.execution else 0,
+                    findings_count=len(result.execution.findings) if result.execution else 0,
+                )
+            else:
+                write_summary()
 
         logger.info(
             "Fingerprint: tech_stack=%s, auth_model=%s, endpoint_pattern=%s",

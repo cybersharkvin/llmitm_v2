@@ -210,13 +210,28 @@
   - Completed: Feb 12, 2026
   - Validation: 98 tests passing, 1 skipped, 0 regressions
 
+- ✅ **Debug Logging for Agent Pipeline**: Opt-in per-call tracing for E2E debugging
+  - `llmitm_v2/debug_logger.py`: Pydantic models (ApiCallLog, EventLog, RunSummary) + module-level no-op functions
+  - Per-API-call JSON dumps (call_NNN.json) with tokens, stop_reason, content blocks, tool calls
+  - Per-orchestrator-event JSON dumps (event_NNN_<type>.json) for compile_iter, critic_result, step_result, failure
+  - run_summary.json with aggregated stats, fires even on crash via try/finally in __main__.py
+  - Wired into SimpleAgent, ProgrammaticAgent, Orchestrator._compile/_execute/_handle_step_failure
+  - Enabled via `DEBUG_LOGGING=true` env var; zero overhead when disabled
+  - Completed: Feb 13, 2026
+  - Validation: 98 tests passing, 1 skipped, 0 regressions
+
+- ✅ **ProgrammaticAgent E2E Fixes (prev session)**: 5 bugs + model switch for programmatic tool calling
+  - Switched model_id default from Haiku to Sonnet 4.5 (Haiku lacks programmatic tool calling support)
+  - Fixed parse() vs create() for output_format, container_id tracking, _sanitize_content, input dict handling
+  - Captured demo/juice_shop.mitm (35KB, 7 flows)
+  - Completed: Feb 12-13, 2026
+
 ## In Progress
 
 - None
 
 ## Pending Features
 
-- Capture demo/juice_shop.mitm binary capture file
 - E2E smoke test with ProgrammaticAgent + mitmdump tool (cold start, warm start, self-repair, persistence)
 - Pre-recorded demo capture (terminal session + Neo4j Browser screenshots)
 
@@ -242,6 +257,8 @@
 - **Test Suite**: 98 passing, 1 skipped, 0 failed
 
 ### Recent Milestones
+- **Feb 13, 2026**: Debug logging for agent pipeline (opt-in per-call JSON tracing, 98 tests)
+- **Feb 12-13, 2026**: ProgrammaticAgent E2E fixes (5 bugs, Haiku→Sonnet, juice_shop.mitm capture)
 - **Feb 12, 2026**: Bug fix batch — 8 bugs fixed across 6 files (command injection, httpx dict body, orchestrator paths, newest AG selection, type safety)
 - **Feb 12, 2026**: Unified repair + FlowReader fix (fingerprint_from_mitm, _compile(repair_context=), deleted repair agent, 98 tests)
 - **Feb 12, 2026**: Bug fixes + dead code cleanup (4 bugs, 2 dead models removed, 99 tests)

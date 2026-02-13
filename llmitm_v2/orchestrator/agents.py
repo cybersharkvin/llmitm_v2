@@ -14,6 +14,8 @@ from typing import Any, Optional
 
 import anthropic
 
+from llmitm_v2.debug_logger import ToolCallRecord, log_api_call
+
 logger = logging.getLogger(__name__)
 
 # Module-level cumulative token counter
@@ -169,11 +171,60 @@ class SimpleAgent:
             output_format=structured_output_model,
         )
         _check_and_log_usage(self.model_id, response.usage)
+        log_api_call(agent_type="critic", response=response, messages_len=1, cumulative_tokens=_total_tokens)
         if response.stop_reason == "max_tokens":
             raise RuntimeError("Response truncated (max_tokens reached)")
         if response.parsed_output is None:
             raise RuntimeError(f"No parsed output (stop_reason={response.stop_reason})")
         return AgentResult(structured_output=response.parsed_output)
+
+
+_MAX_BLOCK_CHARS = 8000  # Cap per content block to prevent context explosion
+
+
+def _truncate_dict(d: dict, limit: int = _MAX_BLOCK_CHARS) -> None:
+    """Recursively truncate string values in a dict."""
+    for key, val in d.items():
+        if isinstance(val, str) and len(val) > limit:
+            d[key] = val[:limit] + "\n...[TRUNCATED]..."
+        elif isinstance(val, dict):
+            _truncate_dict(val, limit)
+        elif isinstance(val, list):
+            for item in val:
+                if isinstance(item, dict):
+                    _truncate_dict(item, limit)
+
+
+def _sanitize_content(content: list) -> list:
+    """Sanitize assistant content blocks for re-sending to the API.
+
+    Only modifies blocks that need fixing. Leaves most blocks as raw SDK objects
+    (the SDK serializes them correctly). Only intervenes for:
+    - tool_use blocks with non-dict input (programmatic calling SDK bug)
+    - Blocks with oversized string fields (context explosion prevention)
+    """
+    out = []
+    for block in content:
+        # Fix programmatic tool_use: SDK stores input as raw string, API needs dict
+        if getattr(block, "type", None) == "tool_use" and not isinstance(block.input, dict):
+            out.append({
+                "type": "tool_use",
+                "id": block.id,
+                "name": block.name,
+                "input": {"command": block.input} if block.input else {},
+            })
+            continue
+
+        # Truncate oversized blocks (code_execution results can be huge)
+        block_size = len(str(block))
+        if block_size > _MAX_BLOCK_CHARS:
+            d = block.model_dump(exclude={"parsed_output"}) if hasattr(block, "model_dump") else dict(block)
+            _truncate_dict(d)
+            out.append(d)
+        else:
+            out.append(block)
+
+    return out
 
 
 class ProgrammaticAgent:
@@ -216,30 +267,52 @@ class ProgrammaticAgent:
         output_format = None
         if structured_output_model is not None:
             output_format = structured_output_model
+        container_id = None
 
         for _ in range(self.max_iterations):
             _check_budget()
-            response = self.client.beta.messages.create(
+            _tool_calls_this_turn: list[ToolCallRecord] = []
+            api_kwargs = dict(
                 model=self.model_id,
                 betas=self.BETAS,
                 max_tokens=self.max_tokens,
                 system=self.system_prompt,
                 messages=messages,
                 tools=tools,
-                **({"output_format": output_format} if output_format else {}),
             )
+            if container_id:
+                api_kwargs["container"] = container_id
+            if output_format:
+                api_kwargs["output_format"] = output_format
+                response = self.client.beta.messages.parse(**api_kwargs)
+            else:
+                response = self.client.beta.messages.create(**api_kwargs)
+            # Track container for sandbox continuity
+            if hasattr(response, "container") and response.container:
+                container_id = response.container.id
             _check_and_log_usage(self.model_id, response.usage)
+            log_api_call(
+                agent_type="recon", response=response,
+                messages_len=len(messages), cumulative_tokens=_total_tokens,
+                tool_calls=_tool_calls_this_turn,
+            )
+            _tool_calls_this_turn = []
 
             if response.stop_reason == "tool_use":
-                messages.append({"role": "assistant", "content": response.content})
+                messages.append({"role": "assistant", "content": _sanitize_content(response.content)})
                 tool_results = []
                 for block in response.content:
                     if hasattr(block, "type") and block.type == "tool_use":
                         handler = self.tool_handlers.get(block.name)
                         if handler:
-                            result = handler(**block.input)
+                            inp = block.input
+                            result = handler(**inp) if isinstance(inp, dict) else handler(inp)
                         else:
                             result = f"Unknown tool: {block.name}"
+                        _tool_calls_this_turn.append(ToolCallRecord(
+                            name=block.name, input_preview=str(inp)[:200],
+                            result_length=len(str(result)),
+                        ))
                         tool_results.append({
                             "type": "tool_result",
                             "tool_use_id": block.id,
@@ -250,7 +323,7 @@ class ProgrammaticAgent:
                 continue
 
             if response.stop_reason == "pause_turn":
-                messages.append({"role": "assistant", "content": response.content})
+                messages.append({"role": "assistant", "content": _sanitize_content(response.content)})
                 continue
 
             if response.stop_reason in ("end_turn",):
@@ -266,7 +339,7 @@ class ProgrammaticAgent:
 
 def create_recon_agent(
     mitm_context: str,
-    model_id: str = "claude-haiku-4-5-20251001",
+    model_id: str = "claude-sonnet-4-5-20250929",
     api_key: Optional[str] = None,
 ) -> ProgrammaticAgent:
     """Create Recon Agent with programmatic tool calling + skill guides.
@@ -298,12 +371,12 @@ def create_recon_agent(
         max_tokens=16384,
         tool_schemas=[MITMDUMP_TOOL_SCHEMA],
         tool_handlers={"mitmdump": handle_mitmdump},
-        max_iterations=20,
+        max_iterations=5,
     )
 
 
 def create_attack_critic(
-    model_id: str = "claude-haiku-4-5-20251001",
+    model_id: str = "claude-sonnet-4-5-20250929",
     api_key: Optional[str] = None,
 ) -> SimpleAgent:
     """Create Attack Critic — adversarial validator with no tools.

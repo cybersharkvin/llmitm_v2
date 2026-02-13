@@ -1,16 +1,17 @@
 {
-  "session": "Bug Fix Batch (Feb 12, 2026)",
-  "completed_phase": "12-issue audit: 8 fixed, 4 deferred as tech debt",
-  "summary": "Fixed 8 bugs across 6 files: pyproject.toml deps, command injection, httpx dict body, orchestrator path/append/repair, newest AG selection, type safety. 98 tests passing.",
-  "files_created": 0,
-  "git_commits": ["87aedad — previous: Unify repair into compile, fix fingerprint_from_mitm FlowReader"],
+  "session": "Debug Logging + E2E Prep (Feb 13, 2026)",
+  "completed_phase": "Debug logging implemented, committed, pushed",
+  "summary": "Added opt-in DEBUG_LOGGING system (per-call JSON + events + run summary). Ready for E2E cold start debugging with full pipeline visibility.",
+  "files_created": 1,
+  "git_commits": ["pending — debug logging + model switch + juice_shop.mitm"],
   "files_modified": [
-    {"path": "pyproject.toml", "issues": "B1: removed strands deps, added mitmproxy>=10.0"},
-    {"path": "llmitm_v2/tools/recon_tools.py", "issues": "B1+S1: resolve mitmdump from venv, shlex.split, no shell=True"},
-    {"path": "llmitm_v2/handlers/http_request_handler.py", "issues": "B2+B6: json= for dict body, extract_token_path for session_tokens"},
-    {"path": "llmitm_v2/orchestrator/orchestrator.py", "issues": "B3+B4+C1: store paths on self, append after success only, path='repair'"},
-    {"path": "llmitm_v2/repository/graph_repository.py", "issues": "B5: ORDER BY ag.created_at DESC LIMIT 1 before path match"},
-    {"path": "llmitm_v2/models/context.py", "issues": "T1+C2: List[Finding], Literal path type"}
+    {"path": "llmitm_v2/debug_logger.py", "description": "NEW — Pydantic models + no-op functions for opt-in debug tracing"},
+    {"path": "llmitm_v2/orchestrator/agents.py", "description": "log_api_call in SimpleAgent + ProgrammaticAgent, ToolCallRecord tracking"},
+    {"path": "llmitm_v2/orchestrator/orchestrator.py", "description": "log_event for compile_iter, critic_result, step_result, failure"},
+    {"path": "llmitm_v2/__main__.py", "description": "init_debug_logging + try/finally write_summary"},
+    {"path": "llmitm_v2/config.py", "description": "model_id default: Haiku → Sonnet 4.5"},
+    {"path": ".gitignore", "description": "Added debug_logs/"},
+    {"path": "demo/juice_shop.mitm", "description": "35KB binary capture, 7 HTTP flows"}
   ],
   "test_results": {
     "test_suite": "tests/",
@@ -19,35 +20,49 @@
     "status": "ALL PASSING",
     "notes": "1 skipped (Neo4j Orchestrator init). No regressions."
   },
+  "e2e_testing_plan": {
+    "prerequisites": [
+      "Set MAX_CRITIC_ITERATIONS=2 in .env",
+      "Set MAX_TOKEN_BUDGET=150000 in .env",
+      "Verify: docker compose ps (Neo4j healthy, Juice Shop on :3000)"
+    ],
+    "test_1_cold_start": {
+      "command": "make reset && DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
+      "expected": "compiled=True, path=cold_start, 1+ findings, ActionGraph in Neo4j",
+      "debug": "Inspect debug_logs/*/ — call_NNN.json shows token spend per API call, event_NNN shows critic pass/fail"
+    },
+    "test_2_warm_start": {
+      "command": "DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
+      "expected": "compiled=False, path=warm_start, 0 API calls (total_api_calls=0 in run_summary.json)"
+    },
+    "test_3_self_repair": {
+      "command": "make break-graph && DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
+      "expected": "repaired=True, path=repair, event_NNN_failure.json shows SYSTEMIC classification"
+    },
+    "test_4_persistence": {
+      "command": "DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
+      "expected": "compiled=False, path=warm_start, 0 API calls, repaired graph reused"
+    }
+  },
   "deferred_tech_debt": [
     "T2: AgentResult.structured_output: Any (needs Generic[T])",
     "T3: _handle_step_failure stringly-typed return (needs enum/dataclass)",
-    "Step.parameters: Dict[str, Any] (can't narrow without per-handler schemas)",
-    "get_repair_history() returns params as JSON strings"
+    "output_format param is deprecated — should migrate to output_config.format"
   ],
-  "e2e_next_steps": [
-    "1. make up — start Docker services",
-    "2. Capture demo/juice_shop.mitm via mitmdump -w demo/juice_shop.mitm -p 9090",
-    "3. Run 4 E2E scenarios: cold start, warm start, self-repair, persistence",
-    "4. make test, snapshot, merge to main"
-  ],
-  "blockers": "demo/juice_shop.mitm must be captured before any E2E test can run.",
+  "blockers": "Cold start needs ~100-150K tokens with Sonnet. Debug logging now available to diagnose where tokens go.",
   "context_for_next_session": [
-    "All 8 code fixes applied on dev branch (not yet committed)",
-    "mitmdump now installed in venv (v12.2.1)",
-    "handle_mitmdump uses list-form subprocess (no shell injection)",
-    "HTTPRequestHandler supports json= for dict bodies + extract_token_path for auth",
-    "previous_outputs only appended on success (no double-append on retry)",
-    "_repair() uses self._mitm_file/self._proxy_url (absolute paths from run())",
-    "get_action_graph_with_steps() selects newest AG by created_at DESC",
-    "OrchestratorResult.path is Literal['cold_start', 'warm_start', 'repair']"
+    "DEBUG_LOGGING=true dumps to debug_logs/<timestamp>/ — call_NNN.json, event_NNN_<type>.json, run_summary.json",
+    "demo/juice_shop.mitm exists (35KB, fingerprint hash b47896c66520)",
+    "Model is claude-sonnet-4-5-20250929 (Haiku doesn't support programmatic tool calling)",
+    "ProgrammaticAgent.max_iterations=5, max_critic_iterations default=3 (set to 2 in .env for E2E)",
+    "All infrastructure should be running: Neo4j, Juice Shop (:3000), mitmproxy (:8080)",
+    "try/finally in __main__.py ensures write_summary fires even on RuntimeError from budget exhaustion"
   ],
   "files_to_reference": [
-    "llmitm_v2/__main__.py — CLI entry",
-    "llmitm_v2/tools/recon_tools.py — mitmdump binary resolution + shlex",
-    "llmitm_v2/handlers/http_request_handler.py — json= kwarg + extract_token_path",
-    "llmitm_v2/orchestrator/orchestrator.py — self._mitm_file, append fix, path label",
-    "llmitm_v2/repository/graph_repository.py — newest AG selection",
-    "llmitm_v2/models/context.py — List[Finding], Literal path"
+    "llmitm_v2/debug_logger.py — all debug logging models and functions",
+    "llmitm_v2/orchestrator/agents.py — log_api_call wiring",
+    "llmitm_v2/orchestrator/orchestrator.py — log_event wiring",
+    "llmitm_v2/__main__.py — init + try/finally summary",
+    ".env — MAX_CRITIC_ITERATIONS, MAX_TOKEN_BUDGET, MODEL_ID"
   ]
 }
