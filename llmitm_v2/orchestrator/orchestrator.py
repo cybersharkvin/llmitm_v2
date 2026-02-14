@@ -31,6 +31,7 @@ from llmitm_v2.orchestrator.context import (
 )
 from llmitm_v2.orchestrator.failure_classifier import classify_failure
 from llmitm_v2.repository import GraphRepository
+from llmitm_v2.target_profiles import TargetProfile, get_active_profile
 from llmitm_v2.tools.exploit_tools import EXPLOIT_STEP_GENERATORS
 
 logger = logging.getLogger(__name__)
@@ -39,7 +40,7 @@ logger = logging.getLogger(__name__)
 _INTERPOLATION_RE = re.compile(r"\{\{previous_outputs\[(-?\d+)\]\}\}")
 
 
-def attack_plan_to_action_graph(plan: AttackPlan) -> ActionGraph:
+def attack_plan_to_action_graph(plan: AttackPlan, profile: TargetProfile) -> ActionGraph:
     """Convert a refined AttackPlan into an executable ActionGraph.
 
     Each opportunity's recommended_exploit maps to a step generator.
@@ -50,7 +51,11 @@ def attack_plan_to_action_graph(plan: AttackPlan) -> ActionGraph:
     order = 1
     for opp in plan.attack_plan[:1]:  # Hard cap: 1 exploit per graph
         generator = EXPLOIT_STEP_GENERATORS[opp.recommended_exploit]
-        steps = generator(opp.exploit_target, opp.observation)
+        try:
+            steps = generator(opp.exploit_target, opp.observation, profile)
+        except ValueError:
+            logger.warning("Skipping %s: incompatible with %s auth", opp.recommended_exploit, profile.auth_mechanism)
+            continue
         for step in steps:
             step.order = order
             all_steps.append(step)
@@ -68,6 +73,7 @@ class Orchestrator:
     def __init__(self, graph_repo: GraphRepository, settings: Settings):
         self.graph_repo = graph_repo
         self.settings = settings
+        self.target_profile = get_active_profile(settings.target_profile)
 
     def run(
         self,
@@ -172,7 +178,7 @@ class Orchestrator:
                 "exploits": [o.recommended_exploit for o in refined_plan.attack_plan],
             })
 
-            ag = attack_plan_to_action_graph(refined_plan)
+            ag = attack_plan_to_action_graph(refined_plan, self.target_profile)
             ag.ensure_id()
             self.graph_repo.save_action_graph(fingerprint.hash, ag)
             return ag

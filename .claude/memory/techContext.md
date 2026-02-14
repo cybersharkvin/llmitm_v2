@@ -140,6 +140,7 @@ Content-Type: application/json
 - `MITM_PORT`: mitmproxy listen port (default: 8080)
 - `MITM_CERT_PATH`: Path to mitm certificate (default: `~/.mitmproxy/mitmproxy-ca-cert.pem`)
 - `LOG_LEVEL`: Python logging level (default: `INFO`)
+- `TARGET_PROFILE`: Target profile name (`juice_shop`, `nodegoat`, `dvwa`). Default: `juice_shop`
 - `CAPTURE_MODE`: `file` (static traffic file) or `live` (LLM-driven recon through mitmproxy). Default: `file`
 - `TRAFFIC_FILE`: Path to .mitm capture file (default: `demo/juice_shop.mitm`). Only used when `CAPTURE_MODE=file`
 

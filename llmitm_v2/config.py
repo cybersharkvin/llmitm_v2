@@ -42,5 +42,8 @@ class Settings(BaseSettings):
     capture_mode: str = "file"  # "live" or "file"
     traffic_file: str = "demo/juice_shop.mitm"
 
+    # Target profile
+    target_profile: str = "juice_shop"
+
     # Logging
     log_level: str = "INFO"

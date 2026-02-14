@@ -1,80 +1,146 @@
 {
-  "session": "E2E All 4 Tests PASSING (Feb 13, 2026)",
-  "completed_phase": "Full E2E verification: cold start, warm start, self-repair, persistence",
-  "summary": "All 4 E2E tests pass against live Juice Shop. Fixed 6 bugs discovered during E2E. Core thesis proven.",
+  "session": "Multi-Target Support: NodeGoat + DVWA (Feb 13, 2026)",
+  "completed_phase": "Target profile registry + multi-auth exploit step generation",
+  "summary": "Added TargetProfile registry (juice_shop/nodegoat/dvwa), refactored all 5 exploit generators to accept profile param, added skip_cookies for cookie-auth targets, wired through orchestrator+config. 112 tests passing. Audit found 5 remaining gaps.",
   "git_commits": [],
   "test_results": {
     "test_suite": "tests/",
-    "passed": 96,
+    "passed": 112,
     "failed": 0,
     "skipped": 1,
     "status": "ALL PASSING"
   },
 
-  "e2e_results": {
-    "test_1_cold_start": {
-      "path": "cold_start",
-      "compiled": true,
-      "repaired": false,
-      "success": true,
-      "findings": 1,
-      "api_calls": 7,
-      "tokens": 37000
-    },
-    "test_2_warm_start": {
-      "path": "warm_start",
-      "compiled": false,
-      "repaired": false,
-      "success": true,
-      "findings": 1,
-      "api_calls": 0,
-      "tokens": 0
-    },
-    "test_3_self_repair": {
-      "path": "repair",
-      "compiled": false,
-      "repaired": true,
-      "success": true,
-      "findings": 1,
-      "api_calls": 9,
-      "tokens": 56000
-    },
-    "test_4_persistence": {
-      "path": "warm_start",
-      "compiled": false,
-      "repaired": false,
-      "success": true,
-      "findings": 1,
-      "api_calls": 0,
-      "tokens": 0
-    }
-  },
-
-  "bugs_fixed_during_e2e": [
-    {"bug": "Skill guide bloat", "fix": "Removed skill guides from Recon Agent system prompt (~2.9K tokens saved per API call)"},
-    {"bug": "max_iterations too high (15)", "fix": "Reduced ProgrammaticAgent max_iterations from 15 to 8"},
-    {"bug": "{id} template in exploit_target", "fix": "Added Pydantic field_validator to auto-fix {id}→1 and strip full URLs to paths"},
-    {"bug": "step.type.value on string", "fix": "Guard isinstance check in log_event call"},
-    {"bug": "Multi-exploit token explosion", "fix": "Capped attack_plan_to_action_graph to 1 exploit per graph, critic limited to 2 opportunities"},
-    {"bug": "Runaway repair cycles", "fix": "Abort on second failure after already repairing once in same execution"}
+  "files_created_or_modified": [
+    {"path": "llmitm_v2/target_profiles.py", "description": "NEW — TargetProfile model, TARGET_PROFILES registry, get_active_profile()"},
+    {"path": "llmitm_v2/tools/exploit_tools.py", "description": "MODIFIED — _login_and_auth_steps(), _auth_headers(), _auth_offset() helpers; all generators accept profile param"},
+    {"path": "llmitm_v2/handlers/http_request_handler.py", "description": "MODIFIED — skip_cookies parameter support"},
+    {"path": "llmitm_v2/orchestrator/orchestrator.py", "description": "MODIFIED — target_profile on Orchestrator, attack_plan_to_action_graph accepts profile, ValueError handling"},
+    {"path": "llmitm_v2/config.py", "description": "MODIFIED — target_profile setting"},
+    {"path": "docker-compose.yml", "description": "MODIFIED — nodegoat, dvwa, mongo, mysql services"},
+    {"path": "Makefile", "description": "MODIFIED — run-nodegoat, run-dvwa, break-graph-nodegoat, break-graph-dvwa"},
+    {"path": "tests/test_target_profiles.py", "description": "NEW — 16 tests for profiles and multi-auth step generation"},
+    {"path": ".claude/memory/systemPatterns.md", "description": "MODIFIED — added Target Profile Registry Pattern"},
+    {"path": ".claude/memory/techContext.md", "description": "MODIFIED — added TARGET_PROFILE env var"},
+    {"path": ".claude/memory/projectProgress.md", "description": "MODIFIED — added multi-target completed feature"}
   ],
 
   "design_decisions": [
-    {"decision": "1 exploit per ActionGraph", "rationale": "Multiple exploits per graph cause cascading failures and token-expensive repair cycles. Single-exploit graphs are focused, cheaper, and more reliable."},
-    {"decision": "Skill guides removed", "rationale": "Added ~2.9K tokens to every API call. Will revisit post-hackathon with more targeted injection."},
-    {"decision": "Max 1 repair per execution", "rationale": "Prevents runaway recompilation cycles that exhaust token budget."}
+    {"decision": "TargetProfile registry pattern", "rationale": "Pydantic model with auth_mechanism Literal discriminator. Profiles are static data, not config — stored in code not env."},
+    {"decision": "skip_cookies parameter", "rationale": "auth_strip on cookie targets needs to make one request without cookies. HTTPRequestHandler checks step.parameters['skip_cookies'] flag."},
+    {"decision": "token_swap raises ValueError for cookie auth", "rationale": "Cannot hold 2 sessions in 1 cookie jar. attack_plan_to_action_graph catches ValueError and skips."},
+    {"decision": "CSRF as 3-step login", "rationale": "DVWA requires GET login page → extract CSRF token → POST login with token. _login_and_auth_steps handles all 3 auth flows."}
+  ],
+
+  "known_gaps": [
+    {
+      "id": "GAP-1",
+      "priority": "P0",
+      "title": "default_url never read — __main__.py doesn't wire profile.default_url into settings.target_url",
+      "impact": "TARGET_PROFILE=nodegoat still connects to :3000 unless user also passes TARGET_URL=http://localhost:4000",
+      "fix": "In __main__.py, after loading settings, override target_url with profile.default_url if TARGET_URL not explicitly set",
+      "success_criteria": "TARGET_PROFILE=nodegoat python -m llmitm_v2 uses target_url=http://localhost:4000 automatically"
+    },
+    {
+      "id": "GAP-2",
+      "priority": "P0",
+      "title": "break-graph.sh hardcoded to /api/Users (Juice Shop only)",
+      "impact": "make break-graph-nodegoat and make break-graph-dvwa silently fail — script ignores TARGET_PROFILE env var",
+      "fix": "Read $TARGET_PROFILE in script, map to endpoint: juice_shop→/api/Users, nodegoat→/allocations, dvwa→/vulnerabilities",
+      "success_criteria": "TARGET_PROFILE=nodegoat ./scripts/break-graph.sh corrupts /allocations step in Neo4j"
+    },
+    {
+      "id": "GAP-3",
+      "priority": "P0",
+      "title": "demo/nodegoat.mitm and demo/dvwa.mitm missing",
+      "impact": "File-mode runs for nodegoat/dvwa have no traffic to fingerprint",
+      "fix": "Capture ~8 flows per target via mitmdump reverse proxy mode",
+      "success_criteria": "Both files exist >5KB, fingerprint_from_mitm() produces distinct hashes, nodegoat fingerprint shows session/cookie auth"
+    },
+    {
+      "id": "GAP-4",
+      "priority": "P1",
+      "title": ".env.example missing TARGET_PROFILE, TRAFFIC_FILE, CAPTURE_MODE",
+      "impact": "Users won't discover multi-target config without reading config.py",
+      "fix": "Add commented examples to .env.example",
+      "success_criteria": ".env.example documents all 3 vars with valid options"
+    },
+    {
+      "id": "GAP-5",
+      "priority": "P1",
+      "title": "Makefile run-nodegoat/run-dvwa pass redundant TARGET_URL",
+      "impact": "Workaround for GAP-1; can simplify after GAP-1 is fixed",
+      "fix": "After GAP-1, remove TARGET_URL= from Makefile targets",
+      "success_criteria": "make run-nodegoat works with only TARGET_PROFILE and TRAFFIC_FILE"
+    }
+  ],
+
+  "next_steps": [
+    {
+      "step": 1,
+      "title": "Wire default_url in __main__.py",
+      "priority": "P0",
+      "blockers": "None",
+      "success_criteria": "TARGET_PROFILE=nodegoat auto-resolves to target_url=http://localhost:4000"
+    },
+    {
+      "step": 2,
+      "title": "Make break-graph.sh profile-aware",
+      "priority": "P0",
+      "blockers": "None",
+      "success_criteria": "Script reads TARGET_PROFILE, corrupts correct endpoint per target"
+    },
+    {
+      "step": 3,
+      "title": "Capture demo/nodegoat.mitm and demo/dvwa.mitm",
+      "priority": "P0",
+      "blockers": "Docker services must be running",
+      "success_criteria": "Both files exist, fingerprint_from_mitm() returns distinct hashes"
+    },
+    {
+      "step": 4,
+      "title": "Update .env.example",
+      "priority": "P1",
+      "blockers": "None",
+      "success_criteria": "TARGET_PROFILE, TRAFFIC_FILE, CAPTURE_MODE documented"
+    },
+    {
+      "step": 5,
+      "title": "Simplify Makefile (after step 1)",
+      "priority": "P1",
+      "blockers": "Step 1",
+      "success_criteria": "run-nodegoat needs only TARGET_PROFILE + TRAFFIC_FILE"
+    },
+    {
+      "step": 6,
+      "title": "E2E verification on NodeGoat",
+      "priority": "P2",
+      "blockers": "Steps 1, 3",
+      "success_criteria": "Cold start: success=True, >=1 finding, no Authorization header. Warm start: 0 API calls."
+    },
+    {
+      "step": 7,
+      "title": "E2E verification on DVWA",
+      "priority": "P2",
+      "blockers": "Steps 1, 3",
+      "success_criteria": "Cold start: success=True, CSRF extracted from HTML, PHPSESSID cookie tracked, >=1 finding"
+    }
   ],
 
   "context_for_next_session": [
-    "ALL 4 E2E TESTS PASS — hackathon deliverable is complete",
-    "Next: pre-recorded demo capture (terminal session + Neo4j Browser screenshots)",
-    "Token budget set to 150K in .env (cold start uses ~37K, repair uses ~56K)",
-    "Skill guides exist in skills/ but are NOT loaded — load_skill_guides() still exists but not called"
+    "Multi-target code is structurally complete but has 5 known gaps (see known_gaps)",
+    "GAP-1 (default_url not wired) is the most critical — makes run-nodegoat/run-dvwa require manual TARGET_URL override",
+    "GAP-2 (break-graph.sh hardcoded) makes break-graph-nodegoat/dvwa silently fail",
+    "GAP-3 (missing .mitm files) blocks all file-mode testing for nodegoat/dvwa",
+    "112 tests passing, 0 regressions from Juice Shop E2E",
+    "Steps 1, 2, 4 are pure code changes (no Docker needed). Steps 3, 6, 7 need live containers."
   ],
 
   "files_to_reference": [
-    "llmitm_v2/orchestrator/agents.py — skill guides disabled, max_iterations=8, efficiency constraint in system prompt",
-    "llmitm_v2/models/recon.py — exploit_target validator (auto-fix {id} and strip URLs)",
-    "llmitm_v2/orchestrator/orchestrator.py — 1-exploit cap, single-repair guard"
+    "llmitm_v2/target_profiles.py — profile registry with 3 targets, default_url defined but UNUSED",
+    "llmitm_v2/tools/exploit_tools.py — _login_and_auth_steps() handles bearer/cookie/csrf flows",
+    "llmitm_v2/orchestrator/orchestrator.py — attack_plan_to_action_graph(plan, profile) with ValueError catch",
+    "llmitm_v2/__main__.py — NEEDS default_url wiring (GAP-1)",
+    "scripts/break-graph.sh — NEEDS profile-awareness (GAP-2)"
   ]
 }

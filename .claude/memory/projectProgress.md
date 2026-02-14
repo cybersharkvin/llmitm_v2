@@ -265,6 +265,17 @@
   - Completed: Feb 13, 2026
   - Validation: 96 tests passing, 1 skipped, 0 regressions
 
+- ✅ **Multi-Target Support: NodeGoat + DVWA**: Target profile registry + multi-auth exploit steps
+  - TargetProfile Pydantic model with auth_mechanism Literal discriminator (bearer_token / session_cookie)
+  - TARGET_PROFILES registry: juice_shop (bearer), nodegoat (session cookie), dvwa (session cookie + CSRF)
+  - _login_and_auth_steps() produces 1-3 steps depending on auth mechanism
+  - skip_cookies parameter in HTTPRequestHandler for auth_strip on cookie targets
+  - token_swap raises ValueError for cookie auth (caught by attack_plan_to_action_graph)
+  - Docker Compose services for nodegoat, dvwa, mongo, mysql
+  - Makefile targets: run-nodegoat, run-dvwa, break-graph-nodegoat, break-graph-dvwa
+  - Completed: Feb 13, 2026
+  - Validation: 112 tests passing (16 new), 1 skipped, 0 regressions
+
 ## In Progress
 
 - None

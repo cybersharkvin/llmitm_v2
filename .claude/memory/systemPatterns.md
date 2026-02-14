@@ -140,6 +140,13 @@
 - **When to Use**: Any Pydantic model field where LLM consistently produces almost-correct values
 - **Rationale**: Cheaper than prompt engineering. The LLM will say `/api/Users/{id}` no matter how many times you tell it not to. A 3-line validator fixes it deterministically.
 
+### Target Profile Registry Pattern
+- **Description**: `TargetProfile` Pydantic model with `auth_mechanism` Literal discriminator. `TARGET_PROFILES` dict maps name → profile. `get_active_profile(name)` returns profile.
+- **When to Use**: Any code that needs target-specific credentials, login paths, or auth behavior
+- **Auth Flows**: `bearer_token` (2 login steps: POST + regex extract), `session_cookie` (1 step: POST, cookies auto-tracked), `session_cookie + csrf` (3 steps: GET page + regex CSRF + POST)
+- **Key Files**: `target_profiles.py` (registry), `exploit_tools.py` (_login_and_auth_steps, _auth_headers, _auth_offset)
+- **Rationale**: Centralizes target-specific knowledge. Exploit generators are auth-agnostic — they delegate to helpers that branch on `auth_mechanism`.
+
 ### Dependency Injection
 - **Description**: Dependencies passed explicitly to constructors throughout the stack
 - **When to Use**: Every component construction
