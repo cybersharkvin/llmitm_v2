@@ -72,7 +72,7 @@ docker run --env-file .env llmitm:latest
 - **`tool_runner` is beta**: API may change; fallback is manual 20-line while loop
 - **Grammar compilation latency**: First call per schema has extra latency (~1-2s), cached 24h server-side
 - **No conversation memory**: Each `messages.parse()` / `tool_runner()` call is stateless; context managed via assembly functions
-- **`max_iterations` on tool_runner**: Caps tool loop. Default unlimited; we set 20 (recon) and 10 (actor-tools) to prevent runaway loops
+- **`max_iterations` on ProgrammaticAgent**: Caps tool call loop. Set to 8 for recon agent to prevent context bloat
 
 ### mitmproxy
 - **Certificate trust**: Target must trust mitm certificate for HTTPS interception
@@ -135,7 +135,7 @@ Content-Type: application/json
 
 **Optional**:
 - `MAX_CRITIC_ITERATIONS`: Maximum actor/critic loops (default: 3)
-- `MAX_TOKEN_BUDGET`: Cumulative token limit across all API calls in one run (default: 500000). Raises RuntimeError if exceeded
+- `MAX_TOKEN_BUDGET`: Cumulative token limit across all API calls in one run (default: 150000). Raises RuntimeError if exceeded
 - `DEFAULT_SIMILARITY_THRESHOLD`: Fingerprint similarity cutoff (default: 0.85)
 - `MITM_PORT`: mitmproxy listen port (default: 8080)
 - `MITM_CERT_PATH`: Path to mitm certificate (default: `~/.mitmproxy/mitmproxy-ca-cert.pem`)
@@ -294,23 +294,23 @@ class StepResult(BaseModel):
 
 ## Performance Characteristics
 
-### Cold Start (Novel Fingerprint)
-- **Cost**: Expensive — full actor/critic compilation (multiple LLM calls)
-- **Time**: 30-60 seconds typical (3-5 iterations before Critic approval)
+### Cold Start (Novel Fingerprint) — VERIFIED
+- **Cost**: 7 API calls, ~37K tokens (Sonnet 4.5)
+- **Time**: ~80 seconds (recon agent + critic + 5-step execution)
 - **Frequency**: One-time cost per unique target fingerprint
-- **Optimization**: Cache compilation context assembly results
+- **Optimization**: 1 exploit per graph, max_iterations=8, no skill guides
 
-### Warm Start (Matched Fingerprint)
-- **Cost**: Free — zero LLM calls, pure graph traversal + execution
-- **Time**: 5-10 seconds for full CAMRO execution
-- **Bottleneck**: mitmdump subprocess execution and HTTP request latency
+### Warm Start (Matched Fingerprint) — VERIFIED
+- **Cost**: Zero — 0 API calls, 0 tokens
+- **Time**: ~2 seconds (fingerprint hash lookup + 5-step HTTP execution)
+- **Bottleneck**: HTTP request latency to target
 - **Optimization**: Near-instant fingerprint lookup via hash index
 
-### Self-Repair
-- **Deterministic classification**: <1ms for obvious failures (timeouts, 404, 503)
-- **LLM fallback**: Expensive but rare (ambiguous failures only)
-- **Storage**: Repair permanently stored via `[:REPAIRED_TO]` edges for future reuse
-- **Optimization**: Expand deterministic classification rules over time to reduce LLM dependency
+### Self-Repair — VERIFIED
+- **Cost**: 9 API calls, ~56K tokens (recon agent recompiles)
+- **Time**: ~90 seconds (3 failed steps + recompile + 5 clean steps)
+- **Guard**: Max 1 repair per execution run (prevents runaway recompilation)
+- **Storage**: New ActionGraph stored with newer created_at; ORDER BY DESC selects it on next warm start
 
 ---
 

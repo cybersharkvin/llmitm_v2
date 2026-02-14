@@ -1,7 +1,7 @@
 {
-  "session": "Bug 5 Fix + E2E Ready (Feb 13, 2026)",
-  "completed_phase": "Fixed capture_group bug blocking E2E cold start",
-  "summary": "Added capture_group:1 to all 5 token extraction regex steps. 96 tests passing, ready for E2E.",
+  "session": "E2E All 4 Tests PASSING (Feb 13, 2026)",
+  "completed_phase": "Full E2E verification: cold start, warm start, self-repair, persistence",
+  "summary": "All 4 E2E tests pass against live Juice Shop. Fixed 6 bugs discovered during E2E. Core thesis proven.",
   "git_commits": [],
   "test_results": {
     "test_suite": "tests/",
@@ -11,73 +11,70 @@
     "status": "ALL PASSING"
   },
 
-  "bugs_fixed": [
-    {"bug": "5: capture_group defaults to 0", "file": "llmitm_v2/tools/exploit_tools.py", "fix": "Added capture_group:1 to all 5 token extraction regex steps (idor_walk, auth_strip, token_swap x2, role_tamper) so match.group(1) extracts just the JWT, not the full 'token':'eyJ...' match"}
-  ],
-
-  "e2e_test_plan": {
-    "pre_checks": ["docker compose ps", "curl http://localhost:3000", "make reset"],
-    "tests": [
-      {
-        "name": "E2E Test 1: Cold Start",
-        "command": "DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
-        "success_criteria": {
-          "run_summary.compiled": true,
-          "run_summary.success": true,
-          "run_summary.findings_count": ">= 1",
-          "run_summary.path": "cold_start"
-        }
-      },
-      {
-        "name": "E2E Test 2: Warm Start",
-        "command": "DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
-        "success_criteria": {
-          "run_summary.compiled": false,
-          "run_summary.total_api_calls": 0,
-          "run_summary.success": true,
-          "run_summary.path": "warm_start"
-        }
-      },
-      {
-        "name": "E2E Test 3: Self-Repair",
-        "pre_command": "make break-graph",
-        "command": "DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
-        "success_criteria": {
-          "run_summary.repaired": true,
-          "run_summary.success": true,
-          "run_summary.path": "repair"
-        }
-      },
-      {
-        "name": "E2E Test 4: Persistence",
-        "command": "DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
-        "success_criteria": {
-          "run_summary.compiled": false,
-          "run_summary.total_api_calls": 0,
-          "run_summary.success": true,
-          "run_summary.path": "warm_start"
-        }
-      }
-    ]
+  "e2e_results": {
+    "test_1_cold_start": {
+      "path": "cold_start",
+      "compiled": true,
+      "repaired": false,
+      "success": true,
+      "findings": 1,
+      "api_calls": 7,
+      "tokens": 37000
+    },
+    "test_2_warm_start": {
+      "path": "warm_start",
+      "compiled": false,
+      "repaired": false,
+      "success": true,
+      "findings": 1,
+      "api_calls": 0,
+      "tokens": 0
+    },
+    "test_3_self_repair": {
+      "path": "repair",
+      "compiled": false,
+      "repaired": true,
+      "success": true,
+      "findings": 1,
+      "api_calls": 9,
+      "tokens": 56000
+    },
+    "test_4_persistence": {
+      "path": "warm_start",
+      "compiled": false,
+      "repaired": false,
+      "success": true,
+      "findings": 1,
+      "api_calls": 0,
+      "tokens": 0
+    }
   },
 
-  "likely_e2e_issues": [
-    "Token budget 50K may be tight for Recon Agent with code_execution — bump to 100K if needed",
-    "break-graph Cypher quoting — escaped double quotes in docker exec may need testing",
-    "[:REPAIRED_TO] edges NOT created by current _repair() flow (uses _compile+save_action_graph, not repair_step_chain)"
+  "bugs_fixed_during_e2e": [
+    {"bug": "Skill guide bloat", "fix": "Removed skill guides from Recon Agent system prompt (~2.9K tokens saved per API call)"},
+    {"bug": "max_iterations too high (15)", "fix": "Reduced ProgrammaticAgent max_iterations from 15 to 8"},
+    {"bug": "{id} template in exploit_target", "fix": "Added Pydantic field_validator to auto-fix {id}→1 and strip full URLs to paths"},
+    {"bug": "step.type.value on string", "fix": "Guard isinstance check in log_event call"},
+    {"bug": "Multi-exploit token explosion", "fix": "Capped attack_plan_to_action_graph to 1 exploit per graph, critic limited to 2 opportunities"},
+    {"bug": "Runaway repair cycles", "fix": "Abort on second failure after already repairing once in same execution"}
+  ],
+
+  "design_decisions": [
+    {"decision": "1 exploit per ActionGraph", "rationale": "Multiple exploits per graph cause cascading failures and token-expensive repair cycles. Single-exploit graphs are focused, cheaper, and more reliable."},
+    {"decision": "Skill guides removed", "rationale": "Added ~2.9K tokens to every API call. Will revisit post-hackathon with more targeted injection."},
+    {"decision": "Max 1 repair per execution", "rationale": "Prevents runaway recompilation cycles that exhaust token budget."}
   ],
 
   "context_for_next_session": [
-    "5 bugs fixed (4 prior + capture_group), 96 tests passing, ready for E2E Test 1 (cold start)",
-    "Run: make reset && DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
-    "After cold start: inspect debug_logs/<timestamp>/run_summary.json",
-    "All token extraction steps now use capture_group:1 — extracts just JWT from regex group",
-    "Detailed E2E walkthrough with fictional data exists in plan transcript"
+    "ALL 4 E2E TESTS PASS — hackathon deliverable is complete",
+    "Next: pre-recorded demo capture (terminal session + Neo4j Browser screenshots)",
+    "Token budget set to 150K in .env (cold start uses ~37K, repair uses ~56K)",
+    "Skill guides exist in skills/ but are NOT loaded — load_skill_guides() still exists but not called"
   ],
 
   "files_to_reference": [
-    "llmitm_v2/tools/exploit_tools.py — _CREDS dict + 5 step generators with capture_group:1",
-    "llmitm_v2/handlers/regex_match_handler.py — reads capture_group from step.parameters",
-    "llmitm_v2/orchestrator/orchestrator.py — _compile(), _execute(), _repair() flow"
+    "llmitm_v2/orchestrator/agents.py — skill guides disabled, max_iterations=8, efficiency constraint in system prompt",
+    "llmitm_v2/models/recon.py — exploit_target validator (auto-fix {id} and strip URLs)",
+    "llmitm_v2/orchestrator/orchestrator.py — 1-exploit cap, single-repair guard"
   ]
 }

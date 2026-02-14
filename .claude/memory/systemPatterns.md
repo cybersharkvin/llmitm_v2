@@ -92,11 +92,12 @@
 - **Key Files**: `tools/recon_tools.py` (TOOL_SCHEMAS, TOOL_HANDLERS), `tools/exploit_tools.py` (EXPLOIT_STEP_GENERATORS), `models/recon.py` (AttackPlan, AttackOpportunity)
 - **Rationale**: Previous single mitmdump CLI tool consumed 212K tokens. Structured tools return focused JSON. Exploit step generation is deterministic — zero LLM cost.
 
-### Skill Guide Pattern
+### Skill Guide Pattern (DISABLED)
 - **Description**: Markdown files in `skills/` loaded into Recon Agent's system prompt. Each guide teaches methodology for a specific testing phase.
 - **Files**: `recon_tools.md`, `initial_recon.md`, `lateral_movement.md`, `persistence.md`
-- **Implementation**: `load_skill_guides()` reads `skills/*.md`, concatenates, injected into RECON_SYSTEM_PROMPT
-- **Rationale**: Teaches the agent HOW to think about each phase. Version-controlled, editable, extensible.
+- **Implementation**: `load_skill_guides()` exists but is NOT called. System prompt has `{skill_guides}` replaced with empty string.
+- **Status**: Disabled during E2E — added ~2.9K tokens per API call, causing budget exhaustion. Will revisit post-hackathon with targeted injection.
+- **Rationale**: Token efficiency trumps methodology coaching for hackathon demo.
 
 ### Programmatic Tool Calling Pattern
 - **Description**: Agent writes Python in Anthropic's code_execution sandbox. Custom tools called via `await tool(...)` from sandbox. Our code handles tool call on host.
@@ -123,6 +124,21 @@
 - **When to Use**: In `_execute()` when checking `success_criteria_matched`
 - **Implementation**: `step.phase == StepPhase.OBSERVE` guard on Finding creation
 - **Rationale**: CAMRO design — only the final observation validates a vulnerability. Without this, login/token-extraction steps pollute Neo4j with false "findings".
+
+### Single-Exploit-Per-Graph Pattern
+- **Description**: `attack_plan_to_action_graph()` caps at 1 exploit per ActionGraph via `plan.attack_plan[:1]`
+- **When to Use**: Always — multiple exploits in one graph cause cascading failures
+- **Rationale**: Each exploit has its own login/extract/request/observe chain. When exploit B fails, it triggers SYSTEMIC repair which recompiles the entire graph (~40K tokens). With 5 exploits, 3+ failures = budget exhaustion. Single-exploit graphs are focused, cheap, and independently repairable.
+
+### Single-Repair Guard
+- **Description**: If execution has already repaired once, subsequent failures abort instead of triggering another repair
+- **When to Use**: In `_execute()` — check `repaired` flag before calling `_handle_step_failure()`
+- **Rationale**: Prevents runaway recompilation cycles. Each repair is a full `_compile()` call (~40K tokens). Without this guard, a bad graph can trigger 3+ repairs and exhaust the token budget.
+
+### Pydantic Validator as LLM Output Sanitizer
+- **Description**: `exploit_target` field_validator in AttackOpportunity auto-fixes common LLM output issues: `{id}` → `1`, strips full URLs to paths
+- **When to Use**: Any Pydantic model field where LLM consistently produces almost-correct values
+- **Rationale**: Cheaper than prompt engineering. The LLM will say `/api/Users/{id}` no matter how many times you tell it not to. A 3-line validator fixes it deterministically.
 
 ### Dependency Injection
 - **Description**: Dependencies passed explicitly to constructors throughout the stack

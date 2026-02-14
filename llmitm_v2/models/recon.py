@@ -6,8 +6,9 @@ Both are constrained by the same schema — same enum of recon tools and exploit
 """
 
 from typing import List, Literal
+from urllib.parse import urlparse
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # Recon tool enum — agent can only cite tools it actually called
@@ -20,13 +21,24 @@ ExploitTool = Literal["idor_walk", "auth_strip", "token_swap", "namespace_probe"
 class AttackOpportunity(BaseModel):
     """Single attack opportunity with recon evidence and prescribed exploit."""
 
-    opportunity: str = Field(description="Short name for this opportunity (e.g., 'IDOR on /api/Users/{id}')")
+    opportunity: str = Field(description="Short name for this opportunity (e.g., 'IDOR on User Profiles')")
     recon_tool_used: ReconTool = Field(description="Which recon tool surfaced the evidence")
     observation: str = Field(description="What the traffic showed — specific data from tool output")
     suspected_gap: str = Field(description="Business intent -> developer assumption -> code behavior — where did fidelity degrade?")
     recommended_exploit: ExploitTool = Field(description="Which exploit tool to run against this target")
-    exploit_target: str = Field(description="Specific endpoint/resource to target (e.g., '/api/Users/{id}')")
+    exploit_target: str = Field(description="Concrete URL path with real IDs from traffic (e.g., '/api/Users/1'). Must be a path, not a full URL. Never use templates like {id}.")
     exploit_reasoning: str = Field(description="Why this exploit tool + target combination tests the suspected gap")
+
+    @field_validator("exploit_target")
+    @classmethod
+    def must_be_concrete_path(cls, v: str) -> str:
+        """Ensure exploit_target is a concrete path, not a template or full URL."""
+        if "{" in v:
+            v = v.replace("{id}", "1").replace("{", "").replace("}", "")
+        parsed = urlparse(v)
+        if parsed.scheme:
+            v = parsed.path
+        return v
 
 
 class AttackPlan(BaseModel):

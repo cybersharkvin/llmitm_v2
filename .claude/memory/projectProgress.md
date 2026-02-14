@@ -252,9 +252,22 @@
   - Completed: Feb 13, 2026
   - Validation: 96 tests passing, 1 skipped, 0 regressions
 
+- ✅ **E2E All 4 Tests PASSING**: Full pipeline verified against live Juice Shop
+  - Fixed 6 bugs during E2E: skill guide bloat, max_iterations too high, {id} template in exploit_target, step.type.value on string, multi-exploit token explosion, runaway repair cycles
+  - Removed skill guides from Recon Agent system prompt (~2.9K tokens saved per call)
+  - Added Pydantic field_validator on exploit_target (auto-fix {id}→1, strip full URLs to paths)
+  - Capped to 1 exploit per ActionGraph (prevents cascading failures)
+  - Single-repair guard (abort on second failure after repair)
+  - Test 1 Cold Start: 7 API calls, ~37K tokens, 5 steps, 1 IDOR finding
+  - Test 2 Warm Start: 0 API calls, 0 tokens, 5 steps, 1 IDOR finding
+  - Test 3 Self-Repair: 9 API calls, ~56K tokens, 8 steps (3 failed + 5 clean), 1 IDOR finding
+  - Test 4 Persistence: 0 API calls, 0 tokens, 5 steps, 1 IDOR finding
+  - Completed: Feb 13, 2026
+  - Validation: 96 tests passing, 1 skipped, 0 regressions
+
 ## In Progress
 
-- E2E smoke test with new 4+5 tool architecture (cold start, warm start, self-repair, persistence)
+- None
 
 ## Pending Features
 
@@ -265,6 +278,7 @@
 - Exploit step generators hardcode /rest/user/login path (Juice Shop specific)
 - CriticFeedback model still exists but no longer used in _compile() (dead code candidate)
 - graph_tools.py still uses @beta_tool closures — may need update if tool_runner is fully removed
+- Skill guides exist in skills/ but are not loaded (disabled for token efficiency)
 - T2: AgentResult.structured_output: Any — needs Generic[T] (deferred)
 - T3: _handle_step_failure stringly-typed return — needs enum/dataclass (deferred)
 
@@ -278,11 +292,12 @@
 
 ### Current State
 - **Version**: 0.1.0
-- **Status**: All Hackathon Deliverables Complete
+- **Status**: E2E VERIFIED — All 4 hackathon demos pass
 - **Primary Branch**: main
 - **Test Suite**: 96 passing, 1 skipped, 0 failed
 
 ### Recent Milestones
+- **Feb 13, 2026**: E2E ALL 4 TESTS PASSING (cold start 37K tokens, warm start 0 tokens, self-repair 56K tokens, persistence 0 tokens)
 - **Feb 13, 2026**: Pre-E2E bug fixes (credential placeholders, URL resolution, break-graph method corruption, 96 tests)
 - **Feb 13, 2026**: 4+5 tool architecture (4 recon tools + 5 exploit tools, AttackPlan model, deterministic step generation, 96 tests)
 - **Feb 13, 2026**: Debug logging for agent pipeline (opt-in per-call JSON tracing, 98 tests)

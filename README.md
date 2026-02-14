@@ -8,50 +8,58 @@ LLMitM v2 discovers web application vulnerabilities by reasoning about where bus
 
 **The LLM builds the automation that replaces itself.** Expensive LLM reasoning happens once at "compile time" to produce a deterministic ActionGraph. The system then executes that compiled artifact repeatedly without LLM involvement, converging toward zero LLM cost as the graph grows.
 
+## E2E Results (Verified Feb 13, 2026)
+
+All 4 demonstration runs pass against OWASP Juice Shop:
+
+| Test | Path | LLM Calls | Tokens | Findings | Status |
+|------|------|-----------|--------|----------|--------|
+| 1. Cold Start | `cold_start` | 7 | ~37K | 1 IDOR | PASS |
+| 2. Warm Start | `warm_start` | 0 | 0 | 1 IDOR | PASS |
+| 3. Self-Repair | `repair` | 9 | ~56K | 1 IDOR | PASS |
+| 4. Persistence | `warm_start` | 0 | 0 | 1 IDOR | PASS |
+
 ## How It Works
 
 ```
-Phase 1 — Capture (deterministic)
-  mitmdump intercepts traffic → Fingerprinter extracts target identity → hash it
+Phase 1 — Fingerprint (deterministic)
+  Read .mitm capture → Fingerprinter extracts target identity → SHA256 hash
 
 Phase 2 — Lookup (deterministic)
   Query Neo4j for fingerprint hash → match found? skip to Phase 4
 
 Phase 3 — Compile (LLM, one-time per novel fingerprint)
-  Actor generates ActionGraph (CAMRO workflow) → Critic validates → store in Neo4j
+  Recon Agent analyzes traffic via 4 tools → prescribes exploit →
+  Attack Critic refines → deterministic step generation → store in Neo4j
 
 Phase 4 — Execute (deterministic, zero LLM)
-  Graph walker dispatches each step to its handler → threads results through chain
+  Graph walker dispatches each CAMRO step to its handler → threads results
 
 Phase 5 — Observe & Store (deterministic)
   Check success criteria → store Finding or classify failure → repair if systemic
 ```
 
-## Hackathon Deliverable
+## Architecture
 
-Three demonstration runs against OWASP Juice Shop:
-
-1. **Cold start** — Agent captures traffic, compiles an ActionGraph via actor/critic cycle, executes it, finds a vulnerability
-2. **Warm start** — Second target fingerprints to a match. Stored graph executes with zero LLM calls
-3. **Self-repair** — Target changes break the stored graph. LLM diagnoses, repairs the graph, stores the fix
-
-## Core Features
-
-- **Fingerprinting** — Identify target's tech stack, auth model, endpoint patterns, and security signals from HTTP traffic
-- **ActionGraph Compilation** — LLM generates a validated, deterministic CAMRO workflow (Capture, Analyze, Mutate, Replay, Observe)
-- **Actor/Critic Loop** — Actor produces ActionGraphs, Critic validates against quality criteria including over-fitting checks
-- **Deterministic Execution** — Graph walker executes compiled ActionGraphs without LLM involvement
-- **Self-Repair** — Three-tier failure classification (transient recoverable, transient unrecoverable, systemic) with LLM-assisted repair
-- **Knowledge Accumulation** — All ActionGraphs, Fingerprints, Findings, and repair history persist in Neo4j
+```
+Python Orchestrator (all control flow)
+├── Anthropic API via native SDK (compile-time only)
+│   ├── ProgrammaticAgent: code_execution + 4 recon tools → AttackPlan
+│   └── SimpleAgent: grammar-constrained critic → refined AttackPlan
+├── Neo4j via GraphRepository (ActionGraphs, Fingerprints, Findings)
+├── 5 Exploit Step Generators (deterministic CAMRO step production)
+├── 3 Step Handlers (HTTP, Regex, Shell — deterministic execution)
+└── Pydantic v2 (contract enforcement at every boundary)
+```
 
 ## Tech Stack
 
 - **Language**: Python 3.12+
-- **LLM**: Anthropic Claude via [Strands Agents SDK](https://strandsagents.com)
-- **Graph Database**: Neo4j 5.x (graph-native architecture — Neo4j IS the architecture, not just storage)
+- **LLM**: Anthropic Claude Sonnet 4.5 via native SDK (structured output + programmatic tool calling)
+- **Graph Database**: Neo4j 5.x (graph-native — Neo4j IS the architecture, not just storage)
 - **Schema Validation**: Pydantic v2
 - **Traffic Capture**: mitmproxy / mitmdump
-- **Embeddings**: sentence-transformers (local, no external API)
+- **HTTP Client**: httpx
 - **Containerization**: Docker Compose
 
 ## Prerequisites
@@ -78,31 +86,29 @@ make up
 
 ## Running the Demo
 
-The demo shows three runs against OWASP Juice Shop, each progressively more deterministic:
-
 ```bash
-# 1. Reset graph and seed a known-good ActionGraph
-make reset && make seed
+# Reset graph (clean slate)
+make reset
 
-# 2. Run 1 — Warm start (zero LLM calls)
-#    Fingerprint matches → stored graph executes deterministically
-make run
+# Test 1 — Cold start (compiles ActionGraph, finds IDOR vulnerability)
+DEBUG_LOGGING=true make run
 
-# 3. Break step 6's endpoint to simulate target drift
+# Test 2 — Warm start (zero LLM calls, reuses stored graph)
+DEBUG_LOGGING=true make run
+
+# Test 3 — Self-repair (corrupt graph, LLM recompiles)
 make break-graph
+DEBUG_LOGGING=true make run
 
-# 4. Run 2 — Self-repair (1 LLM call)
-#    Broken step → SYSTEMIC failure → LLM diagnoses → graph rewires itself
-make run
-
-# 5. Run 3 — Persistence (zero LLM calls again)
-#    Repaired graph is stored in Neo4j → executes without LLM forever
-make run
+# Test 4 — Persistence (repaired graph reused, zero LLM calls)
+DEBUG_LOGGING=true make run
 ```
+
+Debug logs are written to `debug_logs/<timestamp>/` including per-API-call JSON and `run_summary.json`.
 
 ## Exploring the Graph
 
-Connect to Neo4j Browser at `http://localhost:7474` (user: `neo4j`, password: `password`, database: `neo4j`).
+Connect to Neo4j Browser at `http://localhost:7474` (user: `neo4j`, password: `password`).
 
 ```cypher
 -- See the full graph
@@ -113,11 +119,12 @@ MATCH (ag:ActionGraph)-[:STARTS_WITH]->(s:Step)
 MATCH path=(s)-[:NEXT*]->(end)
 RETURN ag, path
 
--- See the repair edge (after run 2)
-MATCH (s1)-[:REPAIRED_TO]->(s2) RETURN s1, s2
-
 -- See findings
 MATCH (f:Finding)-[:PRODUCED_BY]->(ag) RETURN f, ag
+
+-- See all ActionGraphs for a fingerprint (newest first)
+MATCH (f:Fingerprint)-[:TRIGGERS]->(ag:ActionGraph)
+RETURN f.hash, ag.id, ag.created_at ORDER BY ag.created_at DESC
 ```
 
 ## Running Tests
@@ -126,20 +133,21 @@ MATCH (f:Finding)-[:PRODUCED_BY]->(ag) RETURN f, ag
 make test
 ```
 
-87 tests passing, 1 skipped (Neo4j orchestrator init test).
+96 tests passing, 1 skipped.
 
-## Other Makefile Targets
+## Makefile Targets
 
 | Target | Description |
 |--------|-------------|
 | `make up` / `make down` | Start/stop Docker containers |
+| `make run` | Run the orchestrator |
+| `make test` | Run pytest suite |
 | `make schema` | Create Neo4j constraints and indexes |
-| `make seed` | Insert known-good 7-step IDOR ActionGraph |
-| `make break-graph` | Corrupt step 6 for self-repair demo |
+| `make reset` | Wipe graph and recreate schema |
+| `make break-graph` | Corrupt steps for self-repair demo (GET→PATCH) |
 | `make fix-graph` | Reverse corruption (manual fallback) |
 | `make snapshot NAME=x` | Export Neo4j binary dump |
 | `make restore NAME=x` | Restore from binary dump |
-| `make reset` | Wipe graph and recreate schema |
 
 ## License
 

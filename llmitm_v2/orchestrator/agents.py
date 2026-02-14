@@ -117,6 +117,18 @@ Each AttackOpportunity MUST cite:
 - The suspected assumption gap
 - Which exploit tool to run and why
 
+CRITICAL: exploit_target must be a CONCRETE URL path with real IDs from the traffic, not templates.
+- CORRECT: "/api/Users/1"
+- WRONG: "/api/Users/{id}"
+
+## EFFICIENCY CONSTRAINT
+
+You have a strict token budget. Be efficient:
+- Call at most 2 recon tools total (response_inspect + jwt_decode is usually sufficient)
+- Do NOT re-call the same tool with the same arguments
+- Analyze the results in a single code_execution block, then produce your AttackPlan
+- Aim to finish in 3-4 tool turns maximum
+
 {skill_guides}
 """
 
@@ -141,7 +153,10 @@ Your job is to produce a REFINED AttackPlan (same schema) that is better than th
    that the agent missed, add it.
 
 Do NOT reject the plan — produce a refined version. If the plan is already excellent,
-return it unchanged. Your output MUST be a valid AttackPlan JSON."""
+return it unchanged. Your output MUST be a valid AttackPlan JSON.
+
+IMPORTANT: Return at most 2 opportunities. Keep only the highest-confidence ones.
+Fewer, sharper attacks are better than many speculative ones."""
 
 
 class SimpleAgent:
@@ -352,8 +367,7 @@ def create_recon_agent(
 
     client = anthropic.Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY", ""))
 
-    skill_guides = load_skill_guides()
-    system_prompt = RECON_SYSTEM_PROMPT.replace("{skill_guides}", skill_guides)
+    system_prompt = RECON_SYSTEM_PROMPT.replace("{skill_guides}", "")
     system_prompt += f"\n\n## Target Context\n\n{mitm_context}"
 
     return ProgrammaticAgent(
@@ -363,7 +377,7 @@ def create_recon_agent(
         max_tokens=16384,
         tool_schemas=TOOL_SCHEMAS,
         tool_handlers=TOOL_HANDLERS,
-        max_iterations=15,
+        max_iterations=8,
     )
 
 

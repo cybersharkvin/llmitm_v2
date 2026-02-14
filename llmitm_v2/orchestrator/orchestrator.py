@@ -48,7 +48,7 @@ def attack_plan_to_action_graph(plan: AttackPlan) -> ActionGraph:
     """
     all_steps: list[Step] = []
     order = 1
-    for opp in plan.attack_plan:
+    for opp in plan.attack_plan[:1]:  # Hard cap: 1 exploit per graph
         generator = EXPLOIT_STEP_GENERATORS[opp.recommended_exploit]
         steps = generator(opp.exploit_target, opp.observation)
         for step in steps:
@@ -201,7 +201,7 @@ class Orchestrator:
             handler = get_handler(interpolated.type)
             result = handler.execute(interpolated, ctx)
             steps_executed += 1
-            log_event("step_result", {"order": step.order, "type": step.type.value, "matched": result.success_criteria_matched})
+            log_event("step_result", {"order": step.order, "type": step.type if isinstance(step.type, str) else step.type.value, "matched": result.success_criteria_matched})
 
             # Check for finding
             if result.success_criteria_matched and step.success_criteria and step.phase == StepPhase.OBSERVE:
@@ -220,6 +220,13 @@ class Orchestrator:
                 step.success_criteria and not result.success_criteria_matched
             )
             if step_failed:
+                if repaired:
+                    # Already repaired once this run — abort to avoid runaway repairs
+                    return ExecutionResult(
+                        success=False, findings=findings,
+                        steps_executed=steps_executed,
+                        error_log=result.stderr or result.stdout, repaired=repaired,
+                    )
                 action = self._handle_step_failure(
                     step, result, ctx, action_graph, retried=False
                 )
