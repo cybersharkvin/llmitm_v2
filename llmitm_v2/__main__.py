@@ -1,12 +1,14 @@
 """CLI entry point for llmitm_v2 orchestration."""
 
 import logging
+import os
 import sys
 from pathlib import Path
 
 from neo4j import GraphDatabase
 
 from llmitm_v2.config import Settings
+from llmitm_v2.target_profiles import get_active_profile
 from llmitm_v2.orchestrator import Orchestrator
 from llmitm_v2.repository import GraphRepository
 from llmitm_v2.repository.setup_schema import setup_schema
@@ -21,6 +23,11 @@ logger = logging.getLogger(__name__)
 def main():
     """Run orchestration command."""
     settings = Settings()
+
+    # Auto-resolve target_url from profile if user didn't set TARGET_URL
+    profile = get_active_profile(settings.target_profile)
+    if "TARGET_URL" not in os.environ:
+        settings.target_url = profile.default_url
 
     # Wire token budget from settings
     from llmitm_v2.orchestrator.agents import set_token_budget

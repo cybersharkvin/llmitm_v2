@@ -144,7 +144,7 @@
 - **load_skill_guides**() (`llmitm_v2/orchestrator/agents.py:58`)
 - **log_api_call**( *, agent_type: str, response: object, messages_len: int, cumulative_tokens: int = 0, tool_calls: Optional[list[ToolCallRecord]] = None, ) (`llmitm_v2/debug_logger.py:115`)
 - **log_event**(event_type: str, data: dict[str, Any]) (`llmitm_v2/debug_logger.py:157`)
-- **main**() (`llmitm_v2/__main__.py:21`)
+- **main**() (`llmitm_v2/__main__.py:23`)
 - **namespace_probe_steps**(exploit_target: str, observation: str, profile: TargetProfile) (`llmitm_v2/tools/exploit_tools.py:174`)
 - **quick_fingerprint**(target_url: str) (`llmitm_v2/capture/launcher.py:20`)
 - **replacer**(match: re.Match) (`llmitm_v2/orchestrator/orchestrator.py:309`)
