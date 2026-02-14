@@ -1,8 +1,8 @@
 """Main orchestration loop: cold start, warm start, and self-repair.
 
 Uses 2-agent architecture:
-- Recon Agent (ProgrammaticAgent): explores target via code_execution + mitmdump
-- Attack Critic (SimpleAgent): adversarially validates the plan
+- Recon Agent (ProgrammaticAgent): explores target via code_execution + recon tools
+- Attack Critic (SimpleAgent): adversarially refines the attack plan
 """
 
 import logging
@@ -15,7 +15,6 @@ from llmitm_v2.debug_logger import log_event
 from llmitm_v2.handlers.registry import get_handler
 from llmitm_v2.models import (
     ActionGraph,
-    CriticFeedback,
     ExecutionContext,
     ExecutionResult,
     Finding,
@@ -24,6 +23,7 @@ from llmitm_v2.models import (
     Step,
     StepResult,
 )
+from llmitm_v2.models.recon import AttackPlan
 from llmitm_v2.orchestrator.agents import create_attack_critic, create_recon_agent
 from llmitm_v2.orchestrator.context import (
     assemble_recon_context,
@@ -31,11 +31,35 @@ from llmitm_v2.orchestrator.context import (
 )
 from llmitm_v2.orchestrator.failure_classifier import classify_failure
 from llmitm_v2.repository import GraphRepository
+from llmitm_v2.tools.exploit_tools import EXPLOIT_STEP_GENERATORS
 
 logger = logging.getLogger(__name__)
 
 # Regex for {{previous_outputs[N]}} interpolation
 _INTERPOLATION_RE = re.compile(r"\{\{previous_outputs\[(-?\d+)\]\}\}")
+
+
+def attack_plan_to_action_graph(plan: AttackPlan) -> ActionGraph:
+    """Convert a refined AttackPlan into an executable ActionGraph.
+
+    Each opportunity's recommended_exploit maps to a step generator.
+    Steps are concatenated in priority order with sequential numbering.
+    This is deterministic — no LLM involved.
+    """
+    all_steps: list[Step] = []
+    order = 1
+    for opp in plan.attack_plan:
+        generator = EXPLOIT_STEP_GENERATORS[opp.recommended_exploit]
+        steps = generator(opp.exploit_target, opp.observation)
+        for step in steps:
+            step.order = order
+            all_steps.append(step)
+            order += 1
+    return ActionGraph(
+        vulnerability_type=plan.attack_plan[0].opportunity if plan.attack_plan else "unknown",
+        description=f"Auto-generated from AttackPlan with {len(plan.attack_plan)} opportunities",
+        steps=all_steps,
+    )
 
 
 class Orchestrator:
@@ -95,7 +119,11 @@ class Orchestrator:
         proxy_url: str = "",
         repair_context: str = "",
     ) -> ActionGraph:
-        """Recon Agent + Attack Critic loop -> validated ActionGraph -> save to Neo4j.
+        """Recon Agent -> Attack Critic -> AttackPlan -> ActionGraph -> save to Neo4j.
+
+        The Recon Agent produces an AttackPlan (structured output).
+        The Attack Critic refines it (same schema).
+        attack_plan_to_action_graph() converts deterministically to ActionGraph.
 
         Args:
             repair_context: If non-empty, prepended to recon context with failure details.
@@ -124,28 +152,30 @@ class Orchestrator:
         for i in range(self.settings.max_critic_iterations):
             log_event("compile_iter", {"iteration": i})
             try:
-                recon_result = recon(context, structured_output_model=ActionGraph)
-                ag = recon_result.structured_output
+                recon_result = recon(context, structured_output_model=AttackPlan)
+                plan = recon_result.structured_output
             except Exception as e:
                 logger.warning("Recon agent failed on iteration %d: %s: %s", i, type(e).__name__, e)
                 continue
 
             try:
                 critic_result = critic(
-                    ag.model_dump_json(), structured_output_model=CriticFeedback
+                    plan.model_dump_json(), structured_output_model=AttackPlan
                 )
-                feedback = critic_result.structured_output
+                refined_plan = critic_result.structured_output
             except Exception as e:
                 logger.warning("Attack critic failed on iteration %d: %s: %s", i, type(e).__name__, e)
                 continue
 
-            log_event("critic_result", {"passed": feedback.passed, "feedback": feedback.feedback[:500]})
-            if feedback.passed:
-                ag.ensure_id()
-                self.graph_repo.save_action_graph(fingerprint.hash, ag)
-                return ag
+            log_event("critic_result", {
+                "opportunities": len(refined_plan.attack_plan),
+                "exploits": [o.recommended_exploit for o in refined_plan.attack_plan],
+            })
 
-            context += f"\n\nCritic feedback: {feedback.feedback}"
+            ag = attack_plan_to_action_graph(refined_plan)
+            ag.ensure_id()
+            self.graph_repo.save_action_graph(fingerprint.hash, ag)
+            return ag
 
         raise RuntimeError(
             f"Compilation failed after {self.settings.max_critic_iterations} iterations"
@@ -270,7 +300,7 @@ class Orchestrator:
             except IndexError:
                 return match.group(0)
 
-        def interpolate_value(value: any) -> any:
+        def interpolate_value(value: object) -> object:
             if isinstance(value, str) and "{{previous_outputs[" in value:
                 return _INTERPOLATION_RE.sub(replacer, value)
             elif isinstance(value, dict):

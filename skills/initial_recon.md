@@ -6,68 +6,108 @@ Use this skill when you have NO prior knowledge of the target. This is the first
 scoping phase where you discover what the application is, what it does, and where its
 attack surface lies.
 
-## Phase 1: Technology Fingerprinting
+## The Assumption-Gap Framework
 
-Analyze response headers to identify the tech stack:
+Every vulnerability exists because of a gap between what someone intended and what code enforces:
 
-1. **Server identification**: Look for `Server`, `X-Powered-By`, `X-AspNet-Version` headers
-2. **Framework detection**: Error pages, default routes, cookie names reveal frameworks
-3. **API format**: JSON vs XML vs GraphQL vs gRPC
+1. **Business Intent**: "Only the account owner should see their profile data"
+2. **Developer Assumption**: "The frontend only sends the logged-in user's ID, so we don't need to check"
+3. **Code Enforcement**: Server returns any user's data for any valid ID — no ownership check
+4. **The Gap**: Business says "owner only", code says "any authenticated user" — IDOR
+
+Your job is to find these gaps by reading the traffic.
+
+## Phase 1: Surface Area Mapping
+
+Use `response_inspect` with no filter to get the full flow summary:
 
 ```python
-# Scan common entry points and collect headers
-endpoints = ["/", "/api/", "/rest/", "/graphql", "/admin", "/swagger",
-             "/health", "/api/health", "/status", "/.well-known/openid-configuration"]
-results = {}
-for ep in endpoints:
-    resp = await mitmdump(f"-nr {mitm_file} --flow-detail 3 -B '~u {ep}'")
-    results[ep] = resp
-
-# Summarize tech stack from headers
-print("Tech stack indicators found:")
-for ep, data in results.items():
-    if "200" in data or "301" in data or "302" in data:
-        print(f"  {ep}: LIVE")
+overview = await response_inspect(mitm_file=mitm_file)
+print(overview)
 ```
 
-## Phase 2: Authentication Model Discovery
+From the overview, identify:
+- Which endpoints exist and what HTTP methods they use
+- Which endpoints require auth (has_auth field)
+- What content types are returned (JSON API vs HTML pages)
+- Status code patterns (200s, 401s, 403s, 500s)
 
-1. **Identify auth endpoints**: `/login`, `/auth`, `/oauth`, `/token`, `/api/auth`
-2. **Determine auth mechanism**:
-   - `Authorization: Bearer` -> JWT tokens
-   - `Set-Cookie: session=` -> Cookie-based sessions
-   - `X-API-Key` -> API key auth
-   - `WWW-Authenticate: Basic` -> HTTP Basic Auth
-3. **Test auth enforcement**: Hit protected endpoints without credentials
+## Phase 2: Identity & Auth Analysis
 
-## Phase 3: API Endpoint Mapping
+Use `jwt_decode` to understand the authenticated user:
 
-1. **Common REST patterns**: `/api/v1/`, `/rest/`, `/v2/`
-2. **Resource enumeration**: `/api/Users`, `/api/Products`, `/api/Orders`
-3. **Admin endpoints**: `/admin`, `/api/admin`, `/dashboard`
-4. **Documentation**: `/swagger`, `/api-docs`, `/openapi.json`
-5. **Debug/info**: `/health`, `/status`, `/metrics`, `/env`, `/debug`
+```python
+tokens = await jwt_decode(mitm_file=mitm_file)
+print(tokens)
+```
 
-For each discovered endpoint, record:
-- HTTP methods that work (GET, POST, PUT, DELETE)
-- Whether it requires authentication
-- What data it returns
-- What parameters it accepts
+From the JWT claims, identify:
+- User ID, email, role fields
+- Token expiration and issuer
+- What permissions or scopes are encoded
+- Whether the token is self-contained (all data in JWT) or opaque (needs server lookup)
 
-## Phase 4: Security Signal Collection
+## Phase 3: Endpoint Deep Dive
 
-Look for:
-- **CORS**: `Access-Control-Allow-Origin: *` (permissive = weak)
-- **CSP**: Missing `Content-Security-Policy` header
-- **Rate limiting**: Repeated requests return same status (no 429)
-- **Error verbosity**: Stack traces, SQL errors, file paths in responses
-- **Information disclosure**: Version numbers, internal IPs, debug info
+Use `response_inspect` with endpoint_filter to drill into interesting endpoints:
+
+```python
+users = await response_inspect(mitm_file=mitm_file, endpoint_filter="/api/Users")
+print(users)
+```
+
+For each interesting endpoint, note:
+- What data is returned in the response body
+- What parameters are accepted
+- Whether IDs appear in the URL path
+- Whether the response contains data belonging to other users
+
+## Phase 4: Security Posture
+
+Use `header_audit` to assess the organization's security maturity:
+
+```python
+audit = await header_audit(mitm_file=mitm_file)
+print(audit)
+```
+
+Missing security headers suggest:
+- No CSP → possible XSS vectors
+- No HSTS → possible downgrade attacks
+- Permissive CORS → possible cross-origin data theft
+- Server version leaks → known vulnerability lookup
+
+## Phase 5: Behavioral Comparison
+
+Use `response_diff` to compare flows and spot where auth state changes behavior:
+
+```python
+diff = await response_diff(mitm_file=mitm_file, flow_index_a=0, flow_index_b=3)
+print(diff)
+```
+
+Key patterns to look for:
+- Same endpoint, different auth → different data (IDOR indicator)
+- Auth'd vs unauth'd → same data (missing auth check)
+- Different status codes for same endpoint → inconsistent enforcement
+
+## Prescribing Exploit Tools
+
+Based on your observations, prescribe the right exploit tool:
+
+| Observation | Suspected Gap | Exploit Tool |
+|-------------|---------------|-------------|
+| User data returned without ownership check | "Frontend sends correct ID" assumption | idor_walk |
+| Endpoint returns data without auth header | "Auth middleware covers all routes" assumption | auth_strip |
+| Same data returned for different user tokens | "Token identity is checked" assumption | token_swap |
+| Admin-path endpoints accessible | "Admin routes are protected" assumption | namespace_probe |
+| Role field in request body as plain string | "Roles are server-managed" assumption | role_tamper |
 
 ## Output Requirements
 
-After completing recon, you MUST provide:
-1. Identified tech stack with evidence
-2. Authentication model with evidence
-3. Complete endpoint map with methods and auth requirements
-4. At least 2 attack opportunities ranked by confidence
-5. Each opportunity MUST cite specific evidence from tool calls
+Each AttackOpportunity MUST include:
+1. Which recon tool surfaced the evidence (recon_tool_used)
+2. Specific data from the tool output (observation)
+3. The business intent → developer assumption → enforcement gap (suspected_gap)
+4. Which exploit tool to run and the specific target endpoint (recommended_exploit, exploit_target)
+5. Why this exploit + target tests the gap (exploit_reasoning)

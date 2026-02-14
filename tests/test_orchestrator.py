@@ -65,12 +65,12 @@ class TestContextAssembly:
     def test_assemble_recon_context_file_mode(self):
         ctx = assemble_recon_context(mitm_file="demo/juice_shop.mitm")
         assert "juice_shop.mitm" in ctx
-        assert "TASK:" in ctx
+        assert "response_inspect" in ctx
 
     def test_assemble_recon_context_live_mode(self):
         ctx = assemble_recon_context(proxy_url="http://127.0.0.1:8080")
         assert "127.0.0.1:8080" in ctx
-        assert "TASK:" in ctx
+        assert "recon tools" in ctx
 
     def test_assemble_recon_context_error_when_no_args(self):
         ctx = assemble_recon_context()
@@ -139,9 +139,9 @@ class TestAgentFactories:
         assert isinstance(agent, SimpleAgent)
 
     @pytest.mark.integration
-    def test_recon_agent_has_mitmdump_tool(self):
+    def test_recon_agent_has_recon_tools(self):
         agent = create_recon_agent(mitm_context="demo/juice_shop.mitm")
-        assert "mitmdump" in agent.tool_handlers
+        assert "response_inspect" in agent.tool_handlers and "jwt_decode" in agent.tool_handlers
 
 
 class TestSkillGuides:
@@ -152,7 +152,7 @@ class TestSkillGuides:
         guides = load_skill_guides()
         assert isinstance(guides, str) and len(guides) > 0
 
-    def test_load_skill_guides_includes_mitmdump(self):
+    def test_load_skill_guides_includes_recon_tools(self):
         from llmitm_v2.orchestrator.agents import load_skill_guides
         guides = load_skill_guides()
-        assert "mitmdump" in guides.lower()
+        assert "response_inspect" in guides.lower()

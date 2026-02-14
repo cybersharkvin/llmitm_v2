@@ -226,18 +226,30 @@
   - Captured demo/juice_shop.mitm (35KB, 7 flows)
   - Completed: Feb 12-13, 2026
 
+- ✅ **4+5 Tool Architecture**: Grammar-enforced recon + deterministic exploit step generation
+  - 4 recon tools: response_inspect, jwt_decode, header_audit, response_diff (FlowReader-based)
+  - 5 exploit tools: idor_walk, auth_strip, token_swap, namespace_probe, role_tamper (CAMRO step generators)
+  - AttackPlan model with ReconTool/ExploitTool Literal enums (grammar-constrained)
+  - Critic refines AttackPlan (same schema) instead of pass/fail CriticFeedback
+  - attack_plan_to_action_graph() deterministic conversion (zero LLM)
+  - Skill guides rewritten for new tools (recon_tools.md replaces mitmdump.md)
+  - Removed: ReconReport, DiscoveredEndpoint, old mitmdump tool
+  - Completed: Feb 13, 2026
+  - Validation: 96 tests passing, 1 skipped, 0 regressions
+
 ## In Progress
 
 - None
 
 ## Pending Features
 
-- E2E smoke test with ProgrammaticAgent + mitmdump tool (cold start, warm start, self-repair, persistence)
+- E2E smoke test with new 4+5 tool architecture (cold start, warm start, self-repair, persistence)
 - Pre-recorded demo capture (terminal session + Neo4j Browser screenshots)
 
 ## Known Issues
 
-- Cold start compilation is unreliable: LLM hallucinates wrong credentials for Juice Shop users
+- Exploit step generators hardcode /rest/user/login path (Juice Shop specific)
+- CriticFeedback model still exists but no longer used in _compile() (dead code candidate)
 - graph_tools.py still uses @beta_tool closures — may need update if tool_runner is fully removed
 - T2: AgentResult.structured_output: Any — needs Generic[T] (deferred)
 - T3: _handle_step_failure stringly-typed return — needs enum/dataclass (deferred)
@@ -254,9 +266,10 @@
 - **Version**: 0.1.0
 - **Status**: All Hackathon Deliverables Complete
 - **Primary Branch**: main
-- **Test Suite**: 98 passing, 1 skipped, 0 failed
+- **Test Suite**: 96 passing, 1 skipped, 0 failed
 
 ### Recent Milestones
+- **Feb 13, 2026**: 4+5 tool architecture (4 recon tools + 5 exploit tools, AttackPlan model, deterministic step generation, 96 tests)
 - **Feb 13, 2026**: Debug logging for agent pipeline (opt-in per-call JSON tracing, 98 tests)
 - **Feb 12-13, 2026**: ProgrammaticAgent E2E fixes (5 bugs, Haiku→Sonnet, juice_shop.mitm capture)
 - **Feb 12, 2026**: Bug fix batch — 8 bugs fixed across 6 files (command injection, httpx dict body, orchestrator paths, newest AG selection, type safety)

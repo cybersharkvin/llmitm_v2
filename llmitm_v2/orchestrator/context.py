@@ -12,7 +12,7 @@ def assemble_recon_context(mitm_file: str = "", proxy_url: str = "") -> str:
     """Build initial prompt for the Recon Agent.
 
     Works for both file mode (.mitm capture) and live mode (proxy URL).
-    The agent uses mitmdump to analyze the capture or interact with the live target.
+    The agent uses 4 recon tools to analyze the capture.
 
     Args:
         mitm_file: Path to .mitm capture file (file mode)
@@ -22,52 +22,41 @@ def assemble_recon_context(mitm_file: str = "", proxy_url: str = "") -> str:
         Formatted prompt string for Recon Agent
     """
     if mitm_file:
-        return f"""You have a pre-recorded traffic capture at: {mitm_file}
+        return f"""You have a captured traffic file at: {mitm_file}
 
-TASK:
-Analyze this capture using mitmdump to discover:
-1. Technology stack (frameworks, servers, languages)
-2. Authentication model (JWT, cookies, API keys, etc.)
-3. API endpoints and their behavior
-4. Potential attack opportunities (IDOR, auth bypass, injection, etc.)
+Use your recon tools to analyze the capture:
+- response_inspect: see what endpoints were hit and what came back
+- jwt_decode: understand who the authenticated user is and what the token carries
+- header_audit: assess the security posture across all endpoints
+- response_diff: compare responses between flows to spot behavioral differences
 
-Start by reading all flows:
-```python
-overview = await mitmdump("-nr {mitm_file} --flow-detail 1")
-print(overview)
-```
+Your job is to read the developer's assumptions from the API design.
+Find where business intent diverged from what the code actually enforces.
+Each opportunity must cite specific evidence from your tool calls.
 
-Then drill into specific endpoints with --flow-detail 3 for full request/response bodies.
-
-Follow the initial_recon skill guide methodology. For each potential vulnerability,
-validate it using the persistence skill guide before including it in your plan.
-
-Your output MUST be a valid ActionGraph with CAMRO phases targeting the highest-confidence
-vulnerability you discover."""
+Your output is a prioritized attack plan. Each opportunity prescribes an exploit tool:
+- idor_walk: enumerate resource IDs with another user's token
+- auth_strip: replay requests without authentication
+- token_swap: replay User A's request with User B's token
+- namespace_probe: probe path namespace for unprotected siblings
+- role_tamper: modify role/privilege fields in request body"""
 
     if proxy_url:
         return f"""You have a live target accessible through a reverse proxy at: {proxy_url}
 
-TASK:
-Actively explore this web application to discover:
-1. Technology stack (frameworks, servers, languages)
-2. Authentication model (JWT, cookies, API keys, etc.)
-3. API endpoints and their behavior
-4. Potential attack opportunities (IDOR, auth bypass, injection, etc.)
+Use your recon tools to analyze captured traffic.
+The capture file will be available at the path specified in the target context.
 
-You can capture live traffic with:
-```python
-# Capture traffic to a file for later analysis
-result = await mitmdump("-m reverse:{proxy_url} -w capture.mitm -p 18080")
-```
+Your job is to read the developer's assumptions from the API design.
+Find where business intent diverged from what the code actually enforces.
+Each opportunity must cite specific evidence from your tool calls.
 
-Or send requests directly through the proxy and analyze responses.
-
-Follow the initial_recon skill guide methodology. For each potential vulnerability,
-validate it using the persistence skill guide before including it in your plan.
-
-Your output MUST be a valid ActionGraph with CAMRO phases targeting the highest-confidence
-vulnerability you discover."""
+Your output is a prioritized attack plan. Each opportunity prescribes an exploit tool:
+- idor_walk: enumerate resource IDs with another user's token
+- auth_strip: replay requests without authentication
+- token_swap: replay User A's request with User B's token
+- namespace_probe: probe path namespace for unprotected siblings
+- role_tamper: modify role/privilege fields in request body"""
 
     return "ERROR: No mitm_file or proxy_url provided."
 
@@ -97,7 +86,7 @@ def assemble_repair_context(
 
     return f"""## Previous Execution State
 
-A prior ActionGraph was executed but failed at step {failed_step.order} ({failed_step.phase}, {failed_step.type}).
+A prior attack plan was executed but failed at step {failed_step.order} ({failed_step.phase}, {failed_step.type}).
 Command: {failed_step.command}
 Parameters: {failed_step.parameters}
 
@@ -107,7 +96,7 @@ Error output:
 Steps that succeeded before failure:
 {recent_outputs}
 
-Account for this failure in your new ActionGraph. The previous approach did not work —
+Account for this failure in your new attack plan. The previous approach did not work —
 produce a corrected plan that avoids the same issue.
 
 """

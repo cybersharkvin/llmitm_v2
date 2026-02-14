@@ -78,24 +78,32 @@
 - **Rationale**: Official Neo4j best practice. Manages connection pool efficiently
 
 ### 2-Agent Architecture (Recon Agent + Attack Critic)
-- **Description**: Two agents handle all LLM tasks. Recon Agent (ProgrammaticAgent) explores targets via code_execution sandbox + mitmdump tool. Attack Critic (SimpleAgent) adversarially validates plans. Both compilation and repair use the same Recon+Critic loop.
+- **Description**: Two agents handle all LLM tasks. Recon Agent (ProgrammaticAgent) explores targets via code_execution sandbox + 4 recon tools. Attack Critic (SimpleAgent) refines the attack plan. Both compilation and repair use the same Recon+Critic loop.
 - **When to Use**: Cold start compilation AND self-repair both use Recon + Critic loop. Repair prepends failure context via `_compile(repair_context=...)`.
-- **Example**: `recon_agent(context, structured_output_model=ActionGraph)` → `attack_critic(ag.model_dump_json(), structured_output_model=CriticFeedback)` → loop until passed.
-- **Key Files**: `orchestrator/agents.py` (ProgrammaticAgent, SimpleAgent, create_recon_agent, create_attack_critic), `tools/recon_tools.py` (MITMDUMP_TOOL_SCHEMA, handle_mitmdump), `skills/*.md` (skill guides)
-- **Rationale**: Repair is just recompilation with enriched context. No separate repair agent needed — the Recon Agent doesn't know it's "repairing", it just produces a new ActionGraph that accounts for the failure.
+- **Compilation Flow**: `recon_agent(context, structured_output_model=AttackPlan)` → `attack_critic(plan.json(), structured_output_model=AttackPlan)` → `attack_plan_to_action_graph(refined_plan)` → ActionGraph. The critic refines (same schema) rather than pass/fail.
+- **Key Files**: `orchestrator/agents.py` (ProgrammaticAgent, SimpleAgent, create_recon_agent, create_attack_critic), `tools/recon_tools.py` (4 FlowReader tools), `tools/exploit_tools.py` (5 step generators), `skills/*.md` (skill guides)
+- **Rationale**: Repair is just recompilation with enriched context. The LLM decides WHAT to test (AttackPlan), deterministic code decides HOW (exploit step generators).
+
+### 4+5 Tool Architecture
+- **Description**: 4 grammar-enforced recon tools for analysis + 5 exploit tools for deterministic step generation. LLM prescribes exploit tools by enum name; step generators produce CAMRO Steps.
+- **Recon Tools** (agent calls these via code_execution): `response_inspect`, `jwt_decode`, `header_audit`, `response_diff` — all FlowReader-based, return JSON strings
+- **Exploit Tools** (agent prescribes these, code generates steps): `idor_walk`, `auth_strip`, `token_swap`, `namespace_probe`, `role_tamper` — each returns List[Step]
+- **Grammar Enforcement**: `ReconTool = Literal[...]` and `ExploitTool = Literal[...]` in `models/recon.py`. Grammar-constrained decoding prevents hallucinated tool names.
+- **Key Files**: `tools/recon_tools.py` (TOOL_SCHEMAS, TOOL_HANDLERS), `tools/exploit_tools.py` (EXPLOIT_STEP_GENERATORS), `models/recon.py` (AttackPlan, AttackOpportunity)
+- **Rationale**: Previous single mitmdump CLI tool consumed 212K tokens. Structured tools return focused JSON. Exploit step generation is deterministic — zero LLM cost.
 
 ### Skill Guide Pattern
 - **Description**: Markdown files in `skills/` loaded into Recon Agent's system prompt. Each guide teaches methodology for a specific testing phase.
-- **Files**: `mitmdump.md`, `initial_recon.md`, `lateral_movement.md`, `persistence.md`
+- **Files**: `recon_tools.md`, `initial_recon.md`, `lateral_movement.md`, `persistence.md`
 - **Implementation**: `load_skill_guides()` reads `skills/*.md`, concatenates, injected into RECON_SYSTEM_PROMPT
 - **Rationale**: Teaches the agent HOW to think about each phase. Version-controlled, editable, extensible.
 
 ### Programmatic Tool Calling Pattern
 - **Description**: Agent writes Python in Anthropic's code_execution sandbox. Custom tools called via `await tool(...)` from sandbox. Our code handles tool call on host.
 - **Beta Headers**: `code-execution-2025-08-25`, `advanced-tool-use-2025-11-20`
-- **Key Benefit**: Intermediate mitmdump outputs don't enter context window. Only final `print()` output does.
+- **Key Benefit**: Intermediate tool outputs don't enter context window. Only final `print()` output does.
 - **Implementation**: `ProgrammaticAgent.__call__()` handles tool result loop manually. Dispatches to `tool_handlers` dict.
-- **Rationale**: Replaces `tool_runner().until_done()` which counted every intermediate result toward tokens.
+- **Rationale**: Keeps context window lean. Agent processes tool results in sandbox, prints only summaries.
 
 ### Quick Fingerprint Fast Path
 - **Description**: Send 3 deterministic HTTP requests, extract fingerprint from headers — zero LLM cost for known targets

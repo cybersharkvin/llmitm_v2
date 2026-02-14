@@ -13,67 +13,66 @@ identifiers to access objects without verifying the requesting user owns them.
 
 ### Step 1: Identify Resource Endpoints
 
-Look for endpoints with numeric or UUID identifiers:
-- `/api/Users/{id}`
-- `/api/Orders/{id}`
-- `/api/Documents/{id}`
-- `/api/Profiles/{id}`
-
-### Step 2: Establish Baseline
+Use `response_inspect` to find endpoints with numeric or UUID identifiers:
 
 ```python
-# Authenticate as User A
-login_resp = await mitmdump(f"-nr {mitm_file} --flow-detail 3 -B '~u /login & ~m POST'")
-# Extract token/cookie from response
-
-# Access User A's own resource
-own_resource = await mitmdump(f"-nr {mitm_file} --flow-detail 3 -B '~u /api/Users/1'")
-print(f"Own resource access: {own_resource}")
+detail = await response_inspect(mitm_file=mitm_file, endpoint_filter="/api/Users/\\d+")
+print(detail)
 ```
 
-### Step 3: Cross-User Access
+Look for: `/api/Users/{id}`, `/api/Orders/{id}`, `/api/Documents/{id}`
+
+### Step 2: Understand Token Identity
+
+Use `jwt_decode` to understand whose token is being used:
 
 ```python
-# Try accessing User B's resource with User A's credentials
-# Modify the ID in the path
-cross_access = await mitmdump(
-    f"-nr {mitm_file} --map-remote '|/api/Users/1|/api/Users/2|' --flow-detail 3"
-)
-print(f"Cross-user access result: {cross_access}")
-# If 200 with User B's data -> IDOR confirmed
+tokens = await jwt_decode(mitm_file=mitm_file)
+print(tokens)
+# Note the user ID in the JWT claims vs the ID in the URL
+```
+
+### Step 3: Compare Responses
+
+If the capture has requests to different IDs, use `response_diff`:
+
+```python
+diff = await response_diff(mitm_file=mitm_file, flow_index_a=2, flow_index_b=5)
+print(diff)
+# If body differs but both return 200 → IDOR likely
 ```
 
 ## Privilege Escalation Testing
 
 ### Vertical Escalation
 
-Test if a regular user can access admin endpoints:
+Look for admin endpoints in the flow summary:
 
 ```python
-admin_endpoints = ["/api/admin", "/admin/users", "/api/Users/all",
-                   "/api/config", "/api/settings"]
-for ep in admin_endpoints:
-    resp = await mitmdump(f"-nr {mitm_file} --flow-detail 3 -B '~u {ep}'")
-    if "200" in resp:
-        print(f"ESCALATION: {ep} accessible with regular user creds")
+overview = await response_inspect(mitm_file=mitm_file)
+# Check for /admin, /api/admin, /dashboard paths
 ```
+
+If admin endpoints return 200 with a regular user token → prescribe `namespace_probe`.
 
 ### Horizontal Escalation
 
 Test if User A can perform User B's actions:
-1. Create/modify resources belonging to other users
-2. Access other users' private data
-3. Perform actions on behalf of other users
+1. Identify resource ownership from JWT claims
+2. Check if requests to other users' resources succeed
+3. If yes → prescribe `idor_walk` or `token_swap`
 
 ## Role Manipulation
 
+Look for role/privilege fields in request bodies:
+
 ```python
-# If registration allows role parameter:
-# Replay registration with modified role field
-modified = await mitmdump(
-    f"-nr {mitm_file} --modify-body '/~q & ~u /register/{{\"role\":\"admin\"}}/' --flow-detail 3"
-)
+detail = await response_inspect(mitm_file=mitm_file, endpoint_filter="/register|/profile|/user")
+print(detail)
+# Check if request body contains "role", "isAdmin", "privilege" fields
 ```
+
+If role field is in request body as plain string → prescribe `role_tamper`.
 
 ## Access Control Checklist
 

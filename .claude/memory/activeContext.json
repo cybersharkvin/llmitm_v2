@@ -1,68 +1,87 @@
 {
-  "session": "Debug Logging + E2E Prep (Feb 13, 2026)",
-  "completed_phase": "Debug logging implemented, committed, pushed",
-  "summary": "Added opt-in DEBUG_LOGGING system (per-call JSON + events + run summary). Ready for E2E cold start debugging with full pipeline visibility.",
-  "files_created": 1,
-  "git_commits": ["pending — debug logging + model switch + juice_shop.mitm"],
-  "files_modified": [
-    {"path": "llmitm_v2/debug_logger.py", "description": "NEW — Pydantic models + no-op functions for opt-in debug tracing"},
-    {"path": "llmitm_v2/orchestrator/agents.py", "description": "log_api_call in SimpleAgent + ProgrammaticAgent, ToolCallRecord tracking"},
-    {"path": "llmitm_v2/orchestrator/orchestrator.py", "description": "log_event for compile_iter, critic_result, step_result, failure"},
-    {"path": "llmitm_v2/__main__.py", "description": "init_debug_logging + try/finally write_summary"},
-    {"path": "llmitm_v2/config.py", "description": "model_id default: Haiku → Sonnet 4.5"},
-    {"path": ".gitignore", "description": "Added debug_logs/"},
-    {"path": "demo/juice_shop.mitm", "description": "35KB binary capture, 7 HTTP flows"}
-  ],
+  "session": "4+5 Tool Architecture (Feb 13, 2026)",
+  "completed_phase": "Replaced single mitmdump CLI tool with 4 recon tools + 5 exploit tools",
+  "summary": "Redesigned tool architecture to reduce token usage. 4 FlowReader-based recon tools (grammar-enforced), 5 exploit step generators (deterministic CAMRO), AttackPlan model replaces ActionGraph as LLM output. Critic now refines AttackPlan (same schema) instead of pass/fail.",
+  "git_commits": [],
   "test_results": {
     "test_suite": "tests/",
-    "passed": 98,
+    "passed": 96,
     "failed": 0,
-    "status": "ALL PASSING",
-    "notes": "1 skipped (Neo4j Orchestrator init). No regressions."
+    "skipped": 1,
+    "status": "ALL PASSING"
   },
-  "e2e_testing_plan": {
-    "prerequisites": [
-      "Set MAX_CRITIC_ITERATIONS=2 in .env",
-      "Set MAX_TOKEN_BUDGET=150000 in .env",
-      "Verify: docker compose ps (Neo4j healthy, Juice Shop on :3000)"
+
+  "architecture_change": {
+    "before": "Single mitmdump CLI tool (coarse, 212K tokens on E2E)",
+    "after": "4 recon tools + 5 exploit tools + AttackPlan -> ActionGraph deterministic conversion",
+    "recon_tools": ["response_inspect", "jwt_decode", "header_audit", "response_diff"],
+    "exploit_tools": ["idor_walk", "auth_strip", "token_swap", "namespace_probe", "role_tamper"],
+    "key_insight": "LLM prescribes exploit tools by name (grammar-enforced Literal enum). Exploit tools generate deterministic CAMRO steps. No LLM involved in step generation.",
+    "compilation_flow": "Recon Agent -> AttackPlan -> Attack Critic -> refined AttackPlan -> attack_plan_to_action_graph() -> ActionGraph"
+  },
+
+  "files_changed": {
+    "rewritten": [
+      {"path": "llmitm_v2/tools/recon_tools.py", "description": "4 FlowReader-based tools replacing single mitmdump CLI tool"},
+      {"path": "llmitm_v2/models/recon.py", "description": "AttackPlan/AttackOpportunity with ReconTool/ExploitTool Literal enums"},
+      {"path": "llmitm_v2/orchestrator/agents.py", "description": "New system prompts, import new TOOL_SCHEMAS/TOOL_HANDLERS"},
+      {"path": "llmitm_v2/orchestrator/orchestrator.py", "description": "attack_plan_to_action_graph(), _compile uses AttackPlan"},
+      {"path": "llmitm_v2/orchestrator/context.py", "description": "New recon tool instructions in assemble_recon_context()"},
+      {"path": "skills/initial_recon.md", "description": "Assumption-gap methodology with new tool calls"},
+      {"path": "skills/lateral_movement.md", "description": "Updated tool call examples"},
+      {"path": "skills/persistence.md", "description": "Updated tool call examples"}
     ],
-    "test_1_cold_start": {
-      "command": "make reset && DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
-      "expected": "compiled=True, path=cold_start, 1+ findings, ActionGraph in Neo4j",
-      "debug": "Inspect debug_logs/*/ — call_NNN.json shows token spend per API call, event_NNN shows critic pass/fail"
-    },
-    "test_2_warm_start": {
-      "command": "DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
-      "expected": "compiled=False, path=warm_start, 0 API calls (total_api_calls=0 in run_summary.json)"
-    },
-    "test_3_self_repair": {
-      "command": "make break-graph && DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
-      "expected": "repaired=True, path=repair, event_NNN_failure.json shows SYSTEMIC classification"
-    },
-    "test_4_persistence": {
-      "command": "DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
-      "expected": "compiled=False, path=warm_start, 0 API calls, repaired graph reused"
-    }
+    "created": [
+      {"path": "llmitm_v2/tools/exploit_tools.py", "description": "5 exploit step generators + EXPLOIT_STEP_GENERATORS registry"},
+      {"path": "skills/recon_tools.md", "description": "Recon tools reference guide"}
+    ],
+    "deleted": [
+      {"path": "skills/mitmdump.md", "description": "Replaced by recon_tools.md"}
+    ],
+    "updated": [
+      {"path": "llmitm_v2/models/__init__.py", "description": "AttackPlan export, removed ReconReport/DiscoveredEndpoint"},
+      {"path": "tests/test_recon_models.py", "description": "Rewritten for new AttackPlan/AttackOpportunity models"},
+      {"path": "tests/test_orchestrator.py", "description": "Fixed 3 assertions for new tool names"}
+    ]
   },
-  "deferred_tech_debt": [
-    "T2: AgentResult.structured_output: Any (needs Generic[T])",
-    "T3: _handle_step_failure stringly-typed return (needs enum/dataclass)",
-    "output_format param is deprecated — should migrate to output_config.format"
+
+  "design_decisions": [
+    {"decision": "Critic produces refined AttackPlan (not CriticFeedback pass/fail)", "rationale": "Eliminates iteration loop — one pass through Recon+Critic is enough. Critic improves rather than rejects."},
+    {"decision": "Exploit tools are Literal enums, not free-form strings", "rationale": "Grammar-constrained decoding prevents LLM from hallucinating non-existent tools"},
+    {"decision": "attack_plan_to_action_graph() is deterministic", "rationale": "LLM only decides WHAT to test. HOW to test is hardcoded in step generators. Reduces variability and token usage."},
+    {"decision": "Recon tools return JSON strings", "rationale": "Structured output from FlowReader, parseable by the agent in code_execution sandbox"}
   ],
-  "blockers": "Cold start needs ~100-150K tokens with Sonnet. Debug logging now available to diagnose where tokens go.",
+
+  "next_phases": [
+    {
+      "phase": "E2E Test 1: Cold Start",
+      "tasks": [
+        "make reset",
+        "DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
+        "Inspect debug_logs — expect ~30-50K tokens (down from 212K)",
+        "Verify compiled=true, findings >= 1"
+      ]
+    },
+    {
+      "phase": "E2E Tests 2-4",
+      "tasks": ["Warm start (0 API calls)", "Self-repair (break-graph)", "Persistence"]
+    }
+  ],
+
+  "blockers": "None — ready for E2E Test 1",
   "context_for_next_session": [
-    "DEBUG_LOGGING=true dumps to debug_logs/<timestamp>/ — call_NNN.json, event_NNN_<type>.json, run_summary.json",
-    "demo/juice_shop.mitm exists (35KB, fingerprint hash b47896c66520)",
-    "Model is claude-sonnet-4-5-20250929 (Haiku doesn't support programmatic tool calling)",
-    "ProgrammaticAgent.max_iterations=5, max_critic_iterations default=3 (set to 2 in .env for E2E)",
-    "All infrastructure should be running: Neo4j, Juice Shop (:3000), mitmproxy (:8080)",
-    "try/finally in __main__.py ensures write_summary fires even on RuntimeError from budget exhaustion"
+    "4+5 tool architecture fully implemented, 96 tests passing",
+    "Critic no longer uses pass/fail — it refines the AttackPlan directly (same schema)",
+    "_compile() now: Recon -> AttackPlan -> Critic -> refined AttackPlan -> attack_plan_to_action_graph() -> ActionGraph",
+    "Exploit step generators hardcode Juice Shop login path /rest/user/login — may need update if target differs",
+    "CriticFeedback model still exists in models/critic.py but is no longer used in _compile(). Could be cleaned up.",
+    "Token budget still 50K — should be enough with 4 structured tools vs 1 CLI tool"
   ],
+
   "files_to_reference": [
-    "llmitm_v2/debug_logger.py — all debug logging models and functions",
-    "llmitm_v2/orchestrator/agents.py — log_api_call wiring",
-    "llmitm_v2/orchestrator/orchestrator.py — log_event wiring",
-    "llmitm_v2/__main__.py — init + try/finally summary",
-    ".env — MAX_CRITIC_ITERATIONS, MAX_TOKEN_BUDGET, MODEL_ID"
+    "llmitm_v2/tools/recon_tools.py — 4 FlowReader-based recon tools",
+    "llmitm_v2/tools/exploit_tools.py — 5 exploit step generators",
+    "llmitm_v2/models/recon.py — AttackPlan/AttackOpportunity models",
+    "llmitm_v2/orchestrator/orchestrator.py — attack_plan_to_action_graph(), updated _compile()"
   ]
 }

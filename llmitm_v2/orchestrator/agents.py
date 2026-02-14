@@ -1,8 +1,8 @@
 """Agent factories for the 2-agent architecture.
 
 Two agent types:
-- ProgrammaticAgent: Uses code_execution sandbox + mitmdump tool. Agent writes Python
-  that calls `await mitmdump(...)`, intermediate results stay in sandbox (not in context).
+- ProgrammaticAgent: Uses code_execution sandbox + recon tools (response_inspect, jwt_decode,
+  header_audit, response_diff). Agent writes Python that calls these tools.
 - SimpleAgent: Single client.messages.parse() call — no tools, used for Attack Critic.
 """
 
@@ -77,79 +77,71 @@ RECON_SYSTEM_PROMPT = """You are an expert security researcher performing active
 
 ## Core Testing Philosophy
 
-You understand that effective application security testing REQUIRES:
+You find vulnerabilities by reading developer assumptions from API traffic:
 
-1. **Understanding What the Application Does**
-   - You MUST comprehend the application's purpose, data flows, and user interactions
-   - You MUST identify authentication mechanisms, API patterns, and trust boundaries
-   - You MUST map the application's state machine: login -> session -> action -> logout
+1. **Business Intent**: What was this endpoint supposed to do? Who was it supposed to serve?
+2. **Developer Assumptions**: What did the developer assume about who would call this, with what data, in what order?
+3. **Code Enforcement**: What does the code actually enforce? Where did the developer forget to check?
+4. **The Gap**: Where business intent and code enforcement diverge — that's where vulnerabilities live.
 
-2. **Understanding Developer Assumptions**
-   - You MUST identify assumptions predicated on business requirements
-   - You MUST recognize implicit developer assumptions about user behavior
-   - You MUST discover assumptions embedded in the code through traffic analysis
-   - You SHOULD note where server-side validation differs from client-side constraints
+## Your 4 Recon Tools
 
-3. **Finding Assumption Gaps**
-   - You MUST recognize that where these assumptions disagree are usually where serious security lapses exist
-   - You SHOULD prioritize testing at trust boundary crossings
-   - You SHOULD focus on state transitions and authorization decision points
-   - You SHOULD test whether the application enforces what it assumes
+You have 4 structured tools for analyzing .mitm capture files:
 
-4. **Skill-Guided Exploration**
-   - You MUST follow the relevant skill guide for your current task phase
-   - Use `initial_recon` when you have no prior knowledge of the target
-   - Use `lateral_movement` when testing authorization boundaries
-   - Use `persistence` when validating findings are reproducible
+- `response_inspect(mitm_file)` — overview of ALL flows (no filter), or full detail on matching flows (with endpoint_filter regex)
+- `jwt_decode(mitm_file)` — find Bearer tokens and decode JWT claims (who is the user, what permissions?)
+- `header_audit(mitm_file)` — audit security headers, CORS posture, server info leaks across all flows
+- `response_diff(mitm_file, flow_index_a, flow_index_b)` — structural diff of two flows' responses
 
-## Your Tool
+Call these from code_execution. Example:
+```python
+overview = await response_inspect(mitm_file="capture.mitm")
+print(overview)
+```
 
-You have access to `mitmdump` via code execution. Write Python scripts that call
-`await mitmdump("...")` to analyze traffic captures or interact with live targets.
+## Your Output: AttackPlan
 
-Key benefits of programmatic tool calling:
-- You can loop over endpoints, filter results, and summarize — only your final print() enters context
-- Use variables, conditions, and data structures to organize your exploration
-- Chain multiple mitmdump calls in a single script for efficiency
+Your output prescribes from 5 exploit tools (you do NOT call these — you prescribe them):
 
-## Output
+| Tool | Tests | Prescribe When |
+|------|-------|----------------|
+| idor_walk | Resource access across user boundaries | ID-in-URL + different user data returned |
+| auth_strip | Endpoints that work without auth | Protected data accessible without token |
+| token_swap | Cross-user authorization | User A's token accesses User B's resources |
+| namespace_probe | Unprotected admin/internal paths | Admin-prefix endpoints without auth |
+| role_tamper | Privilege escalation via body modification | Role/privilege field in request body |
 
-Your final output MUST be a structured JSON matching the required schema.
-Include specific evidence from your mitmdump analysis for every claim.
+Each AttackOpportunity MUST cite:
+- Which recon tool surfaced the evidence
+- Specific observation from the tool output
+- The suspected assumption gap
+- Which exploit tool to run and why
 
 {skill_guides}
 """
 
-ATTACK_CRITIC_SYSTEM_PROMPT = """You are an adversarial red team lead reviewing attack plans.
+ATTACK_CRITIC_SYSTEM_PROMPT = """You are an adversarial red team lead refining attack plans.
 
-You receive a structured attack plan from a recon agent. You have NO tools and NO access
-to the target. You see ONLY the plan JSON.
+You receive a JSON AttackPlan from a recon agent. You have NO tools and NO access to the target.
 
-Your role is to tear the plan apart:
+Your job is to produce a REFINED AttackPlan (same schema) that is better than the input:
 
-1. **Evidence Quality**: Does each attack opportunity cite specific, concrete evidence?
-   Reject vague claims like "might be vulnerable" without response data backing it up.
+1. **Remove weak opportunities**: Drop any opportunity with vague evidence or low-confidence reasoning.
+   Keep only opportunities backed by specific data from tool output.
 
-2. **Feasibility**: Can the proposed ActionGraph steps actually be executed deterministically?
-   Reject steps that depend on timing, race conditions, or unpredictable server state.
+2. **Re-tool if needed**: If the wrong exploit tool was prescribed, change it. Only use:
+   idor_walk, auth_strip, token_swap, namespace_probe, role_tamper
 
-3. **Not Over-Fitted**: Does the plan test the vulnerability generically, or is it
-   hardcoded to one specific response? Reject plans that will break if the target
-   changes slightly.
+3. **Reorder by priority**: Put the highest-confidence, highest-impact opportunities first.
 
-4. **Completeness**: Does the plan follow CAMRO phases (Capture, Analyze, Mutate, Replay, Observe)?
-   Each phase must be represented. Reject plans missing any phase.
+4. **Sharpen reasoning**: Tighten the suspected_gap and exploit_reasoning fields.
+   The gap must name: business intent → developer assumption → what code doesn't enforce.
 
-5. **Determinism**: Will the same inputs produce the same outputs every time?
-   Reject plans with non-deterministic success criteria.
+5. **Add opportunities if obvious**: If the recon evidence clearly supports an additional attack
+   that the agent missed, add it.
 
-6. **Attack Surface Coverage**: Did the recon agent explore enough of the application?
-   Flag if only surface-level endpoints were tested.
-
-Be harsh but constructive. Provide specific, actionable feedback.
-If the plan is genuinely solid, pass it — don't reject for the sake of rejecting.
-
-Respond with passed (bool) and feedback (string)."""
+Do NOT reject the plan — produce a refined version. If the plan is already excellent,
+return it unchanged. Your output MUST be a valid AttackPlan JSON."""
 
 
 class SimpleAgent:
@@ -230,8 +222,8 @@ def _sanitize_content(content: list) -> list:
 class ProgrammaticAgent:
     """Agent using programmatic tool calling (code_execution + custom tools).
 
-    The agent writes Python in Anthropic's sandbox. When it calls await mitmdump(...),
-    the sandbox pauses and we handle the tool call on our machine (has network access).
+    The agent writes Python in Anthropic's sandbox. When it calls await tool(...),
+    the sandbox pauses and we handle the tool call on our machine.
     Intermediate results stay in the sandbox — only final print() output enters context.
     """
 
@@ -344,7 +336,7 @@ def create_recon_agent(
 ) -> ProgrammaticAgent:
     """Create Recon Agent with programmatic tool calling + skill guides.
 
-    The Recon Agent explores targets via code_execution + mitmdump tool.
+    The Recon Agent explores targets via code_execution + 4 recon tools.
     Used for both compilation (cold start) and repair (self-repair).
 
     Args:
@@ -354,9 +346,9 @@ def create_recon_agent(
         api_key: Anthropic API key
 
     Returns:
-        ProgrammaticAgent configured with mitmdump tool and skill guides
+        ProgrammaticAgent configured with recon tools and skill guides
     """
-    from llmitm_v2.tools.recon_tools import MITMDUMP_TOOL_SCHEMA, handle_mitmdump
+    from llmitm_v2.tools.recon_tools import TOOL_HANDLERS, TOOL_SCHEMAS
 
     client = anthropic.Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY", ""))
 
@@ -369,9 +361,9 @@ def create_recon_agent(
         system_prompt=system_prompt,
         model_id=model_id,
         max_tokens=16384,
-        tool_schemas=[MITMDUMP_TOOL_SCHEMA],
-        tool_handlers={"mitmdump": handle_mitmdump},
-        max_iterations=5,
+        tool_schemas=TOOL_SCHEMAS,
+        tool_handlers=TOOL_HANDLERS,
+        max_iterations=15,
     )
 
 
@@ -379,15 +371,12 @@ def create_attack_critic(
     model_id: str = "claude-sonnet-4-5-20250929",
     api_key: Optional[str] = None,
 ) -> SimpleAgent:
-    """Create Attack Critic — adversarial validator with no tools.
+    """Create Attack Critic — adversarial refiner with no tools.
 
-    Reviews Recon Agent's structured output and validates feasibility,
-    evidence quality, and determinism.
+    Receives AttackPlan JSON and produces a refined AttackPlan (same schema).
 
     Returns:
-        SimpleAgent for attack plan validation
+        SimpleAgent for attack plan refinement
     """
     client = anthropic.Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY", ""))
     return SimpleAgent(client, ATTACK_CRITIC_SYSTEM_PROMPT, model_id, 4096)
-
-
