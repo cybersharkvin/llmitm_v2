@@ -377,7 +377,7 @@ def create_recon_agent(
         max_tokens=16384,
         tool_schemas=TOOL_SCHEMAS,
         tool_handlers=TOOL_HANDLERS,
-        max_iterations=8,
+        max_iterations=12,
     )
 
 

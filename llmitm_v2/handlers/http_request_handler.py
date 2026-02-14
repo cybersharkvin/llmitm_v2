@@ -28,10 +28,13 @@ class HTTPRequestHandler(StepHandler):
         cookies = {} if skip_cookies else context.cookies
 
         try:
-            with httpx.Client(cookies=cookies, timeout=timeout) as client:
+            with httpx.Client(cookies=cookies, timeout=timeout, follow_redirects=True) as client:
                 kwargs = {"headers": headers}
                 if isinstance(body, dict):
-                    kwargs["json"] = body
+                    if step.parameters.get("json"):
+                        kwargs["json"] = body
+                    else:
+                        kwargs["data"] = body
                 elif body is not None:
                     kwargs["content"] = body
                 response = client.request(method, url, **kwargs)

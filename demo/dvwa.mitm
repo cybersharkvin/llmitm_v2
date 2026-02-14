@@ -1,0 +1,480 @@
+3691:9:websocket;0:~8:response;2185:6:reason;2:OK,11:status_code;3:200#13:timestamp_end;18:1771047803.0177014^15:timestamp_start;17:1771047803.017344^8:trailers;0:~7:content;1523:
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+	<head>
+
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+
+		<title>Login :: Damn Vulnerable Web Application (DVWA) v1.10 *Development*</title>
+
+		<link rel="stylesheet" type="text/css" href="dvwa/css/login.css" />
+
+	</head>
+
+	<body>
+
+	<div id="wrapper">
+
+	<div id="header">
+
+	<br />
+
+	<p><img src="dvwa/images/login_logo.png" /></p>
+
+	<br />
+
+	</div> <!--<div id="header">-->
+
+	<div id="content">
+
+	<form action="login.php" method="post">
+
+	<fieldset>
+
+			<label for="user">Username</label> <input type="text" class="loginInput" size="20" name="username"><br />
+
+
+			<label for="pass">Password</label> <input type="password" class="loginInput" AUTOCOMPLETE="off" size="20" name="password"><br />
+
+			<br />
+
+			<p class="submit"><input type="submit" value="Login" name="Login"></p>
+
+	</fieldset>
+
+	<input type='hidden' name='user_token' value='ed68797390ebe2d5250f7dc246030c0f' />
+
+	</form>
+
+	<br />
+
+	
+
+	<br />
+	<br />
+	<br />
+	<br />
+	<br />
+	<br />
+	<br />
+	<br />
+
+	<!-- <img src="dvwa/images/RandomStorm.png" /> -->
+	</div > <!--<div id="content">-->
+
+	<div id="footer">
+
+	<p><a href="http://www.dvwa.co.uk/" target="_blank">Damn Vulnerable Web Application (DVWA)</a></p>
+
+	</div> <!--<div id="footer"> -->
+
+	</div> <!--<div id="wrapper"> -->
+
+	</body>
+
+</html>,7:headers;476:40:4:Date,29:Sat, 14 Feb 2026 05:43:23 GMT,]35:6:Server,22:Apache/2.4.25 (Debian),]62:10:Set-Cookie,44:PHPSESSID=89vfce1m03ae5r1p9tg6lu7hm4; path=/,]43:7:Expires,29:Tue, 23 Jun 2009 12:00:00 GMT,]46:13:Cache-Control,25:no-cache, must-revalidate,]20:6:Pragma,8:no-cache,]62:10:Set-Cookie,44:PHPSESSID=89vfce1m03ae5r1p9tg6lu7hm4; path=/,]30:10:Set-Cookie,12:security=low,]26:4:Vary,15:Accept-Encoding,]25:14:Content-Length,4:1523,]43:12:Content-Type,23:text/html;charset=utf-8,]]12:http_version;8:HTTP/1.1,}7:request;328:4:path;10:/login.php,9:authority;0:,6:scheme;4:http,6:method;3:GET,4:port;4:8081#4:host;9:localhost;13:timestamp_end;18:1771047803.0155776^15:timestamp_start;18:1771047803.0151465^8:trailers;0:~7:content;0:,7:headers;80:25:4:Host,14:localhost:8081,]28:10:User-Agent,10:curl/8.5.0,]15:6:Accept,3:*/*,]]12:http_version;8:HTTP/1.1,}6:backup;0:~17:timestamp_created;18:1771047803.0152838^7:comment;0:;8:metadata;0:}6:marked;0:;9:is_replay;0:~11:intercepted;5:false!11:server_conn;448:3:via;0:~19:timestamp_tcp_setup;18:1771047803.0144207^7:address;19:9:localhost;4:8081#]19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;17:1771047803.013782^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:7cdafbe7-5067-4d61-a7a1-7feea5e1955b;8:sockname;20:9:127.0.0.1;5:60706#]8:peername;19:9:127.0.0.1;4:8081#]}11:client_conn;426:10:proxy_mode;29:reverse:http://localhost:8081;8:mitmcert;0:~19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;17:1771047803.013189^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:291a4b0b-f70f-412c-a334-d85db699b1e8;8:sockname;21:3:::1;4:9091#1:0#1:0#]8:peername;22:3:::1;5:60362#1:0#1:0#]}5:error;0:~2:id;36:97ad0b99-683f-4589-86bf-c58085b77053;4:type;4:http;7:version;2:21#}2249:9:websocket;0:~8:response;501:6:reason;5:Found,11:status_code;3:302#13:timestamp_end;18:1771047803.0289814^15:timestamp_start;17:1771047803.028631^8:trailers;0:~7:content;0:,7:headers;315:40:4:Date,29:Sat, 14 Feb 2026 05:43:23 GMT,]35:6:Server,22:Apache/2.4.25 (Debian),]43:7:Expires,29:Thu, 19 Nov 1981 08:52:00 GMT,]56:13:Cache-Control,35:no-store, no-cache, must-revalidate,]20:6:Pragma,8:no-cache,]23:8:Location,9:index.php,]22:14:Content-Length,1:0,]44:12:Content-Type,24:text/html; charset=UTF-8,]]12:http_version;8:HTTP/1.1,}7:request;570:4:path;10:/login.php,9:authority;0:,6:scheme;4:http,6:method;4:POST,4:port;4:8081#4:host;9:localhost;13:timestamp_end;18:1771047803.0272322^15:timestamp_start;18:1771047803.0269785^8:trailers;0:~7:content;88:username=admin&password=password&Login=Login&user_token=ed68797390ebe2d5250f7dc246030c0f,7:headers;231:25:4:Host,14:localhost:8081,]28:10:User-Agent,10:curl/8.5.0,]15:6:Accept,3:*/*,]63:6:Cookie,50:PHPSESSID=89vfce1m03ae5r1p9tg6lu7hm4; security=low,]23:14:Content-Length,2:88,]53:12:Content-Type,33:application/x-www-form-urlencoded,]]12:http_version;8:HTTP/1.1,}6:backup;0:~17:timestamp_created;17:1771047803.027053^7:comment;0:;8:metadata;0:}6:marked;0:;9:is_replay;0:~11:intercepted;5:false!11:server_conn;449:3:via;0:~19:timestamp_tcp_setup;18:1771047803.0265174^7:address;19:9:localhost;4:8081#]19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771047803.0260334^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:7ee0852b-ec1e-4dd1-8315-69e6251d4da3;8:sockname;20:9:127.0.0.1;5:60718#]8:peername;19:9:127.0.0.1;4:8081#]}11:client_conn;427:10:proxy_mode;29:reverse:http://localhost:8081;8:mitmcert;0:~19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771047803.0255983^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:83a536b8-f62e-4f78-b533-ef372152bcd4;8:sockname;21:3:::1;4:9091#1:0#1:0#]8:peername;22:3:::1;5:60376#1:0#1:0#]}5:error;0:~2:id;36:705b3280-8bb1-40b8-acff-52a2806a705b;4:type;4:http;7:version;2:21#}6648:9:websocket;0:~8:response;5063:6:reason;2:OK,11:status_code;3:200#13:timestamp_end;18:1771047803.0379956^15:timestamp_start;18:1771047803.0375757^8:trailers;0:~7:content;4566:
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+
+		<title>Vulnerability: SQL Injection :: Damn Vulnerable Web Application (DVWA) v1.10 *Development*</title>
+
+		<link rel="stylesheet" type="text/css" href="../../dvwa/css/main.css" />
+
+		<link rel="icon" type="\image/ico" href="../../favicon.ico" />
+
+		<script type="text/javascript" src="../../dvwa/js/dvwaPage.js"></script>
+
+	</head>
+
+	<body class="home">
+		<div id="container">
+
+			<div id="header">
+
+				<img src="../../dvwa/images/logo.png" alt="Damn Vulnerable Web Application" />
+
+			</div>
+
+			<div id="main_menu">
+
+				<div id="main_menu_padded">
+				<ul class="menuBlocks"><li class=""><a href="../../.">Home</a></li>
+<li class=""><a href="../../instructions.php">Instructions</a></li>
+<li class=""><a href="../../setup.php">Setup / Reset DB</a></li>
+</ul><ul class="menuBlocks"><li class=""><a href="../../vulnerabilities/brute/">Brute Force</a></li>
+<li class=""><a href="../../vulnerabilities/exec/">Command Injection</a></li>
+<li class=""><a href="../../vulnerabilities/csrf/">CSRF</a></li>
+<li class=""><a href="../../vulnerabilities/fi/.?page=include.php">File Inclusion</a></li>
+<li class=""><a href="../../vulnerabilities/upload/">File Upload</a></li>
+<li class=""><a href="../../vulnerabilities/captcha/">Insecure CAPTCHA</a></li>
+<li class="selected"><a href="../../vulnerabilities/sqli/">SQL Injection</a></li>
+<li class=""><a href="../../vulnerabilities/sqli_blind/">SQL Injection (Blind)</a></li>
+<li class=""><a href="../../vulnerabilities/weak_id/">Weak Session IDs</a></li>
+<li class=""><a href="../../vulnerabilities/xss_d/">XSS (DOM)</a></li>
+<li class=""><a href="../../vulnerabilities/xss_r/">XSS (Reflected)</a></li>
+<li class=""><a href="../../vulnerabilities/xss_s/">XSS (Stored)</a></li>
+<li class=""><a href="../../vulnerabilities/csp/">CSP Bypass</a></li>
+<li class=""><a href="../../vulnerabilities/javascript/">JavaScript</a></li>
+</ul><ul class="menuBlocks"><li class=""><a href="../../security.php">DVWA Security</a></li>
+<li class=""><a href="../../phpinfo.php">PHP Info</a></li>
+<li class=""><a href="../../about.php">About</a></li>
+</ul><ul class="menuBlocks"><li class=""><a href="../../logout.php">Logout</a></li>
+</ul>
+				</div>
+
+			</div>
+
+			<div id="main_body">
+
+				
+<div class="body_padded">
+	<h1>Vulnerability: SQL Injection</h1>
+
+	
+
+	<div class="vulnerable_code_area">
+		<form action="#" method="GET">
+			<p>
+				User ID:
+				<input type="text" size="15" name="id">
+				<input type="submit" name="Submit" value="Submit">
+			</p>
+
+		</form>
+		
+	</div>
+
+	<h2>More Information</h2>
+	<ul>
+		<li><a href="http://www.securiteam.com/securityreviews/5DP0N1P76E.html" target="_blank">http://www.securiteam.com/securityreviews/5DP0N1P76E.html</a></li>
+		<li><a href="https://en.wikipedia.org/wiki/SQL_injection" target="_blank">https://en.wikipedia.org/wiki/SQL_injection</a></li>
+		<li><a href="http://ferruh.mavituna.com/sql-injection-cheatsheet-oku/" target="_blank">http://ferruh.mavituna.com/sql-injection-cheatsheet-oku/</a></li>
+		<li><a href="http://pentestmonkey.net/cheat-sheet/sql-injection/mysql-sql-injection-cheat-sheet" target="_blank">http://pentestmonkey.net/cheat-sheet/sql-injection/mysql-sql-injection-cheat-sheet</a></li>
+		<li><a href="https://www.owasp.org/index.php/SQL_Injection" target="_blank">https://www.owasp.org/index.php/SQL_Injection</a></li>
+		<li><a href="http://bobby-tables.com/" target="_blank">http://bobby-tables.com/</a></li>
+	</ul>
+</div>
+
+				<br /><br />
+				<div class="body_padded"><div class="message">You have logged in as 'admin'</div></div>
+
+			</div>
+
+			<div class="clear">
+			</div>
+
+			<div id="system_info">
+				<input type="button" value="View Help" class="popup_button" id='help_button' data-help-url='../../vulnerabilities/view_help.php?id=sqli&security=low' )"> <input type="button" value="View Source" class="popup_button" id='source_button' data-source-url='../../vulnerabilities/view_source.php?id=sqli&security=low' )"> <div align="left"><em>Username:</em> admin<br /><em>Security Level:</em> low<br /><em>PHPIDS:</em> disabled</div>
+			</div>
+
+			<div id="footer">
+
+				<p>Damn Vulnerable Web Application (DVWA) v1.10 *Development*</p>
+				<script src='/dvwa/js/add_event_listeners.js'></script>
+
+			</div>
+
+		</div>
+
+	</body>
+
+</html>,7:headers;310:40:4:Date,29:Sat, 14 Feb 2026 05:43:23 GMT,]35:6:Server,22:Apache/2.4.25 (Debian),]43:7:Expires,29:Tue, 23 Jun 2009 12:00:00 GMT,]46:13:Cache-Control,25:no-cache, must-revalidate,]20:6:Pragma,8:no-cache,]26:4:Vary,15:Accept-Encoding,]25:14:Content-Length,4:4566,]43:12:Content-Type,23:text/html;charset=utf-8,]]12:http_version;8:HTTP/1.1,}7:request;408:4:path;22:/vulnerabilities/sqli/,9:authority;0:,6:scheme;4:http,6:method;3:GET,4:port;4:8081#4:host;9:localhost;13:timestamp_end;18:1771047803.0361726^15:timestamp_start;18:1771047803.0356014^8:trailers;0:~7:content;0:,7:headers;147:25:4:Host,14:localhost:8081,]28:10:User-Agent,10:curl/8.5.0,]15:6:Accept,3:*/*,]63:6:Cookie,50:PHPSESSID=89vfce1m03ae5r1p9tg6lu7hm4; security=low,]]12:http_version;8:HTTP/1.1,}6:backup;0:~17:timestamp_created;18:1771047803.0357196^7:comment;0:;8:metadata;0:}6:marked;0:;9:is_replay;0:~11:intercepted;5:false!11:server_conn;447:3:via;0:~19:timestamp_tcp_setup;17:1771047803.035143^7:address;19:9:localhost;4:8081#]19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;17:1771047803.034678^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:16012ba0-f394-4d8c-bc7b-60ebedc951b0;8:sockname;20:9:127.0.0.1;5:60726#]8:peername;19:9:127.0.0.1;4:8081#]}11:client_conn;426:10:proxy_mode;29:reverse:http://localhost:8081;8:mitmcert;0:~19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;17:1771047803.034414^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:c0d35254-eb07-4044-93a8-4e2f9beb201d;8:sockname;21:3:::1;4:9091#1:0#1:0#]8:peername;22:3:::1;5:60382#1:0#1:0#]}5:error;0:~2:id;36:3bc901bb-936f-49b3-9191-1c847e3c3598;4:type;4:http;7:version;2:21#}6450:9:websocket;0:~8:response;4862:6:reason;2:OK,11:status_code;3:200#13:timestamp_end;17:1771047803.045584^15:timestamp_start;18:1771047803.0452068^8:trailers;0:~7:content;4338:
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+
+		<title>Vulnerability: Reflected Cross Site Scripting (XSS) :: Damn Vulnerable Web Application (DVWA) v1.10 *Development*</title>
+
+		<link rel="stylesheet" type="text/css" href="../../dvwa/css/main.css" />
+
+		<link rel="icon" type="\image/ico" href="../../favicon.ico" />
+
+		<script type="text/javascript" src="../../dvwa/js/dvwaPage.js"></script>
+
+	</head>
+
+	<body class="home">
+		<div id="container">
+
+			<div id="header">
+
+				<img src="../../dvwa/images/logo.png" alt="Damn Vulnerable Web Application" />
+
+			</div>
+
+			<div id="main_menu">
+
+				<div id="main_menu_padded">
+				<ul class="menuBlocks"><li class=""><a href="../../.">Home</a></li>
+<li class=""><a href="../../instructions.php">Instructions</a></li>
+<li class=""><a href="../../setup.php">Setup / Reset DB</a></li>
+</ul><ul class="menuBlocks"><li class=""><a href="../../vulnerabilities/brute/">Brute Force</a></li>
+<li class=""><a href="../../vulnerabilities/exec/">Command Injection</a></li>
+<li class=""><a href="../../vulnerabilities/csrf/">CSRF</a></li>
+<li class=""><a href="../../vulnerabilities/fi/.?page=include.php">File Inclusion</a></li>
+<li class=""><a href="../../vulnerabilities/upload/">File Upload</a></li>
+<li class=""><a href="../../vulnerabilities/captcha/">Insecure CAPTCHA</a></li>
+<li class=""><a href="../../vulnerabilities/sqli/">SQL Injection</a></li>
+<li class=""><a href="../../vulnerabilities/sqli_blind/">SQL Injection (Blind)</a></li>
+<li class=""><a href="../../vulnerabilities/weak_id/">Weak Session IDs</a></li>
+<li class=""><a href="../../vulnerabilities/xss_d/">XSS (DOM)</a></li>
+<li class="selected"><a href="../../vulnerabilities/xss_r/">XSS (Reflected)</a></li>
+<li class=""><a href="../../vulnerabilities/xss_s/">XSS (Stored)</a></li>
+<li class=""><a href="../../vulnerabilities/csp/">CSP Bypass</a></li>
+<li class=""><a href="../../vulnerabilities/javascript/">JavaScript</a></li>
+</ul><ul class="menuBlocks"><li class=""><a href="../../security.php">DVWA Security</a></li>
+<li class=""><a href="../../phpinfo.php">PHP Info</a></li>
+<li class=""><a href="../../about.php">About</a></li>
+</ul><ul class="menuBlocks"><li class=""><a href="../../logout.php">Logout</a></li>
+</ul>
+				</div>
+
+			</div>
+
+			<div id="main_body">
+
+				
+<div class="body_padded">
+	<h1>Vulnerability: Reflected Cross Site Scripting (XSS)</h1>
+
+	<div class="vulnerable_code_area">
+		<form name="XSS" action="#" method="GET">
+			<p>
+				What's your name?
+				<input type="text" name="name">
+				<input type="submit" value="Submit">
+			</p>
+
+		</form>
+		
+	</div>
+
+	<h2>More Information</h2>
+	<ul>
+		<li><a href="https://www.owasp.org/index.php/Cross-site_Scripting_(XSS)" target="_blank">https://www.owasp.org/index.php/Cross-site_Scripting_(XSS)</a></li>
+		<li><a href="https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet" target="_blank">https://www.owasp.org/index.php/XSS_Filter_Evasion_Cheat_Sheet</a></li>
+		<li><a href="https://en.wikipedia.org/wiki/Cross-site_scripting" target="_blank">https://en.wikipedia.org/wiki/Cross-site_scripting</a></li>
+		<li><a href="http://www.cgisecurity.com/xss-faq.html" target="_blank">http://www.cgisecurity.com/xss-faq.html</a></li>
+		<li><a href="http://www.scriptalert1.com/" target="_blank">http://www.scriptalert1.com/</a></li>
+	</ul>
+</div>
+
+				<br /><br />
+				
+
+			</div>
+
+			<div class="clear">
+			</div>
+
+			<div id="system_info">
+				<input type="button" value="View Help" class="popup_button" id='help_button' data-help-url='../../vulnerabilities/view_help.php?id=xss_r&security=low' )"> <input type="button" value="View Source" class="popup_button" id='source_button' data-source-url='../../vulnerabilities/view_source.php?id=xss_r&security=low' )"> <div align="left"><em>Username:</em> admin<br /><em>Security Level:</em> low<br /><em>PHPIDS:</em> disabled</div>
+			</div>
+
+			<div id="footer">
+
+				<p>Damn Vulnerable Web Application (DVWA) v1.10 *Development*</p>
+				<script src='/dvwa/js/add_event_listeners.js'></script>
+
+			</div>
+
+		</div>
+
+	</body>
+
+</html>,7:headers;338:40:4:Date,29:Sat, 14 Feb 2026 05:43:23 GMT,]35:6:Server,22:Apache/2.4.25 (Debian),]43:7:Expires,29:Tue, 23 Jun 2009 12:00:00 GMT,]46:13:Cache-Control,25:no-cache, must-revalidate,]20:6:Pragma,8:no-cache,]24:16:X-XSS-Protection,1:0,]26:4:Vary,15:Accept-Encoding,]25:14:Content-Length,4:4338,]43:12:Content-Type,23:text/html;charset=utf-8,]]12:http_version;8:HTTP/1.1,}7:request;409:4:path;23:/vulnerabilities/xss_r/,9:authority;0:,6:scheme;4:http,6:method;3:GET,4:port;4:8081#4:host;9:localhost;13:timestamp_end;18:1771047803.0438063^15:timestamp_start;18:1771047803.0435953^8:trailers;0:~7:content;0:,7:headers;147:25:4:Host,14:localhost:8081,]28:10:User-Agent,10:curl/8.5.0,]15:6:Accept,3:*/*,]63:6:Cookie,50:PHPSESSID=89vfce1m03ae5r1p9tg6lu7hm4; security=low,]]12:http_version;8:HTTP/1.1,}6:backup;0:~17:timestamp_created;18:1771047803.0436578^7:comment;0:;8:metadata;0:}6:marked;0:;9:is_replay;0:~11:intercepted;5:false!11:server_conn;448:3:via;0:~19:timestamp_tcp_setup;17:1771047803.043342^7:address;19:9:localhost;4:8081#]19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771047803.0430255^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:971c0cbb-6a2a-414e-8859-80e651db92e6;8:sockname;20:9:127.0.0.1;5:60734#]8:peername;19:9:127.0.0.1;4:8081#]}11:client_conn;427:10:proxy_mode;29:reverse:http://localhost:8081;8:mitmcert;0:~19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771047803.0427015^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:d28af07a-d1d8-4a36-8ccd-ff87e5d15490;8:sockname;21:3:::1;4:9091#1:0#1:0#]8:peername;22:3:::1;5:60388#1:0#1:0#]}5:error;0:~2:id;36:a1928487-7bcb-4b8a-b986-8851a3e4572e;4:type;4:http;7:version;2:21#}2093:9:websocket;0:~8:response;511:6:reason;5:Found,11:status_code;3:302#13:timestamp_end;18:1771047803.0533469^15:timestamp_start;18:1771047803.0530221^8:trailers;0:~7:content;0:,7:headers;324:40:4:Date,29:Sat, 14 Feb 2026 05:43:23 GMT,]35:6:Server,22:Apache/2.4.25 (Debian),]43:7:Expires,29:Thu, 19 Nov 1981 08:52:00 GMT,]56:13:Cache-Control,35:no-store, no-cache, must-revalidate,]20:6:Pragma,8:no-cache,]32:8:Location,17:?page=include.php,]22:14:Content-Length,1:0,]44:12:Content-Type,24:text/html; charset=UTF-8,]]12:http_version;8:HTTP/1.1,}7:request;405:4:path;20:/vulnerabilities/fi/,9:authority;0:,6:scheme;4:http,6:method;3:GET,4:port;4:8081#4:host;9:localhost;13:timestamp_end;17:1771047803.051781^15:timestamp_start;18:1771047803.0515697^8:trailers;0:~7:content;0:,7:headers;147:25:4:Host,14:localhost:8081,]28:10:User-Agent,10:curl/8.5.0,]15:6:Accept,3:*/*,]63:6:Cookie,50:PHPSESSID=89vfce1m03ae5r1p9tg6lu7hm4; security=low,]]12:http_version;8:HTTP/1.1,}6:backup;0:~17:timestamp_created;18:1771047803.0516338^7:comment;0:;8:metadata;0:}6:marked;0:;9:is_replay;0:~11:intercepted;5:false!11:server_conn;447:3:via;0:~19:timestamp_tcp_setup;16:1771047803.05133^7:address;19:9:localhost;4:8081#]19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771047803.0510435^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:69ac8921-b3d9-4bc0-82f2-f60e7c012b93;8:sockname;20:9:127.0.0.1;5:60740#]8:peername;19:9:127.0.0.1;4:8081#]}11:client_conn;427:10:proxy_mode;29:reverse:http://localhost:8081;8:mitmcert;0:~19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771047803.0507984^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:a55a082b-319e-44fb-99fa-8fd8610019c9;8:sockname;21:3:::1;4:9091#1:0#1:0#]8:peername;22:3:::1;5:60390#1:0#1:0#]}5:error;0:~2:id;36:ab86e21f-9327-4b36-a390-f2991eceb7be;4:type;4:http;7:version;2:21#}3692:9:websocket;0:~8:response;2186:6:reason;2:OK,11:status_code;3:200#13:timestamp_end;18:1771047803.0604968^15:timestamp_start;18:1771047803.0603163^8:trailers;0:~7:content;1523:
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+	<head>
+
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+
+		<title>Login :: Damn Vulnerable Web Application (DVWA) v1.10 *Development*</title>
+
+		<link rel="stylesheet" type="text/css" href="dvwa/css/login.css" />
+
+	</head>
+
+	<body>
+
+	<div id="wrapper">
+
+	<div id="header">
+
+	<br />
+
+	<p><img src="dvwa/images/login_logo.png" /></p>
+
+	<br />
+
+	</div> <!--<div id="header">-->
+
+	<div id="content">
+
+	<form action="login.php" method="post">
+
+	<fieldset>
+
+			<label for="user">Username</label> <input type="text" class="loginInput" size="20" name="username"><br />
+
+
+			<label for="pass">Password</label> <input type="password" class="loginInput" AUTOCOMPLETE="off" size="20" name="password"><br />
+
+			<br />
+
+			<p class="submit"><input type="submit" value="Login" name="Login"></p>
+
+	</fieldset>
+
+	<input type='hidden' name='user_token' value='3aaadeb6296e90654759bf8987542025' />
+
+	</form>
+
+	<br />
+
+	
+
+	<br />
+	<br />
+	<br />
+	<br />
+	<br />
+	<br />
+	<br />
+	<br />
+
+	<!-- <img src="dvwa/images/RandomStorm.png" /> -->
+	</div > <!--<div id="content">-->
+
+	<div id="footer">
+
+	<p><a href="http://www.dvwa.co.uk/" target="_blank">Damn Vulnerable Web Application (DVWA)</a></p>
+
+	</div> <!--<div id="footer"> -->
+
+	</div> <!--<div id="wrapper"> -->
+
+	</body>
+
+</html>,7:headers;476:40:4:Date,29:Sat, 14 Feb 2026 05:43:23 GMT,]35:6:Server,22:Apache/2.4.25 (Debian),]62:10:Set-Cookie,44:PHPSESSID=e8ssg0dd8gb9mg7eiupstop7u7; path=/,]43:7:Expires,29:Tue, 23 Jun 2009 12:00:00 GMT,]46:13:Cache-Control,25:no-cache, must-revalidate,]20:6:Pragma,8:no-cache,]62:10:Set-Cookie,44:PHPSESSID=e8ssg0dd8gb9mg7eiupstop7u7; path=/,]30:10:Set-Cookie,12:security=low,]26:4:Vary,15:Accept-Encoding,]25:14:Content-Length,4:1523,]43:12:Content-Type,23:text/html;charset=utf-8,]]12:http_version;8:HTTP/1.1,}7:request;327:4:path;10:/login.php,9:authority;0:,6:scheme;4:http,6:method;3:GET,4:port;4:8081#4:host;9:localhost;13:timestamp_end;18:1771047803.0592277^15:timestamp_start;17:1771047803.058542^8:trailers;0:~7:content;0:,7:headers;80:25:4:Host,14:localhost:8081,]28:10:User-Agent,10:curl/8.5.0,]15:6:Accept,3:*/*,]]12:http_version;8:HTTP/1.1,}6:backup;0:~17:timestamp_created;18:1771047803.0586028^7:comment;0:;8:metadata;0:}6:marked;0:;9:is_replay;0:~11:intercepted;5:false!11:server_conn;448:3:via;0:~19:timestamp_tcp_setup;17:1771047803.058313^7:address;19:9:localhost;4:8081#]19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771047803.0580473^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:98570484-0ede-4075-9c6c-0edfccab9efe;8:sockname;20:9:127.0.0.1;5:60756#]8:peername;19:9:127.0.0.1;4:8081#]}11:client_conn;427:10:proxy_mode;29:reverse:http://localhost:8081;8:mitmcert;0:~19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771047803.0578341^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:00700576-7cee-486c-8fe4-b7d64c8fab65;8:sockname;21:3:::1;4:9091#1:0#1:0#]8:peername;22:3:::1;5:60392#1:0#1:0#]}5:error;0:~2:id;36:6d9a8e9d-924e-414a-a7b9-fce358044785;4:type;4:http;7:version;2:21#}2250:9:websocket;0:~8:response;502:6:reason;5:Found,11:status_code;3:302#13:timestamp_end;18:1771047803.0689259^15:timestamp_start;18:1771047803.0687652^8:trailers;0:~7:content;0:,7:headers;315:40:4:Date,29:Sat, 14 Feb 2026 05:43:23 GMT,]35:6:Server,22:Apache/2.4.25 (Debian),]43:7:Expires,29:Thu, 19 Nov 1981 08:52:00 GMT,]56:13:Cache-Control,35:no-store, no-cache, must-revalidate,]20:6:Pragma,8:no-cache,]23:8:Location,9:index.php,]22:14:Content-Length,1:0,]44:12:Content-Type,24:text/html; charset=UTF-8,]]12:http_version;8:HTTP/1.1,}7:request;570:4:path;10:/login.php,9:authority;0:,6:scheme;4:http,6:method;4:POST,4:port;4:8081#4:host;9:localhost;13:timestamp_end;18:1771047803.0674305^15:timestamp_start;18:1771047803.0672145^8:trailers;0:~7:content;88:username=gordonb&password=abc123&Login=Login&user_token=3aaadeb6296e90654759bf8987542025,7:headers;231:25:4:Host,14:localhost:8081,]28:10:User-Agent,10:curl/8.5.0,]15:6:Accept,3:*/*,]63:6:Cookie,50:PHPSESSID=e8ssg0dd8gb9mg7eiupstop7u7; security=low,]23:14:Content-Length,2:88,]53:12:Content-Type,33:application/x-www-form-urlencoded,]]12:http_version;8:HTTP/1.1,}6:backup;0:~17:timestamp_created;18:1771047803.0672767^7:comment;0:;8:metadata;0:}6:marked;0:;9:is_replay;0:~11:intercepted;5:false!11:server_conn;448:3:via;0:~19:timestamp_tcp_setup;18:1771047803.0669785^7:address;19:9:localhost;4:8081#]19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;17:1771047803.066706^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:de4ee19c-8b76-49d5-9d67-1e8ca309048d;8:sockname;20:9:127.0.0.1;5:60758#]8:peername;19:9:127.0.0.1;4:8081#]}11:client_conn;427:10:proxy_mode;29:reverse:http://localhost:8081;8:mitmcert;0:~19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771047803.0664716^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:2714541a-8c1b-4967-b29e-f69e17734d75;8:sockname;21:3:::1;4:9091#1:0#1:0#]8:peername;22:3:::1;5:60396#1:0#1:0#]}5:error;0:~2:id;36:3f0b8d56-8f65-46f4-95fa-52982692c23b;4:type;4:http;7:version;2:21#}6653:9:websocket;0:~8:response;5067:6:reason;2:OK,11:status_code;3:200#13:timestamp_end;18:1771047803.0768297^15:timestamp_start;18:1771047803.0766363^8:trailers;0:~7:content;4570:
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+
+		<title>Vulnerability: SQL Injection :: Damn Vulnerable Web Application (DVWA) v1.10 *Development*</title>
+
+		<link rel="stylesheet" type="text/css" href="../../dvwa/css/main.css" />
+
+		<link rel="icon" type="\image/ico" href="../../favicon.ico" />
+
+		<script type="text/javascript" src="../../dvwa/js/dvwaPage.js"></script>
+
+	</head>
+
+	<body class="home">
+		<div id="container">
+
+			<div id="header">
+
+				<img src="../../dvwa/images/logo.png" alt="Damn Vulnerable Web Application" />
+
+			</div>
+
+			<div id="main_menu">
+
+				<div id="main_menu_padded">
+				<ul class="menuBlocks"><li class=""><a href="../../.">Home</a></li>
+<li class=""><a href="../../instructions.php">Instructions</a></li>
+<li class=""><a href="../../setup.php">Setup / Reset DB</a></li>
+</ul><ul class="menuBlocks"><li class=""><a href="../../vulnerabilities/brute/">Brute Force</a></li>
+<li class=""><a href="../../vulnerabilities/exec/">Command Injection</a></li>
+<li class=""><a href="../../vulnerabilities/csrf/">CSRF</a></li>
+<li class=""><a href="../../vulnerabilities/fi/.?page=include.php">File Inclusion</a></li>
+<li class=""><a href="../../vulnerabilities/upload/">File Upload</a></li>
+<li class=""><a href="../../vulnerabilities/captcha/">Insecure CAPTCHA</a></li>
+<li class="selected"><a href="../../vulnerabilities/sqli/">SQL Injection</a></li>
+<li class=""><a href="../../vulnerabilities/sqli_blind/">SQL Injection (Blind)</a></li>
+<li class=""><a href="../../vulnerabilities/weak_id/">Weak Session IDs</a></li>
+<li class=""><a href="../../vulnerabilities/xss_d/">XSS (DOM)</a></li>
+<li class=""><a href="../../vulnerabilities/xss_r/">XSS (Reflected)</a></li>
+<li class=""><a href="../../vulnerabilities/xss_s/">XSS (Stored)</a></li>
+<li class=""><a href="../../vulnerabilities/csp/">CSP Bypass</a></li>
+<li class=""><a href="../../vulnerabilities/javascript/">JavaScript</a></li>
+</ul><ul class="menuBlocks"><li class=""><a href="../../security.php">DVWA Security</a></li>
+<li class=""><a href="../../phpinfo.php">PHP Info</a></li>
+<li class=""><a href="../../about.php">About</a></li>
+</ul><ul class="menuBlocks"><li class=""><a href="../../logout.php">Logout</a></li>
+</ul>
+				</div>
+
+			</div>
+
+			<div id="main_body">
+
+				
+<div class="body_padded">
+	<h1>Vulnerability: SQL Injection</h1>
+
+	
+
+	<div class="vulnerable_code_area">
+		<form action="#" method="GET">
+			<p>
+				User ID:
+				<input type="text" size="15" name="id">
+				<input type="submit" name="Submit" value="Submit">
+			</p>
+
+		</form>
+		
+	</div>
+
+	<h2>More Information</h2>
+	<ul>
+		<li><a href="http://www.securiteam.com/securityreviews/5DP0N1P76E.html" target="_blank">http://www.securiteam.com/securityreviews/5DP0N1P76E.html</a></li>
+		<li><a href="https://en.wikipedia.org/wiki/SQL_injection" target="_blank">https://en.wikipedia.org/wiki/SQL_injection</a></li>
+		<li><a href="http://ferruh.mavituna.com/sql-injection-cheatsheet-oku/" target="_blank">http://ferruh.mavituna.com/sql-injection-cheatsheet-oku/</a></li>
+		<li><a href="http://pentestmonkey.net/cheat-sheet/sql-injection/mysql-sql-injection-cheat-sheet" target="_blank">http://pentestmonkey.net/cheat-sheet/sql-injection/mysql-sql-injection-cheat-sheet</a></li>
+		<li><a href="https://www.owasp.org/index.php/SQL_Injection" target="_blank">https://www.owasp.org/index.php/SQL_Injection</a></li>
+		<li><a href="http://bobby-tables.com/" target="_blank">http://bobby-tables.com/</a></li>
+	</ul>
+</div>
+
+				<br /><br />
+				<div class="body_padded"><div class="message">You have logged in as 'gordonb'</div></div>
+
+			</div>
+
+			<div class="clear">
+			</div>
+
+			<div id="system_info">
+				<input type="button" value="View Help" class="popup_button" id='help_button' data-help-url='../../vulnerabilities/view_help.php?id=sqli&security=low' )"> <input type="button" value="View Source" class="popup_button" id='source_button' data-source-url='../../vulnerabilities/view_source.php?id=sqli&security=low' )"> <div align="left"><em>Username:</em> gordonb<br /><em>Security Level:</em> low<br /><em>PHPIDS:</em> disabled</div>
+			</div>
+
+			<div id="footer">
+
+				<p>Damn Vulnerable Web Application (DVWA) v1.10 *Development*</p>
+				<script src='/dvwa/js/add_event_listeners.js'></script>
+
+			</div>
+
+		</div>
+
+	</body>
+
+</html>,7:headers;310:40:4:Date,29:Sat, 14 Feb 2026 05:43:23 GMT,]35:6:Server,22:Apache/2.4.25 (Debian),]43:7:Expires,29:Tue, 23 Jun 2009 12:00:00 GMT,]46:13:Cache-Control,25:no-cache, must-revalidate,]20:6:Pragma,8:no-cache,]26:4:Vary,15:Accept-Encoding,]25:14:Content-Length,4:4570,]43:12:Content-Type,23:text/html;charset=utf-8,]]12:http_version;8:HTTP/1.1,}7:request;408:4:path;22:/vulnerabilities/sqli/,9:authority;0:,6:scheme;4:http,6:method;3:GET,4:port;4:8081#4:host;9:localhost;13:timestamp_end;18:1771047803.0754764^15:timestamp_start;18:1771047803.0752697^8:trailers;0:~7:content;0:,7:headers;147:25:4:Host,14:localhost:8081,]28:10:User-Agent,10:curl/8.5.0,]15:6:Accept,3:*/*,]63:6:Cookie,50:PHPSESSID=e8ssg0dd8gb9mg7eiupstop7u7; security=low,]]12:http_version;8:HTTP/1.1,}6:backup;0:~17:timestamp_created;18:1771047803.0753326^7:comment;0:;8:metadata;0:}6:marked;0:;9:is_replay;0:~11:intercepted;5:false!11:server_conn;448:3:via;0:~19:timestamp_tcp_setup;18:1771047803.0750196^7:address;19:9:localhost;4:8081#]19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;17:1771047803.074708^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:0ccaa821-a258-4256-a65f-76b85bb2fda9;8:sockname;20:9:127.0.0.1;5:60774#]8:peername;19:9:127.0.0.1;4:8081#]}11:client_conn;426:10:proxy_mode;29:reverse:http://localhost:8081;8:mitmcert;0:~19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;17:1771047803.074442^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:910fb2a1-6205-4560-87a9-6830e8d34d0b;8:sockname;21:3:::1;4:9091#1:0#1:0#]8:peername;22:3:::1;5:60406#1:0#1:0#]}5:error;0:~2:id;36:9fff6400-385d-4da8-84f9-23530045a37e;4:type;4:http;7:version;2:21#}

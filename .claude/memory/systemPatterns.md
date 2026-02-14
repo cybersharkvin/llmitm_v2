@@ -125,10 +125,10 @@
 - **Implementation**: `step.phase == StepPhase.OBSERVE` guard on Finding creation
 - **Rationale**: CAMRO design — only the final observation validates a vulnerability. Without this, login/token-extraction steps pollute Neo4j with false "findings".
 
-### Single-Exploit-Per-Graph Pattern
-- **Description**: `attack_plan_to_action_graph()` caps at 1 exploit per ActionGraph via `plan.attack_plan[:1]`
+### Single-Exploit-Per-Graph Pattern with Fallback
+- **Description**: `attack_plan_to_action_graph()` iterates through `plan.attack_plan` and uses the first compatible exploit, then breaks. Incompatible exploits (e.g. `token_swap` on cookie auth) are skipped via `ValueError` catch.
 - **When to Use**: Always — multiple exploits in one graph cause cascading failures
-- **Rationale**: Each exploit has its own login/extract/request/observe chain. When exploit B fails, it triggers SYSTEMIC repair which recompiles the entire graph (~40K tokens). With 5 exploits, 3+ failures = budget exhaustion. Single-exploit graphs are focused, cheap, and independently repairable.
+- **Rationale**: Each exploit has its own login/extract/request/observe chain. Iterating with fallback ensures cookie-auth targets still get an exploit even if the LLM's top pick is bearer-only.
 
 ### Single-Repair Guard
 - **Description**: If execution has already repaired once, subsequent failures abort instead of triggering another repair
@@ -146,6 +146,17 @@
 - **Auth Flows**: `bearer_token` (2 login steps: POST + regex extract), `session_cookie` (1 step: POST, cookies auto-tracked), `session_cookie + csrf` (3 steps: GET page + regex CSRF + POST)
 - **Key Files**: `target_profiles.py` (registry), `exploit_tools.py` (_login_and_auth_steps, _auth_headers, _auth_offset)
 - **Rationale**: Centralizes target-specific knowledge. Exploit generators are auth-agnostic — they delegate to helpers that branch on `auth_mechanism`.
+
+### Form-Encoding-First HTTP Requests
+- **Description**: HTTPRequestHandler sends dict bodies as `data=` (form-encoded) by default, with `json=True` param opt-in for JSON APIs. Also uses `follow_redirects=True`.
+- **When to Use**: All HTTP steps. HTML apps (NodeGoat, DVWA) require form encoding; JSON APIs (Juice Shop) accept both.
+- **Key Files**: `handlers/http_request_handler.py`
+- **Rationale**: Most web app login forms expect `application/x-www-form-urlencoded`. JSON APIs typically accept both. Form-first is the safer default.
+
+### Generic Success Criteria
+- **Description**: Exploit step generators use `success_criteria="."` (matches any non-empty response) instead of JSON-specific patterns like `"id"`.
+- **When to Use**: All CAMRO steps in exploit tools. The OBSERVE step just confirms a response was received; the Finding is created if the step matches.
+- **Rationale**: JSON patterns (`"id"`, `"role"`) fail on HTML targets. Generic criteria work universally.
 
 ### Dependency Injection
 - **Description**: Dependencies passed explicitly to constructors throughout the stack

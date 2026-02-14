@@ -49,7 +49,7 @@ def attack_plan_to_action_graph(plan: AttackPlan, profile: TargetProfile) -> Act
     """
     all_steps: list[Step] = []
     order = 1
-    for opp in plan.attack_plan[:1]:  # Hard cap: 1 exploit per graph
+    for opp in plan.attack_plan:  # Try each until one is compatible
         generator = EXPLOIT_STEP_GENERATORS[opp.recommended_exploit]
         try:
             steps = generator(opp.exploit_target, opp.observation, profile)
@@ -60,6 +60,7 @@ def attack_plan_to_action_graph(plan: AttackPlan, profile: TargetProfile) -> Act
             step.order = order
             all_steps.append(step)
             order += 1
+        break  # Hard cap: 1 exploit per graph
     return ActionGraph(
         vulnerability_type=plan.attack_plan[0].opportunity if plan.attack_plan else "unknown",
         description=f"Auto-generated from AttackPlan with {len(plan.attack_plan)} opportunities",

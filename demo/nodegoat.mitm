@@ -1,0 +1,968 @@
+2240:9:websocket;0:~8:response;618:6:reason;5:Found,11:status_code;3:302#13:timestamp_end;17:1771048111.237847^15:timestamp_start;18:1771048111.2376127^8:trailers;0:~7:content;32:Found. Redirecting to /dashboard,7:headers;399:26:12:X-Powered-By,7:Express,]25:8:Location,10:/dashboard,]16:4:Vary,6:Accept,]45:12:Content-Type,25:text/plain; charset=utf-8,]23:14:Content-Length,2:32,]133:10:set-cookie,114:connect.sid=s%3A1h_H0zqmPAV_A8K9wAopf_FvhplboFdC.JpRCbnWoJcMclE3PbtmV2G74pXhjK%2FJL5fOxzD%2Fefnc; Path=/; HttpOnly,]40:4:Date,29:Sat, 14 Feb 2026 05:48:31 GMT,]28:10:Connection,10:keep-alive,]26:10:Keep-Alive,9:timeout=5,]]12:http_version;8:HTTP/1.1,}7:request;443:4:path;6:/login,9:authority;0:,6:scheme;4:http,6:method;4:POST,4:port;4:4000#4:host;9:localhost;13:timestamp_end;18:1771048111.2357028^15:timestamp_start;18:1771048111.2352993^8:trailers;0:~7:content;33:userName=user1&password=User1_123,7:headers;164:25:4:Host,14:localhost:4000,]28:10:User-Agent,10:curl/8.5.0,]15:6:Accept,3:*/*,]23:14:Content-Length,2:33,]53:12:Content-Type,33:application/x-www-form-urlencoded,]]12:http_version;8:HTTP/1.1,}6:backup;0:~17:timestamp_created;18:1771048111.2354271^7:comment;0:;8:metadata;0:}6:marked;0:;9:is_replay;0:~11:intercepted;5:false!11:server_conn;449:3:via;0:~19:timestamp_tcp_setup;18:1771048111.2345893^7:address;19:9:localhost;4:4000#]19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771048111.2339714^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:125d9b63-ef75-4612-adab-62272c97e379;8:sockname;20:9:127.0.0.1;5:59542#]8:peername;19:9:127.0.0.1;4:4000#]}11:client_conn;427:10:proxy_mode;29:reverse:http://localhost:4000;8:mitmcert;0:~19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771048111.2333496^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:5a42eee8-a51c-4278-9d65-8f1ef94c0b75;8:sockname;21:3:::1;4:9090#1:0#1:0#]8:peername;22:3:::1;5:40204#1:0#1:0#]}5:error;0:~2:id;36:20b38035-31b0-431e-a2ab-f5291f89f572;4:type;4:http;7:version;2:21#}9281:9:websocket;0:~8:response;7654:6:reason;2:OK,11:status_code;3:200#13:timestamp_end;18:1771048111.2487054^15:timestamp_start;18:1771048111.2484732^8:trailers;0:~7:content;7203:<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>OWASP Node.js Goat Project</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="/vendor/bootstrap/bootstrap.css" rel="stylesheet">
+
+    <!-- Add custom CSS here -->
+    <link href="/vendor/theme/sb-admin.css" rel="stylesheet">
+    <link rel="stylesheet" href="/vendor/theme/font-awesome/css/font-awesome.min.css">
+    <link rel="stylesheet" href="/vendor/bootstrap/bootstrap-tour.css">
+    <!--[if lt IE 9]><script src="/vendor/html5shiv.js"><![endif]-->
+</head>
+
+<body>
+
+    <div id="wrapper">
+
+        <!-- Sidebar -->
+        <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+            <!-- Brand and toggle get grouped for better mobile display -->
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="/dashboard">
+                    <span style="font-size: x-large">
+                        <span class="fa fa-bullseye"></span>Retire<b>Easy</b>
+                    </span>
+                    <span style="font-size: medium">Employee Retirement Savings Management</span>
+                </a>
+            </div>
+
+            <!--  Nav Links-->
+            <div class="collapse navbar-collapse navbar-ex1-collapse">
+                <!--  side nav -->
+                <ul class="nav navbar-nav side-nav">
+                    
+                    <li><a id="dashboard-menu-link" href="/"><i class="fa fa-dashboard"></i> Dashboard</a>
+                    </li>
+                    <li><a id="contributions-menu-link" href="/contributions"><i class="fa fa-bar-chart-o"></i> Contributions</a>
+                    </li>
+                    <li><a id="allocations-menu-link" href="/allocations/2"><i class="fa fa-table"></i> Allocations</a>
+                    </li>
+                    <li><a id="memos-menu-link" href="/memos"><i class="fa fa-table"></i> Memos</a>
+                    </li>
+                    <li><a id="profile-menu-link" href="/profile"><i class="fa fa-user"></i> Profile</a>
+                    </li>
+                    <li><a id="learn-menu-link" target="_blank" href="/learn?url=https://www.khanacademy.org/economics-finance-domain/core-finance/investment-vehicles-tutorial/ira-401ks/v/traditional-iras"><i class="fa fa-edit"></i> Learning Resources</a>
+                    </li>
+                    <li><a id="research-menu-link" href="/research"><i class="fa fa-table"></i> Research</a>
+                    </li>
+                    
+                    <li><a id="logout-menu-link" href="/logout"><i class="fa fa-power-off"></i> Logout</a>
+                    </li>
+                </ul>
+
+                <!-- top nav -->
+                <ul class="nav navbar-nav navbar-right navbar-user">
+
+                    <li class="dropdown user-dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-user"></i>   <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            
+                            <li><a href="/profile"><i class="fa fa-user"></i> Profile</a>
+                            </li>
+                            <li class="divider"></li>
+                            
+                            <li><a href="/logout"><i class="fa fa-power-off"></i> Log Out</a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+            <!-- /.navbar-collapse -->
+        </nav>
+
+        <div id="page-wrapper">
+
+            <div class="row">
+                <div class="col-lg-12">
+                    <!-- <h1> <small>Allocations</small></h1> -->
+                    <ol class="breadcrumb">
+                        <li class="active"><i class="fa"></i> Allocations</li>
+                    </ol>
+                </div>
+            </div>
+            <!-- /.row -->
+
+            
+
+<div class="row">
+    <div class="col-lg-12">
+
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title">
+                    Filter Assets based on Stock Performance
+                </h3>
+            </div>
+
+            <div class="panel-body">
+
+                <form action="/allocations/2" method="get" role="search">
+                    <div class="form-group">
+                        <!--Fix for A1 - 2 NoSQL Injection - Provide validation for input.
+                        Adhering to defence in depth, on the front-end mostly for UX.
+                        The attacker, or user should not be able to enter anything other than 0-99.              
+                        Also implement fix in allocations-dao.js-->
+                        <!--<input type="number" min="0" max="99" class="form-control" placeholder="Stocks Threshold" name="threshold" />-->
+                        <input type="text" class="form-control" placeholder="Stocks Threshold" name="threshold" />
+                        <p class="help-block">Using above threshold value, it will return all assets allocation above the specified stocks percentage number.</p>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </form>
+
+            </div>
+        </div>
+
+        
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <strong>Asset Allocations for John Doe</strong>
+            </div>
+            <div class="panel-body">
+                <p>Domestic Stocks :
+                    <strong>39 %</strong>
+                </p>
+                <p>Funds:
+                    <strong>21 %</strong>
+                </p>
+                <p>Bonds:
+                    <strong>40 %</strong>
+                </p>
+            </div>
+        </div>
+        
+
+    </div>
+</div>
+
+
+        </div>
+        <!-- /#page-wrapper -->
+    </div>
+    <!-- /#wrapper -->
+
+    <!-- Bootstrap core JavaScript -->
+    <script src="/vendor/jquery.min.js"></script>
+    <script src="/vendor/bootstrap/bootstrap.js"></script>
+    <script src="/vendor/bootstrap/bootstrap-tour.js"></script>
+
+    <!-- Page Specific Plugins -->
+    <script src="/vendor/chart/raphael-min.js"></script>
+    <script src="/vendor/chart/morris-0.4.3.min.js"></script>
+
+    <script src="/js/chart/chart-data-morris.js"></script>
+
+    <!-- tour steps related js -->
+    <script src="/js/tour/redirects-steps.js"></script>
+
+    <!-- Load environmental scripts such as live reload -->
+    
+    <script>document.write("<script src='http://" + (location.host || "localhost").split(":")[0] + ":35729/livereload.js'></" + "script>");</script>
+    
+
+</body>
+
+</html>,7:headers;264:26:12:X-Powered-By,7:Express,]44:12:Content-Type,24:text/html; charset=utf-8,]25:14:Content-Length,4:7203,]47:4:ETag,36:W/"1c23-MgRzzoj9oKnDk+oaYs1JMYTpZmo",]40:4:Date,29:Sat, 14 Feb 2026 05:48:31 GMT,]28:10:Connection,10:keep-alive,]26:10:Keep-Alive,9:timeout=5,]]12:http_version;8:HTTP/1.1,}7:request;447:4:path;14:/allocations/2,9:authority;0:,6:scheme;4:http,6:method;3:GET,4:port;4:4000#4:host;9:localhost;13:timestamp_end;18:1771048111.2455606^15:timestamp_start;18:1771048111.2451966^8:trailers;0:~7:content;0:,7:headers;194:25:4:Host,14:localhost:4000,]28:10:User-Agent,10:curl/8.5.0,]15:6:Accept,3:*/*,]109:6:Cookie,96:connect.sid=s%3A1h_H0zqmPAV_A8K9wAopf_FvhplboFdC.JpRCbnWoJcMclE3PbtmV2G74pXhjK%2FJL5fOxzD%2Fefnc,]]12:http_version;8:HTTP/1.1,}6:backup;0:~17:timestamp_created;18:1771048111.2453089^7:comment;0:;8:metadata;0:}6:marked;0:;9:is_replay;0:~11:intercepted;5:false!11:server_conn;449:3:via;0:~19:timestamp_tcp_setup;18:1771048111.2447886^7:address;19:9:localhost;4:4000#]19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771048111.2443285^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:659fd4b2-4f65-4c2f-9ba7-3268c735280e;8:sockname;20:9:127.0.0.1;5:59552#]8:peername;19:9:127.0.0.1;4:4000#]}11:client_conn;427:10:proxy_mode;29:reverse:http://localhost:4000;8:mitmcert;0:~19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771048111.2438939^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:5c4986f2-88d5-4f7c-82d1-13dbf4f258ae;8:sockname;21:3:::1;4:9090#1:0#1:0#]8:peername;22:3:::1;5:40214#1:0#1:0#]}5:error;0:~2:id;36:59574ea9-d749-4715-b8ac-87eec4ae14a2;4:type;4:http;7:version;2:21#}11510:9:websocket;0:~8:response;9884:6:reason;2:OK,11:status_code;3:200#13:timestamp_end;18:1771048111.2596807^15:timestamp_start;18:1771048111.2593553^8:trailers;0:~7:content;9433:<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>OWASP Node.js Goat Project</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="/vendor/bootstrap/bootstrap.css" rel="stylesheet">
+
+    <!-- Add custom CSS here -->
+    <link href="/vendor/theme/sb-admin.css" rel="stylesheet">
+    <link rel="stylesheet" href="/vendor/theme/font-awesome/css/font-awesome.min.css">
+    <link rel="stylesheet" href="/vendor/bootstrap/bootstrap-tour.css">
+    <!--[if lt IE 9]><script src="/vendor/html5shiv.js"><![endif]-->
+</head>
+
+<body>
+
+    <div id="wrapper">
+
+        <!-- Sidebar -->
+        <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+            <!-- Brand and toggle get grouped for better mobile display -->
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="/dashboard">
+                    <span style="font-size: x-large">
+                        <span class="fa fa-bullseye"></span>Retire<b>Easy</b>
+                    </span>
+                    <span style="font-size: medium">Employee Retirement Savings Management</span>
+                </a>
+            </div>
+
+            <!--  Nav Links-->
+            <div class="collapse navbar-collapse navbar-ex1-collapse">
+                <!--  side nav -->
+                <ul class="nav navbar-nav side-nav">
+                    
+                    <li><a id="dashboard-menu-link" href="/"><i class="fa fa-dashboard"></i> Dashboard</a>
+                    </li>
+                    <li><a id="contributions-menu-link" href="/contributions"><i class="fa fa-bar-chart-o"></i> Contributions</a>
+                    </li>
+                    <li><a id="allocations-menu-link" href="/allocations/2"><i class="fa fa-table"></i> Allocations</a>
+                    </li>
+                    <li><a id="memos-menu-link" href="/memos"><i class="fa fa-table"></i> Memos</a>
+                    </li>
+                    <li><a id="profile-menu-link" href="/profile"><i class="fa fa-user"></i> Profile</a>
+                    </li>
+                    <li><a id="learn-menu-link" target="_blank" href="/learn?url=https://www.khanacademy.org/economics-finance-domain/core-finance/investment-vehicles-tutorial/ira-401ks/v/traditional-iras"><i class="fa fa-edit"></i> Learning Resources</a>
+                    </li>
+                    <li><a id="research-menu-link" href="/research"><i class="fa fa-table"></i> Research</a>
+                    </li>
+                    
+                    <li><a id="logout-menu-link" href="/logout"><i class="fa fa-power-off"></i> Logout</a>
+                    </li>
+                </ul>
+
+                <!-- top nav -->
+                <ul class="nav navbar-nav navbar-right navbar-user">
+
+                    <li class="dropdown user-dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-user"></i> John Doe <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            
+                            <li><a href="/profile"><i class="fa fa-user"></i> Profile</a>
+                            </li>
+                            <li class="divider"></li>
+                            
+                            <li><a href="/logout"><i class="fa fa-power-off"></i> Log Out</a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+            <!-- /.navbar-collapse -->
+        </nav>
+
+        <div id="page-wrapper">
+
+            <div class="row">
+                <div class="col-lg-12">
+                    <!-- <h1> <small>Contributions</small></h1> -->
+                    <ol class="breadcrumb">
+                        <li class="active"><i class="fa"></i> Contributions</li>
+                    </ol>
+                </div>
+            </div>
+            <!-- /.row -->
+
+            
+<div class="row">
+    <div class="col-lg-12">
+
+         
+    </div>
+</div>
+
+
+<div class="row">
+    <div class="col-lg-12">
+
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <h3 class="panel-title">
+                    This screen allows you to change the
+                    <strong>payroll percentages</strong> deducted from your paycheck for each
+                    <strong>contribution type</strong>.
+                </h3>
+            </div>
+            <div class="panel-body">
+
+
+
+                <div class="table-responsive">
+                    <form method="POST" action="/contributions">
+                        <table class="table table-bordered table-hover tablesorter">
+                            <thead>
+                                <tr>
+                                    <th>Contribution Type</th>
+                                    <th>Payroll Contribution Percent
+                                        <br>(per pay period)
+                                        <br>
+                                    </th>
+                                    <th>New Payroll Contribution Percent
+                                        <br>(per pay period)
+                                        <br>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+
+                                <tr>
+                                    <td>Employee Pre-Tax</td>
+                                    <td>2 %</td>
+                                    <td>
+                                        <input type="text" name="preTax" value="0"></input>
+                                        <span>%</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Roth Contribution</td>
+                                    <td>2 %</td>
+                                    <td>
+                                        <input type="text" name="roth" value="0"></input>
+                                        <span>%</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Employee After Tax</td>
+                                    <td>2 %</td>
+                                    <td>
+                                        <input type="text" name="afterTax" value="0"></input>
+                                        <span>%</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <!-- Fix for A8 - CSRF -->
+                        <!--
+                        <input type="hidden" name="_csrf" value=""></input>
+                        -->
+                        <button type="submit" class="btn btn-default">Submit</button>
+
+                    </form>
+                </div>
+            </div>
+
+        </div>
+        <!-- /.row -->
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <strong>Reminder:</strong>
+            </div>
+            <div class="panel-body">
+
+                <p>All transactions are subject to plan provisions.</p>
+                <a name="Instructions"></a>
+                <p>
+                    <strong>Instructions:</strong>
+                </p>
+                <ol class="normalText">
+                    <li>Choose a new payroll contribution.</li>
+                    <li>Click the Submit button.</li>
+                </ol>
+                <p>
+                    <strong>Need Help?</strong>
+                </p>
+                <p>If you think you made a mistake or you need more information about this transaction, contact the Retirement Service Center
+                    <br>at
+                    <span style="white-space:nowrap;">1-888-888-8888</span>.</p>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+
+
+        </div>
+        <!-- /#page-wrapper -->
+    </div>
+    <!-- /#wrapper -->
+
+    <!-- Bootstrap core JavaScript -->
+    <script src="/vendor/jquery.min.js"></script>
+    <script src="/vendor/bootstrap/bootstrap.js"></script>
+    <script src="/vendor/bootstrap/bootstrap-tour.js"></script>
+
+    <!-- Page Specific Plugins -->
+    <script src="/vendor/chart/raphael-min.js"></script>
+    <script src="/vendor/chart/morris-0.4.3.min.js"></script>
+
+    <script src="/js/chart/chart-data-morris.js"></script>
+
+    <!-- tour steps related js -->
+    <script src="/js/tour/redirects-steps.js"></script>
+
+    <!-- Load environmental scripts such as live reload -->
+    
+    <script>document.write("<script src='http://" + (location.host || "localhost").split(":")[0] + ":35729/livereload.js'></" + "script>");</script>
+    
+
+</body>
+
+</html>,7:headers;264:26:12:X-Powered-By,7:Express,]44:12:Content-Type,24:text/html; charset=utf-8,]25:14:Content-Length,4:9433,]47:4:ETag,36:W/"24d9-WGgi53h1+4OPzrGnhrt2B9oVUlA",]40:4:Date,29:Sat, 14 Feb 2026 05:48:31 GMT,]28:10:Connection,10:keep-alive,]26:10:Keep-Alive,9:timeout=5,]]12:http_version;8:HTTP/1.1,}7:request;447:4:path;14:/contributions,9:authority;0:,6:scheme;4:http,6:method;3:GET,4:port;4:4000#4:host;9:localhost;13:timestamp_end;18:1771048111.2553284^15:timestamp_start;18:1771048111.2548292^8:trailers;0:~7:content;0:,7:headers;194:25:4:Host,14:localhost:4000,]28:10:User-Agent,10:curl/8.5.0,]15:6:Accept,3:*/*,]109:6:Cookie,96:connect.sid=s%3A1h_H0zqmPAV_A8K9wAopf_FvhplboFdC.JpRCbnWoJcMclE3PbtmV2G74pXhjK%2FJL5fOxzD%2Fefnc,]]12:http_version;8:HTTP/1.1,}6:backup;0:~17:timestamp_created;18:1771048111.2549303^7:comment;0:;8:metadata;0:}6:marked;0:;9:is_replay;0:~11:intercepted;5:false!11:server_conn;448:3:via;0:~19:timestamp_tcp_setup;18:1771048111.2544405^7:address;19:9:localhost;4:4000#]19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;17:1771048111.254031^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:32a73e06-3e3a-467a-9294-598946a14b0f;8:sockname;20:9:127.0.0.1;5:59562#]8:peername;19:9:127.0.0.1;4:4000#]}11:client_conn;427:10:proxy_mode;29:reverse:http://localhost:4000;8:mitmcert;0:~19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771048111.2536275^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:6906d2fa-8b9a-47da-a4ba-ed24d8780290;8:sockname;21:3:::1;4:9090#1:0#1:0#]8:peername;22:3:::1;5:40224#1:0#1:0#]}5:error;0:~2:id;36:4a65503d-3eb5-43ce-a76e-b2b9de2cf1cc;4:type;4:http;7:version;2:21#}10569:9:websocket;0:~8:response;8951:6:reason;2:OK,11:status_code;3:200#13:timestamp_end;18:1771048111.2690916^15:timestamp_start;18:1771048111.2688808^8:trailers;0:~7:content;8500:<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>OWASP Node.js Goat Project</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="/vendor/bootstrap/bootstrap.css" rel="stylesheet">
+
+    <!-- Add custom CSS here -->
+    <link href="/vendor/theme/sb-admin.css" rel="stylesheet">
+    <link rel="stylesheet" href="/vendor/theme/font-awesome/css/font-awesome.min.css">
+    <link rel="stylesheet" href="/vendor/bootstrap/bootstrap-tour.css">
+    <!--[if lt IE 9]><script src="/vendor/html5shiv.js"><![endif]-->
+</head>
+
+<body>
+
+    <div id="wrapper">
+
+        <!-- Sidebar -->
+        <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+            <!-- Brand and toggle get grouped for better mobile display -->
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="/dashboard">
+                    <span style="font-size: x-large">
+                        <span class="fa fa-bullseye"></span>Retire<b>Easy</b>
+                    </span>
+                    <span style="font-size: medium">Employee Retirement Savings Management</span>
+                </a>
+            </div>
+
+            <!--  Nav Links-->
+            <div class="collapse navbar-collapse navbar-ex1-collapse">
+                <!--  side nav -->
+                <ul class="nav navbar-nav side-nav">
+                    
+                    <li><a id="dashboard-menu-link" href="/"><i class="fa fa-dashboard"></i> Dashboard</a>
+                    </li>
+                    <li><a id="contributions-menu-link" href="/contributions"><i class="fa fa-bar-chart-o"></i> Contributions</a>
+                    </li>
+                    <li><a id="allocations-menu-link" href="/allocations/2"><i class="fa fa-table"></i> Allocations</a>
+                    </li>
+                    <li><a id="memos-menu-link" href="/memos"><i class="fa fa-table"></i> Memos</a>
+                    </li>
+                    <li><a id="profile-menu-link" href="/profile"><i class="fa fa-user"></i> Profile</a>
+                    </li>
+                    <li><a id="learn-menu-link" target="_blank" href="/learn?url=https://www.khanacademy.org/economics-finance-domain/core-finance/investment-vehicles-tutorial/ira-401ks/v/traditional-iras"><i class="fa fa-edit"></i> Learning Resources</a>
+                    </li>
+                    <li><a id="research-menu-link" href="/research"><i class="fa fa-table"></i> Research</a>
+                    </li>
+                    
+                    <li><a id="logout-menu-link" href="/logout"><i class="fa fa-power-off"></i> Logout</a>
+                    </li>
+                </ul>
+
+                <!-- top nav -->
+                <ul class="nav navbar-nav navbar-right navbar-user">
+
+                    <li class="dropdown user-dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-user"></i> John Doe <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            
+                            <li><a href="/profile"><i class="fa fa-user"></i> Profile</a>
+                            </li>
+                            <li class="divider"></li>
+                            
+                            <li><a href="/logout"><i class="fa fa-power-off"></i> Log Out</a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+            <!-- /.navbar-collapse -->
+        </nav>
+
+        <div id="page-wrapper">
+
+            <div class="row">
+                <div class="col-lg-12">
+                    <!-- <h1> <small>My Profile</small></h1> -->
+                    <ol class="breadcrumb">
+                        <li class="active"><i class="fa"></i> My Profile</li>
+                    </ol>
+                </div>
+            </div>
+            <!-- /.row -->
+
+            
+<div class="row">
+    <div class="col-lg-12">
+
+        
+    </div>
+</div>
+
+
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <h3 class="panel-title">Edit Profile</h3>
+            </div>
+            <div class="panel-body">
+                <form role="form" method="post" action="/profile">
+                    <div class="form-group">
+                        <label for="firstName">First Name</label>
+                        <input type="text" class="form-control" id="firstName" name="firstName" value="" placeholder="Enter first name">
+                    </div>
+                    <div class="form-group">
+                        <label for="lastName">Last Name</label>
+                        <input type="text" class="form-control" id="lastName" name="lastName" value="Doe" placeholder="Enter last name">
+                    </div>
+                    <div class="form-group">
+                        <label for="ssn">SSN</label>
+                        <input type="text" class="form-control" id="ssn" name="ssn" value="" placeholder="Enter SSN">
+                    </div>
+                    <div class="form-group">
+                        <label for="dob">Date of Birth</label>
+                        <input type="date" class="form-control" id="dob" name="dob" value="" placeholder="Enter date of birth">
+                    </div>
+                    <div class="form-group">
+                        <label for="bankAcc">Bank Account #</label>
+                        <input type="text" class="form-control" id="bankAcc" name="bankAcc" value="" placeholder="Enter bank account number">
+                    </div>
+                    <div class="form-group">
+                        <label for="bankRouting">Bank Routing #</label>
+                        <input type="text" class="form-control" id="bankRouting" name="bankRouting" value="" placeholder="Enter bank routing number">
+                        <p class="help-block">Must be entered as digits with a suffix of #. For example: 0198212# </p>
+                    </div>
+                    <div class="form-group">
+                        <label for="address">Address</label>
+                        <input type="text" class="form-control" id="address" name="address" value="" placeholder="Enter address">
+                    </div>
+                    <div class="form-group">
+                        <label for="website">Website</label>
+                        <input type="text" class="form-control" id="website" name="website" value=""
+                            placeholder="https://">
+                    </div>
+                    <input type="hidden" name="_csrf" value="" />
+                    <button type="submit" class="btn btn-default" name="submit">Submit</button>
+
+                    <!-- @FIXME use a properly escaped variable that matches the URL context, for example
+                    refer to a firstNameSafeURLString field on the doc object set by the controller for this template -->
+                    <a href="">Google search this profile by name</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+        </div>
+        <!-- /#page-wrapper -->
+    </div>
+    <!-- /#wrapper -->
+
+    <!-- Bootstrap core JavaScript -->
+    <script src="/vendor/jquery.min.js"></script>
+    <script src="/vendor/bootstrap/bootstrap.js"></script>
+    <script src="/vendor/bootstrap/bootstrap-tour.js"></script>
+
+    <!-- Page Specific Plugins -->
+    <script src="/vendor/chart/raphael-min.js"></script>
+    <script src="/vendor/chart/morris-0.4.3.min.js"></script>
+
+    <script src="/js/chart/chart-data-morris.js"></script>
+
+    <!-- tour steps related js -->
+    <script src="/js/tour/redirects-steps.js"></script>
+
+    <!-- Load environmental scripts such as live reload -->
+    
+    <script>document.write("<script src='http://" + (location.host || "localhost").split(":")[0] + ":35729/livereload.js'></" + "script>");</script>
+    
+
+</body>
+
+</html>,7:headers;264:26:12:X-Powered-By,7:Express,]44:12:Content-Type,24:text/html; charset=utf-8,]25:14:Content-Length,4:8500,]47:4:ETag,36:W/"2134-rQqxPkn3tTeol0N8WQJuHsgkrAw",]40:4:Date,29:Sat, 14 Feb 2026 05:48:31 GMT,]28:10:Connection,10:keep-alive,]26:10:Keep-Alive,9:timeout=5,]]12:http_version;8:HTTP/1.1,}7:request;439:4:path;8:/profile,9:authority;0:,6:scheme;4:http,6:method;3:GET,4:port;4:4000#4:host;9:localhost;13:timestamp_end;17:1771048111.266682^15:timestamp_start;18:1771048111.2663481^8:trailers;0:~7:content;0:,7:headers;194:25:4:Host,14:localhost:4000,]28:10:User-Agent,10:curl/8.5.0,]15:6:Accept,3:*/*,]109:6:Cookie,96:connect.sid=s%3A1h_H0zqmPAV_A8K9wAopf_FvhplboFdC.JpRCbnWoJcMclE3PbtmV2G74pXhjK%2FJL5fOxzD%2Fefnc,]]12:http_version;8:HTTP/1.1,}6:backup;0:~17:timestamp_created;18:1771048111.2664459^7:comment;0:;8:metadata;0:}6:marked;0:;9:is_replay;0:~11:intercepted;5:false!11:server_conn;449:3:via;0:~19:timestamp_tcp_setup;18:1771048111.2659574^7:address;19:9:localhost;4:4000#]19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771048111.2655177^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:2c965b72-5dd7-4412-b7f4-b5255d68c549;8:sockname;20:9:127.0.0.1;5:59568#]8:peername;19:9:127.0.0.1;4:4000#]}11:client_conn;426:10:proxy_mode;29:reverse:http://localhost:4000;8:mitmcert;0:~19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;17:1771048111.265114^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:dda3aca6-1b9a-4e9b-8825-612fb7c0a5ba;8:sockname;21:3:::1;4:9090#1:0#1:0#]8:peername;22:3:::1;5:40236#1:0#1:0#]}5:error;0:~2:id;36:1f5a5e1b-dc75-4307-a38c-e9a33ad89135;4:type;4:http;7:version;2:21#}2239:9:websocket;0:~8:response;618:6:reason;5:Found,11:status_code;3:302#13:timestamp_end;18:1771048111.2750707^15:timestamp_start;17:1771048111.274864^8:trailers;0:~7:content;32:Found. Redirecting to /dashboard,7:headers;399:26:12:X-Powered-By,7:Express,]25:8:Location,10:/dashboard,]16:4:Vary,6:Accept,]45:12:Content-Type,25:text/plain; charset=utf-8,]23:14:Content-Length,2:32,]133:10:set-cookie,114:connect.sid=s%3AsbRKTDkiBxJGN36E2D2P8rJAKCfQaoC1.t%2FQaCRH3uIyfbyczy2pY%2BLZD24i5K2DLDgp0KFwgwuQ; Path=/; HttpOnly,]40:4:Date,29:Sat, 14 Feb 2026 05:48:31 GMT,]28:10:Connection,10:keep-alive,]26:10:Keep-Alive,9:timeout=5,]]12:http_version;8:HTTP/1.1,}7:request;442:4:path;6:/login,9:authority;0:,6:scheme;4:http,6:method;4:POST,4:port;4:4000#4:host;9:localhost;13:timestamp_end;17:1771048111.273711^15:timestamp_start;18:1771048111.2734926^8:trailers;0:~7:content;33:userName=user2&password=User2_123,7:headers;164:25:4:Host,14:localhost:4000,]28:10:User-Agent,10:curl/8.5.0,]15:6:Accept,3:*/*,]23:14:Content-Length,2:33,]53:12:Content-Type,33:application/x-www-form-urlencoded,]]12:http_version;8:HTTP/1.1,}6:backup;0:~17:timestamp_created;18:1771048111.2735589^7:comment;0:;8:metadata;0:}6:marked;0:;9:is_replay;0:~11:intercepted;5:false!11:server_conn;449:3:via;0:~19:timestamp_tcp_setup;18:1771048111.2732558^7:address;19:9:localhost;4:4000#]19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771048111.2729874^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:b8bfab6f-900d-486b-ab56-00682c6c97bc;8:sockname;20:9:127.0.0.1;5:59574#]8:peername;19:9:127.0.0.1;4:4000#]}11:client_conn;427:10:proxy_mode;29:reverse:http://localhost:4000;8:mitmcert;0:~19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771048111.2727573^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:8d520b6b-4cf1-4c2a-9794-3201a67676d8;8:sockname;21:3:::1;4:9090#1:0#1:0#]8:peername;22:3:::1;5:40246#1:0#1:0#]}5:error;0:~2:id;36:ddc4bf81-ddd2-4feb-bf43-07d73e7711a6;4:type;4:http;7:version;2:21#}9282:9:websocket;0:~8:response;7656:6:reason;2:OK,11:status_code;3:200#13:timestamp_end;18:1771048111.2847118^15:timestamp_start;18:1771048111.2844908^8:trailers;0:~7:content;7205:<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>OWASP Node.js Goat Project</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="/vendor/bootstrap/bootstrap.css" rel="stylesheet">
+
+    <!-- Add custom CSS here -->
+    <link href="/vendor/theme/sb-admin.css" rel="stylesheet">
+    <link rel="stylesheet" href="/vendor/theme/font-awesome/css/font-awesome.min.css">
+    <link rel="stylesheet" href="/vendor/bootstrap/bootstrap-tour.css">
+    <!--[if lt IE 9]><script src="/vendor/html5shiv.js"><![endif]-->
+</head>
+
+<body>
+
+    <div id="wrapper">
+
+        <!-- Sidebar -->
+        <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+            <!-- Brand and toggle get grouped for better mobile display -->
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="/dashboard">
+                    <span style="font-size: x-large">
+                        <span class="fa fa-bullseye"></span>Retire<b>Easy</b>
+                    </span>
+                    <span style="font-size: medium">Employee Retirement Savings Management</span>
+                </a>
+            </div>
+
+            <!--  Nav Links-->
+            <div class="collapse navbar-collapse navbar-ex1-collapse">
+                <!--  side nav -->
+                <ul class="nav navbar-nav side-nav">
+                    
+                    <li><a id="dashboard-menu-link" href="/"><i class="fa fa-dashboard"></i> Dashboard</a>
+                    </li>
+                    <li><a id="contributions-menu-link" href="/contributions"><i class="fa fa-bar-chart-o"></i> Contributions</a>
+                    </li>
+                    <li><a id="allocations-menu-link" href="/allocations/3"><i class="fa fa-table"></i> Allocations</a>
+                    </li>
+                    <li><a id="memos-menu-link" href="/memos"><i class="fa fa-table"></i> Memos</a>
+                    </li>
+                    <li><a id="profile-menu-link" href="/profile"><i class="fa fa-user"></i> Profile</a>
+                    </li>
+                    <li><a id="learn-menu-link" target="_blank" href="/learn?url=https://www.khanacademy.org/economics-finance-domain/core-finance/investment-vehicles-tutorial/ira-401ks/v/traditional-iras"><i class="fa fa-edit"></i> Learning Resources</a>
+                    </li>
+                    <li><a id="research-menu-link" href="/research"><i class="fa fa-table"></i> Research</a>
+                    </li>
+                    
+                    <li><a id="logout-menu-link" href="/logout"><i class="fa fa-power-off"></i> Logout</a>
+                    </li>
+                </ul>
+
+                <!-- top nav -->
+                <ul class="nav navbar-nav navbar-right navbar-user">
+
+                    <li class="dropdown user-dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-user"></i>   <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            
+                            <li><a href="/profile"><i class="fa fa-user"></i> Profile</a>
+                            </li>
+                            <li class="divider"></li>
+                            
+                            <li><a href="/logout"><i class="fa fa-power-off"></i> Log Out</a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+            <!-- /.navbar-collapse -->
+        </nav>
+
+        <div id="page-wrapper">
+
+            <div class="row">
+                <div class="col-lg-12">
+                    <!-- <h1> <small>Allocations</small></h1> -->
+                    <ol class="breadcrumb">
+                        <li class="active"><i class="fa"></i> Allocations</li>
+                    </ol>
+                </div>
+            </div>
+            <!-- /.row -->
+
+            
+
+<div class="row">
+    <div class="col-lg-12">
+
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title">
+                    Filter Assets based on Stock Performance
+                </h3>
+            </div>
+
+            <div class="panel-body">
+
+                <form action="/allocations/3" method="get" role="search">
+                    <div class="form-group">
+                        <!--Fix for A1 - 2 NoSQL Injection - Provide validation for input.
+                        Adhering to defence in depth, on the front-end mostly for UX.
+                        The attacker, or user should not be able to enter anything other than 0-99.              
+                        Also implement fix in allocations-dao.js-->
+                        <!--<input type="number" min="0" max="99" class="form-control" placeholder="Stocks Threshold" name="threshold" />-->
+                        <input type="text" class="form-control" placeholder="Stocks Threshold" name="threshold" />
+                        <p class="help-block">Using above threshold value, it will return all assets allocation above the specified stocks percentage number.</p>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </form>
+
+            </div>
+        </div>
+
+        
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <strong>Asset Allocations for Will Smith</strong>
+            </div>
+            <div class="panel-body">
+                <p>Domestic Stocks :
+                    <strong>18 %</strong>
+                </p>
+                <p>Funds:
+                    <strong>21 %</strong>
+                </p>
+                <p>Bonds:
+                    <strong>61 %</strong>
+                </p>
+            </div>
+        </div>
+        
+
+    </div>
+</div>
+
+
+        </div>
+        <!-- /#page-wrapper -->
+    </div>
+    <!-- /#wrapper -->
+
+    <!-- Bootstrap core JavaScript -->
+    <script src="/vendor/jquery.min.js"></script>
+    <script src="/vendor/bootstrap/bootstrap.js"></script>
+    <script src="/vendor/bootstrap/bootstrap-tour.js"></script>
+
+    <!-- Page Specific Plugins -->
+    <script src="/vendor/chart/raphael-min.js"></script>
+    <script src="/vendor/chart/morris-0.4.3.min.js"></script>
+
+    <script src="/js/chart/chart-data-morris.js"></script>
+
+    <!-- tour steps related js -->
+    <script src="/js/tour/redirects-steps.js"></script>
+
+    <!-- Load environmental scripts such as live reload -->
+    
+    <script>document.write("<script src='http://" + (location.host || "localhost").split(":")[0] + ":35729/livereload.js'></" + "script>");</script>
+    
+
+</body>
+
+</html>,7:headers;264:26:12:X-Powered-By,7:Express,]44:12:Content-Type,24:text/html; charset=utf-8,]25:14:Content-Length,4:7205,]47:4:ETag,36:W/"1c25-2LhJzSOf0UTpjMba5UQi7A/Lvfw",]40:4:Date,29:Sat, 14 Feb 2026 05:48:31 GMT,]28:10:Connection,10:keep-alive,]26:10:Keep-Alive,9:timeout=5,]]12:http_version;8:HTTP/1.1,}7:request;446:4:path;14:/allocations/3,9:authority;0:,6:scheme;4:http,6:method;3:GET,4:port;4:4000#4:host;9:localhost;13:timestamp_end;17:1771048111.281604^15:timestamp_start;18:1771048111.2808812^8:trailers;0:~7:content;0:,7:headers;194:25:4:Host,14:localhost:4000,]28:10:User-Agent,10:curl/8.5.0,]15:6:Accept,3:*/*,]109:6:Cookie,96:connect.sid=s%3AsbRKTDkiBxJGN36E2D2P8rJAKCfQaoC1.t%2FQaCRH3uIyfbyczy2pY%2BLZD24i5K2DLDgp0KFwgwuQ,]]12:http_version;8:HTTP/1.1,}6:backup;0:~17:timestamp_created;18:1771048111.2809465^7:comment;0:;8:metadata;0:}6:marked;0:;9:is_replay;0:~11:intercepted;5:false!11:server_conn;449:3:via;0:~19:timestamp_tcp_setup;18:1771048111.2806284^7:address;19:9:localhost;4:4000#]19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771048111.2803419^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:5cbc1244-106b-4677-837a-f1c54787dc16;8:sockname;20:9:127.0.0.1;5:59580#]8:peername;19:9:127.0.0.1;4:4000#]}11:client_conn;427:10:proxy_mode;29:reverse:http://localhost:4000;8:mitmcert;0:~19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771048111.2800903^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:dac894e3-0e15-4293-9ec1-ac76bc9f8414;8:sockname;21:3:::1;4:9090#1:0#1:0#]8:peername;22:3:::1;5:40252#1:0#1:0#]}5:error;0:~2:id;36:395507e4-c6fc-4a4d-b350-32f77237b60f;4:type;4:http;7:version;2:21#}9280:9:websocket;0:~8:response;7654:6:reason;2:OK,11:status_code;3:200#13:timestamp_end;18:1771048111.2927074^15:timestamp_start;18:1771048111.2924566^8:trailers;0:~7:content;7203:<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>OWASP Node.js Goat Project</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="/vendor/bootstrap/bootstrap.css" rel="stylesheet">
+
+    <!-- Add custom CSS here -->
+    <link href="/vendor/theme/sb-admin.css" rel="stylesheet">
+    <link rel="stylesheet" href="/vendor/theme/font-awesome/css/font-awesome.min.css">
+    <link rel="stylesheet" href="/vendor/bootstrap/bootstrap-tour.css">
+    <!--[if lt IE 9]><script src="/vendor/html5shiv.js"><![endif]-->
+</head>
+
+<body>
+
+    <div id="wrapper">
+
+        <!-- Sidebar -->
+        <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+            <!-- Brand and toggle get grouped for better mobile display -->
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-ex1-collapse">
+                    <span class="sr-only">Toggle navigation</span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                <a class="navbar-brand" href="/dashboard">
+                    <span style="font-size: x-large">
+                        <span class="fa fa-bullseye"></span>Retire<b>Easy</b>
+                    </span>
+                    <span style="font-size: medium">Employee Retirement Savings Management</span>
+                </a>
+            </div>
+
+            <!--  Nav Links-->
+            <div class="collapse navbar-collapse navbar-ex1-collapse">
+                <!--  side nav -->
+                <ul class="nav navbar-nav side-nav">
+                    
+                    <li><a id="dashboard-menu-link" href="/"><i class="fa fa-dashboard"></i> Dashboard</a>
+                    </li>
+                    <li><a id="contributions-menu-link" href="/contributions"><i class="fa fa-bar-chart-o"></i> Contributions</a>
+                    </li>
+                    <li><a id="allocations-menu-link" href="/allocations/2"><i class="fa fa-table"></i> Allocations</a>
+                    </li>
+                    <li><a id="memos-menu-link" href="/memos"><i class="fa fa-table"></i> Memos</a>
+                    </li>
+                    <li><a id="profile-menu-link" href="/profile"><i class="fa fa-user"></i> Profile</a>
+                    </li>
+                    <li><a id="learn-menu-link" target="_blank" href="/learn?url=https://www.khanacademy.org/economics-finance-domain/core-finance/investment-vehicles-tutorial/ira-401ks/v/traditional-iras"><i class="fa fa-edit"></i> Learning Resources</a>
+                    </li>
+                    <li><a id="research-menu-link" href="/research"><i class="fa fa-table"></i> Research</a>
+                    </li>
+                    
+                    <li><a id="logout-menu-link" href="/logout"><i class="fa fa-power-off"></i> Logout</a>
+                    </li>
+                </ul>
+
+                <!-- top nav -->
+                <ul class="nav navbar-nav navbar-right navbar-user">
+
+                    <li class="dropdown user-dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-user"></i>   <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            
+                            <li><a href="/profile"><i class="fa fa-user"></i> Profile</a>
+                            </li>
+                            <li class="divider"></li>
+                            
+                            <li><a href="/logout"><i class="fa fa-power-off"></i> Log Out</a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+            <!-- /.navbar-collapse -->
+        </nav>
+
+        <div id="page-wrapper">
+
+            <div class="row">
+                <div class="col-lg-12">
+                    <!-- <h1> <small>Allocations</small></h1> -->
+                    <ol class="breadcrumb">
+                        <li class="active"><i class="fa"></i> Allocations</li>
+                    </ol>
+                </div>
+            </div>
+            <!-- /.row -->
+
+            
+
+<div class="row">
+    <div class="col-lg-12">
+
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title">
+                    Filter Assets based on Stock Performance
+                </h3>
+            </div>
+
+            <div class="panel-body">
+
+                <form action="/allocations/2" method="get" role="search">
+                    <div class="form-group">
+                        <!--Fix for A1 - 2 NoSQL Injection - Provide validation for input.
+                        Adhering to defence in depth, on the front-end mostly for UX.
+                        The attacker, or user should not be able to enter anything other than 0-99.              
+                        Also implement fix in allocations-dao.js-->
+                        <!--<input type="number" min="0" max="99" class="form-control" placeholder="Stocks Threshold" name="threshold" />-->
+                        <input type="text" class="form-control" placeholder="Stocks Threshold" name="threshold" />
+                        <p class="help-block">Using above threshold value, it will return all assets allocation above the specified stocks percentage number.</p>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </form>
+
+            </div>
+        </div>
+
+        
+        <div class="panel panel-info">
+            <div class="panel-heading">
+                <strong>Asset Allocations for John Doe</strong>
+            </div>
+            <div class="panel-body">
+                <p>Domestic Stocks :
+                    <strong>39 %</strong>
+                </p>
+                <p>Funds:
+                    <strong>21 %</strong>
+                </p>
+                <p>Bonds:
+                    <strong>40 %</strong>
+                </p>
+            </div>
+        </div>
+        
+
+    </div>
+</div>
+
+
+        </div>
+        <!-- /#page-wrapper -->
+    </div>
+    <!-- /#wrapper -->
+
+    <!-- Bootstrap core JavaScript -->
+    <script src="/vendor/jquery.min.js"></script>
+    <script src="/vendor/bootstrap/bootstrap.js"></script>
+    <script src="/vendor/bootstrap/bootstrap-tour.js"></script>
+
+    <!-- Page Specific Plugins -->
+    <script src="/vendor/chart/raphael-min.js"></script>
+    <script src="/vendor/chart/morris-0.4.3.min.js"></script>
+
+    <script src="/js/chart/chart-data-morris.js"></script>
+
+    <!-- tour steps related js -->
+    <script src="/js/tour/redirects-steps.js"></script>
+
+    <!-- Load environmental scripts such as live reload -->
+    
+    <script>document.write("<script src='http://" + (location.host || "localhost").split(":")[0] + ":35729/livereload.js'></" + "script>");</script>
+    
+
+</body>
+
+</html>,7:headers;264:26:12:X-Powered-By,7:Express,]44:12:Content-Type,24:text/html; charset=utf-8,]25:14:Content-Length,4:7203,]47:4:ETag,36:W/"1c23-MgRzzoj9oKnDk+oaYs1JMYTpZmo",]40:4:Date,29:Sat, 14 Feb 2026 05:48:31 GMT,]28:10:Connection,10:keep-alive,]26:10:Keep-Alive,9:timeout=5,]]12:http_version;8:HTTP/1.1,}7:request;447:4:path;14:/allocations/2,9:authority;0:,6:scheme;4:http,6:method;3:GET,4:port;4:4000#4:host;9:localhost;13:timestamp_end;18:1771048111.2895222^15:timestamp_start;18:1771048111.2892518^8:trailers;0:~7:content;0:,7:headers;194:25:4:Host,14:localhost:4000,]28:10:User-Agent,10:curl/8.5.0,]15:6:Accept,3:*/*,]109:6:Cookie,96:connect.sid=s%3AsbRKTDkiBxJGN36E2D2P8rJAKCfQaoC1.t%2FQaCRH3uIyfbyczy2pY%2BLZD24i5K2DLDgp0KFwgwuQ,]]12:http_version;8:HTTP/1.1,}6:backup;0:~17:timestamp_created;17:1771048111.289328^7:comment;0:;8:metadata;0:}6:marked;0:;9:is_replay;0:~11:intercepted;5:false!11:server_conn;449:3:via;0:~19:timestamp_tcp_setup;18:1771048111.2889504^7:address;19:9:localhost;4:4000#]19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771048111.2886574^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:5e18284f-e033-4272-b076-60a1687d279f;8:sockname;20:9:127.0.0.1;5:59588#]8:peername;19:9:127.0.0.1;4:4000#]}11:client_conn;427:10:proxy_mode;29:reverse:http://localhost:4000;8:mitmcert;0:~19:timestamp_tls_setup;0:~13:timestamp_end;0:~15:timestamp_start;18:1771048111.2884312^3:sni;0:~11:tls_version;0:~11:cipher_list;0:]6:cipher;0:~11:alpn_offers;0:]4:alpn;0:~16:certificate_list;0:]3:tls;5:false!5:error;0:~18:transport_protocol;3:tcp;2:id;36:9fd890ce-6b31-445d-926d-f1833408f9a6;8:sockname;21:3:::1;4:9090#1:0#1:0#]8:peername;22:3:::1;5:40262#1:0#1:0#]}5:error;0:~2:id;36:4486883b-f911-439c-b017-68651d2093a4;4:type;4:http;7:version;2:21#}

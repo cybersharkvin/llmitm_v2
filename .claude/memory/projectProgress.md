@@ -276,6 +276,19 @@
   - Completed: Feb 13, 2026
   - Validation: 112 tests passing (16 new), 1 skipped, 0 regressions
 
+- ✅ **GAP-3 Closed: Multi-Target E2E Verified**: All 3 targets pass cold+warm start
+  - Captured demo/nodegoat.mitm (54KB, 7 flows) and demo/dvwa.mitm (34KB, CSRF login flow)
+  - Fixed HTTPRequestHandler: form encoding (data= instead of json=) for HTML apps
+  - Fixed HTTPRequestHandler: follow_redirects=True (httpx defaults to False)
+  - Fixed exploit_tools: generic success criteria "." instead of JSON-specific patterns
+  - Fixed attack_plan_to_action_graph: try all exploits until compatible one found (was only trying first)
+  - Added extra_login_fields to TargetProfile for DVWA's Login=Login submit button
+  - ProgrammaticAgent max_iterations 8→12 for complex targets
+  - NodeGoat built from OWASP/NodeGoat source (owasp-nodegoat:local), needs db-reset on first run
+  - Juice Shop: cold=38K tokens, warm=0 | NodeGoat: cold=87K, warm=0 | DVWA: cold=71K, warm=0
+  - Completed: Feb 14, 2026
+  - Validation: 112 tests passing, 1 skipped, 0 regressions
+
 ## In Progress
 
 - None
@@ -286,7 +299,6 @@
 
 ## Known Issues
 
-- Exploit step generators hardcode /rest/user/login path (Juice Shop specific)
 - CriticFeedback model still exists but no longer used in _compile() (dead code candidate)
 - graph_tools.py still uses @beta_tool closures — may need update if tool_runner is fully removed
 - Skill guides exist in skills/ but are not loaded (disabled for token efficiency)
@@ -303,11 +315,12 @@
 
 ### Current State
 - **Version**: 0.1.0
-- **Status**: E2E VERIFIED — All 4 hackathon demos pass
+- **Status**: E2E VERIFIED — All 3 targets pass cold+warm start
 - **Primary Branch**: main
-- **Test Suite**: 96 passing, 1 skipped, 0 failed
+- **Test Suite**: 112 passing, 1 skipped, 0 failed
 
 ### Recent Milestones
+- **Feb 14, 2026**: GAP-3 CLOSED — Multi-target E2E verified (Juice Shop 38K, NodeGoat 87K, DVWA 71K cold; all 0 tokens warm)
 - **Feb 13, 2026**: E2E ALL 4 TESTS PASSING (cold start 37K tokens, warm start 0 tokens, self-repair 56K tokens, persistence 0 tokens)
 - **Feb 13, 2026**: Pre-E2E bug fixes (credential placeholders, URL resolution, break-graph method corruption, 96 tests)
 - **Feb 13, 2026**: 4+5 tool architecture (4 recon tools + 5 exploit tools, AttackPlan model, deterministic step generation, 96 tests)

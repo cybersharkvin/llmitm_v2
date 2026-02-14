@@ -146,8 +146,12 @@ Content-Type: application/json
 
 ### docker-compose.yml
 - **neo4j service**: Neo4j 5.x with APOC and vector plugins enabled, APOC file I/O enabled, `./snapshots` bind-mounted to `/var/lib/neo4j/import/snapshots`
-- **target service**: OWASP Juice Shop on port 3000
-- **orchestrator service**: Python orchestrator with shared network access
+- **juiceshop service**: OWASP Juice Shop on port 3000
+- **nodegoat service**: OWASP NodeGoat on port 4000 (built from source as `owasp-nodegoat:local`, requires `command: node server.js` and `docker exec llmitm_nodegoat node artifacts/db-reset.js` on first run)
+- **dvwa service**: DVWA on port 8081 (requires DB setup via `/setup.php` on first run)
+- **mongo service**: MongoDB 4.4 for NodeGoat
+- **mysql service**: MySQL 5.7 for DVWA
+- **mitmproxy service**: Reverse proxy to Juice Shop on port 8080
 
 ### Makefile
 - `make up/down` — Docker Compose lifecycle with healthcheck

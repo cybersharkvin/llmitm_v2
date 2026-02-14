@@ -25,6 +25,7 @@ class TargetProfile(BaseModel):
     token_extraction_pattern: Optional[str] = None  # bearer only
     session_cookie_name: Optional[str] = None  # cookie only
     csrf_token_pattern: Optional[str] = None  # DVWA only
+    extra_login_fields: dict[str, str] = {}  # e.g. {"Login": "Login"}
 
 
 TARGET_PROFILES: dict[str, TargetProfile] = {
@@ -58,6 +59,7 @@ TARGET_PROFILES: dict[str, TargetProfile] = {
         login_body_fields=("username", "password"),
         session_cookie_name="PHPSESSID",
         csrf_token_pattern=r'user_token.*?value=["\']([^"\']+)["\']',
+        extra_login_fields={"Login": "Login"},
     ),
 }
 
