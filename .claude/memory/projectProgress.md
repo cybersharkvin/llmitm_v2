@@ -244,6 +244,14 @@
   - Completed: Feb 13, 2026
   - Validation: 96 tests passing, 1 skipped, 0 regressions
 
+- ✅ **Bug 5 Fix: capture_group defaults to 0 (BLOCKING)**: Token extraction regex steps
+  - All 5 token extraction regex steps in exploit_tools.py now set `"capture_group": 1`
+  - Without this, `match.group(0)` returned `"token":"eyJ..."` instead of just the JWT
+  - Downstream: malformed `Authorization: Bearer "token":"eyJ..."` → 401 → abort
+  - Affected: idor_walk, auth_strip, token_swap (x2), role_tamper
+  - Completed: Feb 13, 2026
+  - Validation: 96 tests passing, 1 skipped, 0 regressions
+
 ## In Progress
 
 - E2E smoke test with new 4+5 tool architecture (cold start, warm start, self-repair, persistence)

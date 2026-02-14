@@ -1,7 +1,7 @@
 {
-  "session": "Pre-E2E Bug Fixes + E2E Test Plan (Feb 13, 2026)",
-  "completed_phase": "Fixed 4 bugs blocking E2E testing",
-  "summary": "Fixed credential placeholders, URL resolution, and break-graph targeting. Ready for 4-test E2E sequence.",
+  "session": "Bug 5 Fix + E2E Ready (Feb 13, 2026)",
+  "completed_phase": "Fixed capture_group bug blocking E2E cold start",
+  "summary": "Added capture_group:1 to all 5 token extraction regex steps. 96 tests passing, ready for E2E.",
   "git_commits": [],
   "test_results": {
     "test_suite": "tests/",
@@ -12,9 +12,7 @@
   },
 
   "bugs_fixed": [
-    {"bug": "A: Credential placeholders", "file": "llmitm_v2/tools/exploit_tools.py", "fix": "Replaced {{EMAIL}}/{{PASSWORD}} with _CREDS dict containing actual Juice Shop creds"},
-    {"bug": "B: URL resolution", "file": "llmitm_v2/handlers/http_request_handler.py", "fix": "Added 'path' key fallback: url -> path -> step.command"},
-    {"bug": "C+D: break-graph targeting", "file": "scripts/break-graph.sh", "fix": "Corrupts HTTP method GET->PATCH on any /api/Users step (500->SYSTEMIC, not 404->abort)"}
+    {"bug": "5: capture_group defaults to 0", "file": "llmitm_v2/tools/exploit_tools.py", "fix": "Added capture_group:1 to all 5 token extraction regex steps (idor_walk, auth_strip, token_swap x2, role_tamper) so match.group(1) extracts just the JWT, not the full 'token':'eyJ...' match"}
   ],
 
   "e2e_test_plan": {
@@ -27,10 +25,8 @@
           "run_summary.compiled": true,
           "run_summary.success": true,
           "run_summary.findings_count": ">= 1",
-          "run_summary.total_tokens": "< 100K (ideally < 50K)",
           "run_summary.path": "cold_start"
-        },
-        "expected_flow": "fingerprint_from_mitm -> _try_warm_start (miss) -> _compile (Recon+Critic) -> attack_plan_to_action_graph -> _execute (LOGIN->EXTRACT->GET->MUTATE->OBSERVE) -> Finding"
+        }
       },
       {
         "name": "E2E Test 2: Warm Start",
@@ -40,8 +36,7 @@
           "run_summary.total_api_calls": 0,
           "run_summary.success": true,
           "run_summary.path": "warm_start"
-        },
-        "expected_flow": "Same fingerprint hash -> _try_warm_start (hit) -> skip _compile -> _execute -> Finding"
+        }
       },
       {
         "name": "E2E Test 3: Self-Repair",
@@ -51,8 +46,7 @@
           "run_summary.repaired": true,
           "run_summary.success": true,
           "run_summary.path": "repair"
-        },
-        "expected_flow": "Warm start -> _execute -> corrupted step (PATCH /api/Users -> 500) -> classify_failure -> SYSTEMIC -> _repair -> _compile(repair_context=...) -> new ActionGraph -> re-execute -> success"
+        }
       },
       {
         "name": "E2E Test 4: Persistence",
@@ -62,33 +56,28 @@
           "run_summary.total_api_calls": 0,
           "run_summary.success": true,
           "run_summary.path": "warm_start"
-        },
-        "expected_flow": "Same fingerprint -> _try_warm_start -> gets NEWEST AG (repaired one, by created_at DESC) -> _execute -> success with 0 LLM calls"
+        }
       }
     ]
   },
 
   "likely_e2e_issues": [
     "Token budget 50K may be tight for Recon Agent with code_execution — bump to 100K if needed",
-    "success_criteria regex may not match Juice Shop response format — adjust in exploit_tools if needed",
     "break-graph Cypher quoting — escaped double quotes in docker exec may need testing",
     "[:REPAIRED_TO] edges NOT created by current _repair() flow (uses _compile+save_action_graph, not repair_step_chain)"
   ],
 
   "context_for_next_session": [
-    "4 bugs fixed, 96 tests passing, ready for E2E Test 1 (cold start)",
+    "5 bugs fixed (4 prior + capture_group), 96 tests passing, ready for E2E Test 1 (cold start)",
     "Run: make reset && DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
     "After cold start: inspect debug_logs/<timestamp>/run_summary.json",
-    "break-graph.sh now corrupts method (GET->PATCH) not path — ensures 500->SYSTEMIC->repair",
-    "HTTPRequestHandler reads URL from parameters['path'] first (exploit tools set 'path', not 'url')",
-    "_CREDS dict in exploit_tools.py has Juice Shop defaults — update for different targets",
-    "Critic refines AttackPlan (same schema), not pass/fail — single Recon+Critic pass"
+    "All token extraction steps now use capture_group:1 — extracts just JWT from regex group",
+    "Detailed E2E walkthrough with fictional data exists in plan transcript"
   ],
 
   "files_to_reference": [
-    "llmitm_v2/tools/exploit_tools.py — _CREDS dict + 5 step generators with real credentials",
-    "llmitm_v2/handlers/http_request_handler.py — URL resolution: url -> path -> command",
-    "scripts/break-graph.sh — Corrupts GET->PATCH on /api/Users steps",
+    "llmitm_v2/tools/exploit_tools.py — _CREDS dict + 5 step generators with capture_group:1",
+    "llmitm_v2/handlers/regex_match_handler.py — reads capture_group from step.parameters",
     "llmitm_v2/orchestrator/orchestrator.py — _compile(), _execute(), _repair() flow"
   ]
 }
