@@ -237,13 +237,19 @@
   - Completed: Feb 13, 2026
   - Validation: 96 tests passing, 1 skipped, 0 regressions
 
+- ✅ **Pre-E2E Bug Fixes (4 bugs)**: Credential placeholders, URL resolution, break-graph targeting
+  - Bug A: Replaced {{EMAIL}}/{{PASSWORD}} placeholders in exploit_tools.py with actual Juice Shop creds via _CREDS dict
+  - Bug B: HTTPRequestHandler URL resolution now falls back to parameters["path"] before step.command
+  - Bug C+D: break-graph.sh rewritten to corrupt HTTP method (GET→PATCH) on any /api/Users step, ensuring 500→SYSTEMIC (not 404→abort)
+  - Completed: Feb 13, 2026
+  - Validation: 96 tests passing, 1 skipped, 0 regressions
+
 ## In Progress
 
-- None
+- E2E smoke test with new 4+5 tool architecture (cold start, warm start, self-repair, persistence)
 
 ## Pending Features
 
-- E2E smoke test with new 4+5 tool architecture (cold start, warm start, self-repair, persistence)
 - Pre-recorded demo capture (terminal session + Neo4j Browser screenshots)
 
 ## Known Issues
@@ -269,6 +275,7 @@
 - **Test Suite**: 96 passing, 1 skipped, 0 failed
 
 ### Recent Milestones
+- **Feb 13, 2026**: Pre-E2E bug fixes (credential placeholders, URL resolution, break-graph method corruption, 96 tests)
 - **Feb 13, 2026**: 4+5 tool architecture (4 recon tools + 5 exploit tools, AttackPlan model, deterministic step generation, 96 tests)
 - **Feb 13, 2026**: Debug logging for agent pipeline (opt-in per-call JSON tracing, 98 tests)
 - **Feb 12-13, 2026**: ProgrammaticAgent E2E fixes (5 bugs, Haiku→Sonnet, juice_shop.mitm capture)
@@ -300,7 +307,7 @@
 - **Restore**: `make restore NAME=x`
 - **Reset**: `make reset` (online wipe + schema recreate)
 - **Seed Demo**: `make seed` (insert known-good IDOR ActionGraph)
-- **Break for Repair Demo**: `make break-graph` (corrupt step 6)
+- **Break for Repair Demo**: `make break-graph` (corrupt GET→PATCH on /api/Users steps)
 - **Fix Manually**: `make fix-graph` (reverse corruption)
 
 ---

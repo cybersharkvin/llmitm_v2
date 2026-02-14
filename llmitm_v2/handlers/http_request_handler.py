@@ -15,7 +15,7 @@ class HTTPRequestHandler(StepHandler):
     """Executes HTTP requests via httpx sync client."""
 
     def execute(self, step: Step, context: ExecutionContext) -> StepResult:
-        url = step.parameters.get("url", step.command)
+        url = step.parameters.get("url", step.parameters.get("path", step.command))
         if not url.startswith("http"):
             url = context.target_url.rstrip("/") + "/" + url.lstrip("/")
 

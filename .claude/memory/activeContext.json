@@ -1,7 +1,7 @@
 {
-  "session": "4+5 Tool Architecture (Feb 13, 2026)",
-  "completed_phase": "Replaced single mitmdump CLI tool with 4 recon tools + 5 exploit tools",
-  "summary": "Redesigned tool architecture to reduce token usage. 4 FlowReader-based recon tools (grammar-enforced), 5 exploit step generators (deterministic CAMRO), AttackPlan model replaces ActionGraph as LLM output. Critic now refines AttackPlan (same schema) instead of pass/fail.",
+  "session": "Pre-E2E Bug Fixes + E2E Test Plan (Feb 13, 2026)",
+  "completed_phase": "Fixed 4 bugs blocking E2E testing",
+  "summary": "Fixed credential placeholders, URL resolution, and break-graph targeting. Ready for 4-test E2E sequence.",
   "git_commits": [],
   "test_results": {
     "test_suite": "tests/",
@@ -11,77 +11,84 @@
     "status": "ALL PASSING"
   },
 
-  "architecture_change": {
-    "before": "Single mitmdump CLI tool (coarse, 212K tokens on E2E)",
-    "after": "4 recon tools + 5 exploit tools + AttackPlan -> ActionGraph deterministic conversion",
-    "recon_tools": ["response_inspect", "jwt_decode", "header_audit", "response_diff"],
-    "exploit_tools": ["idor_walk", "auth_strip", "token_swap", "namespace_probe", "role_tamper"],
-    "key_insight": "LLM prescribes exploit tools by name (grammar-enforced Literal enum). Exploit tools generate deterministic CAMRO steps. No LLM involved in step generation.",
-    "compilation_flow": "Recon Agent -> AttackPlan -> Attack Critic -> refined AttackPlan -> attack_plan_to_action_graph() -> ActionGraph"
-  },
+  "bugs_fixed": [
+    {"bug": "A: Credential placeholders", "file": "llmitm_v2/tools/exploit_tools.py", "fix": "Replaced {{EMAIL}}/{{PASSWORD}} with _CREDS dict containing actual Juice Shop creds"},
+    {"bug": "B: URL resolution", "file": "llmitm_v2/handlers/http_request_handler.py", "fix": "Added 'path' key fallback: url -> path -> step.command"},
+    {"bug": "C+D: break-graph targeting", "file": "scripts/break-graph.sh", "fix": "Corrupts HTTP method GET->PATCH on any /api/Users step (500->SYSTEMIC, not 404->abort)"}
+  ],
 
-  "files_changed": {
-    "rewritten": [
-      {"path": "llmitm_v2/tools/recon_tools.py", "description": "4 FlowReader-based tools replacing single mitmdump CLI tool"},
-      {"path": "llmitm_v2/models/recon.py", "description": "AttackPlan/AttackOpportunity with ReconTool/ExploitTool Literal enums"},
-      {"path": "llmitm_v2/orchestrator/agents.py", "description": "New system prompts, import new TOOL_SCHEMAS/TOOL_HANDLERS"},
-      {"path": "llmitm_v2/orchestrator/orchestrator.py", "description": "attack_plan_to_action_graph(), _compile uses AttackPlan"},
-      {"path": "llmitm_v2/orchestrator/context.py", "description": "New recon tool instructions in assemble_recon_context()"},
-      {"path": "skills/initial_recon.md", "description": "Assumption-gap methodology with new tool calls"},
-      {"path": "skills/lateral_movement.md", "description": "Updated tool call examples"},
-      {"path": "skills/persistence.md", "description": "Updated tool call examples"}
-    ],
-    "created": [
-      {"path": "llmitm_v2/tools/exploit_tools.py", "description": "5 exploit step generators + EXPLOIT_STEP_GENERATORS registry"},
-      {"path": "skills/recon_tools.md", "description": "Recon tools reference guide"}
-    ],
-    "deleted": [
-      {"path": "skills/mitmdump.md", "description": "Replaced by recon_tools.md"}
-    ],
-    "updated": [
-      {"path": "llmitm_v2/models/__init__.py", "description": "AttackPlan export, removed ReconReport/DiscoveredEndpoint"},
-      {"path": "tests/test_recon_models.py", "description": "Rewritten for new AttackPlan/AttackOpportunity models"},
-      {"path": "tests/test_orchestrator.py", "description": "Fixed 3 assertions for new tool names"}
+  "e2e_test_plan": {
+    "pre_checks": ["docker compose ps", "curl http://localhost:3000", "make reset"],
+    "tests": [
+      {
+        "name": "E2E Test 1: Cold Start",
+        "command": "DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
+        "success_criteria": {
+          "run_summary.compiled": true,
+          "run_summary.success": true,
+          "run_summary.findings_count": ">= 1",
+          "run_summary.total_tokens": "< 100K (ideally < 50K)",
+          "run_summary.path": "cold_start"
+        },
+        "expected_flow": "fingerprint_from_mitm -> _try_warm_start (miss) -> _compile (Recon+Critic) -> attack_plan_to_action_graph -> _execute (LOGIN->EXTRACT->GET->MUTATE->OBSERVE) -> Finding"
+      },
+      {
+        "name": "E2E Test 2: Warm Start",
+        "command": "DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
+        "success_criteria": {
+          "run_summary.compiled": false,
+          "run_summary.total_api_calls": 0,
+          "run_summary.success": true,
+          "run_summary.path": "warm_start"
+        },
+        "expected_flow": "Same fingerprint hash -> _try_warm_start (hit) -> skip _compile -> _execute -> Finding"
+      },
+      {
+        "name": "E2E Test 3: Self-Repair",
+        "pre_command": "make break-graph",
+        "command": "DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
+        "success_criteria": {
+          "run_summary.repaired": true,
+          "run_summary.success": true,
+          "run_summary.path": "repair"
+        },
+        "expected_flow": "Warm start -> _execute -> corrupted step (PATCH /api/Users -> 500) -> classify_failure -> SYSTEMIC -> _repair -> _compile(repair_context=...) -> new ActionGraph -> re-execute -> success"
+      },
+      {
+        "name": "E2E Test 4: Persistence",
+        "command": "DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
+        "success_criteria": {
+          "run_summary.compiled": false,
+          "run_summary.total_api_calls": 0,
+          "run_summary.success": true,
+          "run_summary.path": "warm_start"
+        },
+        "expected_flow": "Same fingerprint -> _try_warm_start -> gets NEWEST AG (repaired one, by created_at DESC) -> _execute -> success with 0 LLM calls"
+      }
     ]
   },
 
-  "design_decisions": [
-    {"decision": "Critic produces refined AttackPlan (not CriticFeedback pass/fail)", "rationale": "Eliminates iteration loop — one pass through Recon+Critic is enough. Critic improves rather than rejects."},
-    {"decision": "Exploit tools are Literal enums, not free-form strings", "rationale": "Grammar-constrained decoding prevents LLM from hallucinating non-existent tools"},
-    {"decision": "attack_plan_to_action_graph() is deterministic", "rationale": "LLM only decides WHAT to test. HOW to test is hardcoded in step generators. Reduces variability and token usage."},
-    {"decision": "Recon tools return JSON strings", "rationale": "Structured output from FlowReader, parseable by the agent in code_execution sandbox"}
+  "likely_e2e_issues": [
+    "Token budget 50K may be tight for Recon Agent with code_execution — bump to 100K if needed",
+    "success_criteria regex may not match Juice Shop response format — adjust in exploit_tools if needed",
+    "break-graph Cypher quoting — escaped double quotes in docker exec may need testing",
+    "[:REPAIRED_TO] edges NOT created by current _repair() flow (uses _compile+save_action_graph, not repair_step_chain)"
   ],
 
-  "next_phases": [
-    {
-      "phase": "E2E Test 1: Cold Start",
-      "tasks": [
-        "make reset",
-        "DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
-        "Inspect debug_logs — expect ~30-50K tokens (down from 212K)",
-        "Verify compiled=true, findings >= 1"
-      ]
-    },
-    {
-      "phase": "E2E Tests 2-4",
-      "tasks": ["Warm start (0 API calls)", "Self-repair (break-graph)", "Persistence"]
-    }
-  ],
-
-  "blockers": "None — ready for E2E Test 1",
   "context_for_next_session": [
-    "4+5 tool architecture fully implemented, 96 tests passing",
-    "Critic no longer uses pass/fail — it refines the AttackPlan directly (same schema)",
-    "_compile() now: Recon -> AttackPlan -> Critic -> refined AttackPlan -> attack_plan_to_action_graph() -> ActionGraph",
-    "Exploit step generators hardcode Juice Shop login path /rest/user/login — may need update if target differs",
-    "CriticFeedback model still exists in models/critic.py but is no longer used in _compile(). Could be cleaned up.",
-    "Token budget still 50K — should be enough with 4 structured tools vs 1 CLI tool"
+    "4 bugs fixed, 96 tests passing, ready for E2E Test 1 (cold start)",
+    "Run: make reset && DEBUG_LOGGING=true .venv/bin/python3 -m llmitm_v2",
+    "After cold start: inspect debug_logs/<timestamp>/run_summary.json",
+    "break-graph.sh now corrupts method (GET->PATCH) not path — ensures 500->SYSTEMIC->repair",
+    "HTTPRequestHandler reads URL from parameters['path'] first (exploit tools set 'path', not 'url')",
+    "_CREDS dict in exploit_tools.py has Juice Shop defaults — update for different targets",
+    "Critic refines AttackPlan (same schema), not pass/fail — single Recon+Critic pass"
   ],
 
   "files_to_reference": [
-    "llmitm_v2/tools/recon_tools.py — 4 FlowReader-based recon tools",
-    "llmitm_v2/tools/exploit_tools.py — 5 exploit step generators",
-    "llmitm_v2/models/recon.py — AttackPlan/AttackOpportunity models",
-    "llmitm_v2/orchestrator/orchestrator.py — attack_plan_to_action_graph(), updated _compile()"
+    "llmitm_v2/tools/exploit_tools.py — _CREDS dict + 5 step generators with real credentials",
+    "llmitm_v2/handlers/http_request_handler.py — URL resolution: url -> path -> command",
+    "scripts/break-graph.sh — Corrupts GET->PATCH on /api/Users steps",
+    "llmitm_v2/orchestrator/orchestrator.py — _compile(), _execute(), _repair() flow"
   ]
 }
