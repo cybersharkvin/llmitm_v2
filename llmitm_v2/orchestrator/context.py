@@ -1,105 +1,102 @@
 """Context assembly for LLM reasoning phases.
 
-Builds minimal, phase-specific prompts without fetching graph data.
-Graph queries are performed by LLM via tools, not context assembly.
+Builds minimal, phase-specific prompts. Two functions:
+- assemble_recon_context(): Full prompt for Recon Agent (cold start / repair compilation)
+- assemble_repair_context(): Enrichment string prepended to recon context on repair
 """
 
-from llmitm_v2.models import Fingerprint, Step
+from llmitm_v2.models import Step
 
 
-def assemble_compilation_context(fingerprint: Fingerprint, traffic_log: str) -> str:
-    """Assemble static context for ActionGraph compilation.
+def assemble_recon_context(mitm_file: str = "", proxy_url: str = "") -> str:
+    """Build initial prompt for the Recon Agent.
 
-    Provides target fingerprint characteristics and truncated traffic log.
-    LLM discovers similar graphs via find_similar_action_graphs tool.
+    Works for both file mode (.mitm capture) and live mode (proxy URL).
+    The agent uses 4 recon tools to analyze the capture.
 
     Args:
-        fingerprint: Target Fingerprint identifying the system
-        traffic_log: Captured HTTP traffic (will be truncated if too long)
+        mitm_file: Path to .mitm capture file (file mode)
+        proxy_url: Live proxy URL (live mode)
 
     Returns:
-        Formatted prompt string for Actor LLM
+        Formatted prompt string for Recon Agent
     """
-    # Truncate traffic log to reasonable length
-    max_log_chars = 4000
-    if len(traffic_log) > max_log_chars:
-        truncated_log = traffic_log[:max_log_chars] + "\n[... truncated ...]"
-    else:
-        truncated_log = traffic_log
+    if mitm_file:
+        return f"""You have a captured traffic file at: {mitm_file}
 
-    return f"""You are an expert at generating vulnerability test scenarios.
+Use your recon tools to analyze the capture:
+- response_inspect: see what endpoints were hit and what came back
+- jwt_decode: understand who the authenticated user is and what the token carries
+- header_audit: assess the security posture across all endpoints
+- response_diff: compare responses between flows to spot behavioral differences
 
-TARGET FINGERPRINT:
-- Tech Stack: {fingerprint.tech_stack}
-- Auth Model: {fingerprint.auth_model}
-- Endpoint Pattern: {fingerprint.endpoint_pattern}
-- Security Signals: {", ".join(fingerprint.security_signals)}
+Your job is to read the developer's assumptions from the API design.
+Find where business intent diverged from what the code actually enforces.
+Each opportunity must cite specific evidence from your tool calls.
 
-CAPTURED TRAFFIC:
-{truncated_log}
+Your output is a prioritized attack plan. Each opportunity prescribes an exploit tool:
+- idor_walk: enumerate resource IDs with another user's token
+- auth_strip: replay requests without authentication
+- token_swap: replay User A's request with User B's token
+- namespace_probe: probe path namespace for unprotected siblings
+- role_tamper: modify role/privilege fields in request body"""
 
-TASK:
-Generate an ActionGraph for testing vulnerabilities in this target.
-The ActionGraph should:
-1. Follow CAMRO phases: Capture, Analyze, Mutate, Replay, Observe
-2. Be deterministic and repeatable
-3. Test a specific vulnerability type (IDOR, auth bypass, privilege escalation, etc.)
-4. Include success criteria (regex patterns or HTTP status codes)
+    if proxy_url:
+        return f"""You have a live target accessible through a reverse proxy at: {proxy_url}
 
-Use find_similar_action_graphs to discover similar vulnerabilities tested before.
-Use get_repair_history to understand past repair patterns for this fingerprint.
+Use your recon tools to analyze captured traffic.
+The capture file will be available at the path specified in the target context.
 
-Output your ActionGraph as a valid JSON structure matching the ActionGraph schema."""
+Your job is to read the developer's assumptions from the API design.
+Find where business intent diverged from what the code actually enforces.
+Each opportunity must cite specific evidence from your tool calls.
+
+Your output is a prioritized attack plan. Each opportunity prescribes an exploit tool:
+- idor_walk: enumerate resource IDs with another user's token
+- auth_strip: replay requests without authentication
+- token_swap: replay User A's request with User B's token
+- namespace_probe: probe path namespace for unprotected siblings
+- role_tamper: modify role/privilege fields in request body"""
+
+    return "ERROR: No mitm_file or proxy_url provided."
 
 
 def assemble_repair_context(
-    failed_step: Step, error_log: str, execution_history: list[str]
+    failed_step: Step, error_log: str, execution_history: list[str],
 ) -> str:
-    """Assemble context for LLM-assisted step repair.
+    """Build context enrichment string describing a failed execution.
 
-    Provides failed step details, error context, and recent execution history.
-    LLM discovers repair history via get_repair_history tool.
+    This string gets prepended to the normal recon context in _compile(),
+    so the Recon Agent sees what failed and can account for it.
 
     Args:
         failed_step: Step that failed
-        error_log: Error message or status output (will be truncated)
-        execution_history: Previous step outputs (most recent first)
+        error_log: Error message or status output
+        execution_history: Previous step outputs
 
     Returns:
-        Formatted prompt string for Actor LLM (structured output: RepairDiagnosis)
+        Context enrichment string (not a full prompt)
     """
-    # Truncate error log
     max_error_chars = 2000
+    truncated_error = error_log[:max_error_chars]
     if len(error_log) > max_error_chars:
-        truncated_error = error_log[:max_error_chars] + "\n[... truncated ...]"
-    else:
-        truncated_error = error_log
+        truncated_error += "\n[... truncated ...]"
 
-    # Include last 3 step outputs for context
     recent_outputs = "\n".join(execution_history[:3]) if execution_history else "(no previous steps)"
 
-    return f"""You are a diagnostic expert analyzing a failed step in a vulnerability test.
+    return f"""## Previous Execution State
 
-FAILED STEP:
-- Phase: {failed_step.phase}
-- Type: {failed_step.type}
-- Command: {failed_step.command}
-- Parameters: {failed_step.parameters}
+A prior attack plan was executed but failed at step {failed_step.order} ({failed_step.phase}, {failed_step.type}).
+Command: {failed_step.command}
+Parameters: {failed_step.parameters}
 
-ERROR OUTPUT:
+Error output:
 {truncated_error}
 
-RECENT EXECUTION HISTORY (last 3 steps):
+Steps that succeeded before failure:
 {recent_outputs}
 
-TASK:
-Classify the failure and suggest a repair.
+Account for this failure in your new attack plan. The previous approach did not work —
+produce a corrected plan that avoids the same issue.
 
-Respond with:
-- failure_type: One of 'transient_recoverable', 'transient_unrecoverable', or 'systemic'
-- diagnosis: Brief explanation of what went wrong
-- suggested_fix: If systemic, provide the COMPLETE replacement shell command.
-  IMPORTANT: The suggested_fix must be a fully self-contained, executable command.
-  It must include ALL variable assignments (e.g., TOKEN=$(cat /tmp/file.txt) && curl ...).
-  Do NOT reference undefined shell variables. Do NOT include prose or explanation.
-  The command replaces the failed step's command field exactly."""
+"""

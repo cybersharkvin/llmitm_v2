@@ -56,6 +56,7 @@
 - **Description**: Two single-shot LLM calls in while loop: Actor produces, Critic validates
 - **When to Use**: ActionGraph compilation and major repairs (at *compile time*, not runtime)
 - **Example**: Actor generates graph → Critic validates → loop until `critic_result.passed` or max iterations
+- **Implementation**: `SimpleAgent(client.messages.parse(output_format=Model))` — 1 API call per agent per iteration. Grammar-constrained decoding, no fake tool calls
 - **Rationale**: Quality control on LLM outputs, catches over-fitting and logic errors. Used for compilation, not execution
 
 ### Abstract Base Class + Concrete Implementation
@@ -75,6 +76,87 @@
 - **When to Use**: Database connections
 - **Example**: `driver = GraphDatabase.driver(uri, auth)` → passed to all Repository instances
 - **Rationale**: Official Neo4j best practice. Manages connection pool efficiently
+
+### 2-Agent Architecture (Recon Agent + Attack Critic)
+- **Description**: Two agents handle all LLM tasks. Recon Agent (ProgrammaticAgent) explores targets via code_execution sandbox + 4 recon tools. Attack Critic (SimpleAgent) refines the attack plan. Both compilation and repair use the same Recon+Critic loop.
+- **When to Use**: Cold start compilation AND self-repair both use Recon + Critic loop. Repair prepends failure context via `_compile(repair_context=...)`.
+- **Compilation Flow**: `recon_agent(context, structured_output_model=AttackPlan)` → `attack_critic(plan.json(), structured_output_model=AttackPlan)` → `attack_plan_to_action_graph(refined_plan)` → ActionGraph. The critic refines (same schema) rather than pass/fail.
+- **Key Files**: `orchestrator/agents.py` (ProgrammaticAgent, SimpleAgent, create_recon_agent, create_attack_critic), `tools/recon_tools.py` (4 FlowReader tools), `tools/exploit_tools.py` (5 step generators), `skills/*.md` (skill guides)
+- **Rationale**: Repair is just recompilation with enriched context. The LLM decides WHAT to test (AttackPlan), deterministic code decides HOW (exploit step generators).
+
+### 4+5 Tool Architecture
+- **Description**: 4 grammar-enforced recon tools for analysis + 5 exploit tools for deterministic step generation. LLM prescribes exploit tools by enum name; step generators produce CAMRO Steps.
+- **Recon Tools** (agent calls these via code_execution): `response_inspect`, `jwt_decode`, `header_audit`, `response_diff` — all FlowReader-based, return JSON strings
+- **Exploit Tools** (agent prescribes these, code generates steps): `idor_walk`, `auth_strip`, `token_swap`, `namespace_probe`, `role_tamper` — each returns List[Step]
+- **Grammar Enforcement**: `ReconTool = Literal[...]` and `ExploitTool = Literal[...]` in `models/recon.py`. Grammar-constrained decoding prevents hallucinated tool names.
+- **Key Files**: `tools/recon_tools.py` (TOOL_SCHEMAS, TOOL_HANDLERS), `tools/exploit_tools.py` (EXPLOIT_STEP_GENERATORS), `models/recon.py` (AttackPlan, AttackOpportunity)
+- **Rationale**: Previous single mitmdump CLI tool consumed 212K tokens. Structured tools return focused JSON. Exploit step generation is deterministic — zero LLM cost.
+
+### Skill Guide Pattern (DISABLED)
+- **Description**: Markdown files in `skills/` loaded into Recon Agent's system prompt. Each guide teaches methodology for a specific testing phase.
+- **Files**: `recon_tools.md`, `initial_recon.md`, `lateral_movement.md`, `persistence.md`
+- **Implementation**: `load_skill_guides()` exists but is NOT called. System prompt has `{skill_guides}` replaced with empty string.
+- **Status**: Disabled during E2E — added ~2.9K tokens per API call, causing budget exhaustion. Will revisit post-hackathon with targeted injection.
+- **Rationale**: Token efficiency trumps methodology coaching for hackathon demo.
+
+### Programmatic Tool Calling Pattern
+- **Description**: Agent writes Python in Anthropic's code_execution sandbox. Custom tools called via `await tool(...)` from sandbox. Our code handles tool call on host.
+- **Beta Headers**: `code-execution-2025-08-25`, `advanced-tool-use-2025-11-20`
+- **Key Benefit**: Intermediate tool outputs don't enter context window. Only final `print()` output does.
+- **Implementation**: `ProgrammaticAgent.__call__()` handles tool result loop manually. Dispatches to `tool_handlers` dict.
+- **Rationale**: Keeps context window lean. Agent processes tool results in sandbox, prints only summaries.
+
+### Quick Fingerprint Fast Path
+- **Description**: Send 3 deterministic HTTP requests, extract fingerprint from headers — zero LLM cost for known targets
+- **When to Use**: Live mode — first step before invoking expensive recon agent
+- **Example**: `quick_fingerprint(target_url)` → Fingerprint → check Neo4j → if match, skip recon entirely
+- **Rationale**: Preserves "convergence toward zero LLM cost" thesis. Second run against same target = zero tokens.
+
+### Offline Fingerprint from .mitm File
+- **Description**: Extract fingerprint from a .mitm capture file using `mitmdump -nr` — no live target needed
+- **When to Use**: File mode — fingerprint derived from captured traffic for warm-start matching
+- **Example**: `fingerprint_from_mitm("demo/juice_shop.mitm")` → Fingerprint with same hash every time
+- **Key Files**: `capture/launcher.py` (fingerprint_from_mitm)
+- **Rationale**: File mode must work fully offline. Previous approach used quick_fingerprint() which required live target.
+
+### OBSERVE-Only Findings
+- **Description**: Only OBSERVE-phase steps produce Findings. CAPTURE/ANALYZE/MUTATE/REPLAY steps that match success criteria are prerequisites, not vulnerability discoveries.
+- **When to Use**: In `_execute()` when checking `success_criteria_matched`
+- **Implementation**: `step.phase == StepPhase.OBSERVE` guard on Finding creation
+- **Rationale**: CAMRO design — only the final observation validates a vulnerability. Without this, login/token-extraction steps pollute Neo4j with false "findings".
+
+### Single-Exploit-Per-Graph Pattern with Fallback
+- **Description**: `attack_plan_to_action_graph()` iterates through `plan.attack_plan` and uses the first compatible exploit, then breaks. Incompatible exploits (e.g. `token_swap` on cookie auth) are skipped via `ValueError` catch.
+- **When to Use**: Always — multiple exploits in one graph cause cascading failures
+- **Rationale**: Each exploit has its own login/extract/request/observe chain. Iterating with fallback ensures cookie-auth targets still get an exploit even if the LLM's top pick is bearer-only.
+
+### Single-Repair Guard
+- **Description**: If execution has already repaired once, subsequent failures abort instead of triggering another repair
+- **When to Use**: In `_execute()` — check `repaired` flag before calling `_handle_step_failure()`
+- **Rationale**: Prevents runaway recompilation cycles. Each repair is a full `_compile()` call (~40K tokens). Without this guard, a bad graph can trigger 3+ repairs and exhaust the token budget.
+
+### Pydantic Validator as LLM Output Sanitizer
+- **Description**: `exploit_target` field_validator in AttackOpportunity auto-fixes common LLM output issues: `{id}` → `1`, strips full URLs to paths
+- **When to Use**: Any Pydantic model field where LLM consistently produces almost-correct values
+- **Rationale**: Cheaper than prompt engineering. The LLM will say `/api/Users/{id}` no matter how many times you tell it not to. A 3-line validator fixes it deterministically.
+
+### Target Profile Registry Pattern
+- **Description**: `TargetProfile` Pydantic model with `auth_mechanism` Literal discriminator. `TARGET_PROFILES` dict maps name → profile. `get_active_profile(name)` returns profile.
+- **When to Use**: Any code that needs target-specific credentials, login paths, or auth behavior
+- **Auth Flows**: `bearer_token` (2 login steps: POST + regex extract), `session_cookie` (1 step: POST, cookies auto-tracked), `session_cookie + csrf` (3 steps: GET page + regex CSRF + POST)
+- **Key Files**: `target_profiles.py` (registry), `exploit_tools.py` (_login_and_auth_steps, _auth_headers, _auth_offset)
+- **Rationale**: Centralizes target-specific knowledge. Exploit generators are auth-agnostic — they delegate to helpers that branch on `auth_mechanism`.
+
+### Form-Encoding-First HTTP Requests
+- **Description**: HTTPRequestHandler sends dict bodies as `data=` (form-encoded) by default, with `json=True` param opt-in for JSON APIs. Also uses `follow_redirects=True`.
+- **When to Use**: All HTTP steps. HTML apps (NodeGoat, DVWA) require form encoding; JSON APIs (Juice Shop) accept both.
+- **Key Files**: `handlers/http_request_handler.py`
+- **Rationale**: Most web app login forms expect `application/x-www-form-urlencoded`. JSON APIs typically accept both. Form-first is the safer default.
+
+### Generic Success Criteria
+- **Description**: Exploit step generators use `success_criteria="."` (matches any non-empty response) instead of JSON-specific patterns like `"id"`.
+- **When to Use**: All CAMRO steps in exploit tools. The OBSERVE step just confirms a response was received; the Finding is created if the step matches.
+- **Rationale**: JSON patterns (`"id"`, `"role"`) fail on HTML targets. Generic criteria work universally.
 
 ### Dependency Injection
 - **Description**: Dependencies passed explicitly to constructors throughout the stack
@@ -111,9 +193,12 @@
 
 ```
 Python Orchestrator (Custom Logic — programmatic flow control)
-├── Anthropic API via Strands (reasoning — compilation and repair only)
+├── Anthropic API via native SDK (reasoning — compilation and repair only)
+│   ├── SimpleAgent: client.messages.parse(output_format=Model) — Attack Critic
+│   └── ProgrammaticAgent: beta.messages.create(code_execution + mitmdump) — Recon Agent
 ├── Neo4j via GraphRepository (knowledge — action graphs, fingerprints, findings)
-├── mitmdump via subprocess (execution — deterministic CAMRO operations)
+├── mitmdump (execution — capture analysis, traffic replay, CAMRO operations)
+├── Skill Guides (skills/*.md — methodology docs loaded into Recon Agent system prompt)
 └── Pydantic (contract enforcement — every boundary)
 ```
 

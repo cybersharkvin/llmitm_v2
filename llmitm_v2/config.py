@@ -20,14 +20,15 @@ class Settings(BaseSettings):
 
     # Anthropic API
     anthropic_api_key: str
-    model_id: str = "claude-haiku-4-5-20251001"
+    model_id: str = "claude-sonnet-4-5-20250929"
 
     # Target application
     target_url: str = "http://localhost:3000"
 
     # Compilation and repair
-    max_critic_iterations: int = 5
+    max_critic_iterations: int = 3
     similarity_threshold: float = 0.85
+    max_token_budget: int = 50_000
 
     # Embedding model
     embedding_model: str = "all-MiniLM-L6-v2"
@@ -36,6 +37,13 @@ class Settings(BaseSettings):
     # mitmproxy
     mitm_port: int = 8080
     mitm_cert_path: str = "~/.mitmproxy/mitmproxy-ca-cert.pem"
+
+    # Capture/Recon settings
+    capture_mode: str = "file"  # "live" or "file"
+    traffic_file: str = "demo/juice_shop.mitm"
+
+    # Target profile
+    target_profile: str = "juice_shop"
 
     # Logging
     log_level: str = "INFO"

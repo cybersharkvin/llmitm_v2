@@ -24,8 +24,8 @@ def classify_failure(error_log: str, status_code: int = 0) -> FailureType:
     if any(word in error_lower for word in ["timeout", "timed out", "connection reset"]):
         return FailureType.TRANSIENT_RECOVERABLE
 
-    # Transient unrecoverable: restart full ActionGraph (session/endpoint lost)
-    if status_code in (401, 403, 404):
+    # Transient unrecoverable: restart full ActionGraph (session/auth lost)
+    if status_code in (401, 403):
         return FailureType.TRANSIENT_UNRECOVERABLE
     if any(word in error_lower for word in ["session expired", "unauthorized", "forbidden"]):
         return FailureType.TRANSIENT_UNRECOVERABLE

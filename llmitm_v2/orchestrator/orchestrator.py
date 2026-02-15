@@ -1,42 +1,71 @@
-"""Main orchestration loop: cold start, warm start, and self-repair."""
+"""Main orchestration loop: cold start, warm start, and self-repair.
+
+Uses 2-agent architecture:
+- Recon Agent (ProgrammaticAgent): explores target via code_execution + recon tools
+- Attack Critic (SimpleAgent): adversarially refines the attack plan
+"""
 
 import logging
 import re
 from typing import Optional
 
-try:
-    from strands.types.exceptions import MaxTokensReachedException, StructuredOutputException
-except ImportError:
-    StructuredOutputException = Exception  # type: ignore
-    MaxTokensReachedException = Exception  # type: ignore
-
 from llmitm_v2.config import Settings
-from llmitm_v2.constants import FailureType
+from llmitm_v2.constants import FailureType, StepPhase
+from llmitm_v2.debug_logger import log_event
 from llmitm_v2.handlers.registry import get_handler
 from llmitm_v2.models import (
     ActionGraph,
-    CriticFeedback,
     ExecutionContext,
     ExecutionResult,
     Finding,
     Fingerprint,
     OrchestratorResult,
-    RepairDiagnosis,
     Step,
     StepResult,
 )
-from llmitm_v2.orchestrator.agents import create_actor_agent, create_critic_agent
+from llmitm_v2.models.recon import AttackPlan
+from llmitm_v2.orchestrator.agents import create_attack_critic, create_recon_agent
 from llmitm_v2.orchestrator.context import (
-    assemble_compilation_context,
+    assemble_recon_context,
     assemble_repair_context,
 )
 from llmitm_v2.orchestrator.failure_classifier import classify_failure
 from llmitm_v2.repository import GraphRepository
+from llmitm_v2.target_profiles import TargetProfile, get_active_profile
+from llmitm_v2.tools.exploit_tools import EXPLOIT_STEP_GENERATORS
 
 logger = logging.getLogger(__name__)
 
 # Regex for {{previous_outputs[N]}} interpolation
 _INTERPOLATION_RE = re.compile(r"\{\{previous_outputs\[(-?\d+)\]\}\}")
+
+
+def attack_plan_to_action_graph(plan: AttackPlan, profile: TargetProfile) -> ActionGraph:
+    """Convert a refined AttackPlan into an executable ActionGraph.
+
+    Each opportunity's recommended_exploit maps to a step generator.
+    Steps are concatenated in priority order with sequential numbering.
+    This is deterministic — no LLM involved.
+    """
+    all_steps: list[Step] = []
+    order = 1
+    for opp in plan.attack_plan:  # Try each until one is compatible
+        generator = EXPLOIT_STEP_GENERATORS[opp.recommended_exploit]
+        try:
+            steps = generator(opp.exploit_target, opp.observation, profile)
+        except ValueError:
+            logger.warning("Skipping %s: incompatible with %s auth", opp.recommended_exploit, profile.auth_mechanism)
+            continue
+        for step in steps:
+            step.order = order
+            all_steps.append(step)
+            order += 1
+        break  # Hard cap: 1 exploit per graph
+    return ActionGraph(
+        vulnerability_type=plan.attack_plan[0].opportunity if plan.attack_plan else "unknown",
+        description=f"Auto-generated from AttackPlan with {len(plan.attack_plan)} opportunities",
+        steps=all_steps,
+    )
 
 
 class Orchestrator:
@@ -45,23 +74,38 @@ class Orchestrator:
     def __init__(self, graph_repo: GraphRepository, settings: Settings):
         self.graph_repo = graph_repo
         self.settings = settings
+        self.target_profile = get_active_profile(settings.target_profile)
 
-    def run(self, fingerprint: Fingerprint, traffic_log: str) -> OrchestratorResult:
-        """Main entry point. Decides cold vs warm start, executes, handles repair."""
+    def run(
+        self,
+        fingerprint: Fingerprint,
+        mitm_file: str = "",
+        proxy_url: str = "",
+    ) -> OrchestratorResult:
+        """Main entry point. Decides cold vs warm start, executes, handles repair.
+
+        Args:
+            fingerprint: Target fingerprint for Neo4j lookup
+            mitm_file: Path to .mitm capture file (file mode)
+            proxy_url: Live proxy URL (live mode)
+        """
         fingerprint.ensure_hash()
         self.graph_repo.save_fingerprint(fingerprint)
+        self._mitm_file = mitm_file
+        self._proxy_url = proxy_url
 
         ag = self._try_warm_start(fingerprint)
         compiled = False
         if ag is None:
-            ag = self._compile(fingerprint, traffic_log)
+            ag = self._compile(fingerprint, mitm_file=mitm_file, proxy_url=proxy_url)
             compiled = True
 
         result = self._execute(ag, fingerprint)
         self.graph_repo.increment_execution_count(ag.id, result.success)
 
+        path = "repair" if result.repaired else ("cold_start" if compiled else "warm_start")
         return OrchestratorResult(
-            path="cold_start" if compiled else "warm_start",
+            path=path,
             action_graph_id=ag.id,
             execution=result,
             compiled=compiled,
@@ -75,35 +119,70 @@ class Orchestrator:
             return None
         return ActionGraph(**data)
 
-    def _compile(self, fingerprint: Fingerprint, traffic_log: str) -> ActionGraph:
-        """Actor/Critic loop -> validated ActionGraph -> save to Neo4j."""
-        context = assemble_compilation_context(fingerprint, traffic_log)
-        actor = create_actor_agent(self.graph_repo, model_id=self.settings.model_id, api_key=self.settings.anthropic_api_key)
-        critic = create_critic_agent(model_id=self.settings.model_id, api_key=self.settings.anthropic_api_key)
+    def _compile(
+        self,
+        fingerprint: Fingerprint,
+        mitm_file: str = "",
+        proxy_url: str = "",
+        repair_context: str = "",
+    ) -> ActionGraph:
+        """Recon Agent -> Attack Critic -> AttackPlan -> ActionGraph -> save to Neo4j.
+
+        The Recon Agent produces an AttackPlan (structured output).
+        The Attack Critic refines it (same schema).
+        attack_plan_to_action_graph() converts deterministically to ActionGraph.
+
+        Args:
+            repair_context: If non-empty, prepended to recon context with failure details.
+        """
+        if mitm_file:
+            mitm_context = f"Pre-recorded capture file: {mitm_file}"
+        elif proxy_url:
+            mitm_context = f"Live proxy: {proxy_url}"
+        else:
+            mitm_context = "No target context available."
+
+        recon = create_recon_agent(
+            mitm_context=mitm_context,
+            model_id=self.settings.model_id,
+            api_key=self.settings.anthropic_api_key,
+        )
+        critic = create_attack_critic(
+            model_id=self.settings.model_id,
+            api_key=self.settings.anthropic_api_key,
+        )
+
+        context = assemble_recon_context(mitm_file=mitm_file, proxy_url=proxy_url)
+        if repair_context:
+            context = repair_context + context
 
         for i in range(self.settings.max_critic_iterations):
+            log_event("compile_iter", {"iteration": i})
             try:
-                actor_result = actor(context, structured_output_model=ActionGraph)
-                ag = actor_result.structured_output
-            except (StructuredOutputException, MaxTokensReachedException) as e:
-                logger.warning("Actor failed on iteration %d: %s", i, type(e).__name__)
+                recon_result = recon(context, structured_output_model=AttackPlan)
+                plan = recon_result.structured_output
+            except Exception as e:
+                logger.warning("Recon agent failed on iteration %d: %s: %s", i, type(e).__name__, e)
                 continue
 
             try:
                 critic_result = critic(
-                    ag.model_dump_json(), structured_output_model=CriticFeedback
+                    plan.model_dump_json(), structured_output_model=AttackPlan
                 )
-                feedback = critic_result.structured_output
-            except (StructuredOutputException, MaxTokensReachedException) as e:
-                logger.warning("Critic failed on iteration %d: %s", i, type(e).__name__)
+                refined_plan = critic_result.structured_output
+            except Exception as e:
+                logger.warning("Attack critic failed on iteration %d: %s: %s", i, type(e).__name__, e)
                 continue
 
-            if feedback.passed:
-                ag.ensure_id()
-                self.graph_repo.save_action_graph(fingerprint.hash, ag)
-                return ag
+            log_event("critic_result", {
+                "opportunities": len(refined_plan.attack_plan),
+                "exploits": [o.recommended_exploit for o in refined_plan.attack_plan],
+            })
 
-            context += f"\n\nCritic feedback: {feedback.feedback}"
+            ag = attack_plan_to_action_graph(refined_plan, self.target_profile)
+            ag.ensure_id()
+            self.graph_repo.save_action_graph(fingerprint.hash, ag)
+            return ag
 
         raise RuntimeError(
             f"Compilation failed after {self.settings.max_critic_iterations} iterations"
@@ -129,10 +208,10 @@ class Orchestrator:
             handler = get_handler(interpolated.type)
             result = handler.execute(interpolated, ctx)
             steps_executed += 1
-            ctx.previous_outputs.append(result.stdout)
+            log_event("step_result", {"order": step.order, "type": step.type if isinstance(step.type, str) else step.type.value, "matched": result.success_criteria_matched})
 
             # Check for finding
-            if result.success_criteria_matched and step.success_criteria:
+            if result.success_criteria_matched and step.success_criteria and step.phase == StepPhase.OBSERVE:
                 finding = Finding(
                     observation=f"Success criteria matched at step {step.order}",
                     severity="medium",
@@ -148,6 +227,13 @@ class Orchestrator:
                 step.success_criteria and not result.success_criteria_matched
             )
             if step_failed:
+                if repaired:
+                    # Already repaired once this run — abort to avoid runaway repairs
+                    return ExecutionResult(
+                        success=False, findings=findings,
+                        steps_executed=steps_executed,
+                        error_log=result.stderr or result.stdout, repaired=repaired,
+                    )
                 action = self._handle_step_failure(
                     step, result, ctx, action_graph, retried=False
                 )
@@ -164,7 +250,13 @@ class Orchestrator:
                     new_ag = action[1]
                     sorted_steps = sorted(new_ag.steps, key=lambda s: s.order)
                     action_graph = new_ag
-                    continue  # Re-run from current index (repaired step)
+                    ctx = ExecutionContext(
+                        target_url=self.settings.target_url, fingerprint=fingerprint
+                    )
+                    i = 0
+                    continue  # Restart from step 0 with new graph
+            else:
+                ctx.previous_outputs.append(result.stdout)
 
             i += 1
 
@@ -183,15 +275,14 @@ class Orchestrator:
         """Classify failure -> 'retry' / 'abort' / ('repaired', new_ag). Returns action taken."""
         error_log = result.stderr or result.stdout
         failure_type = classify_failure(error_log, result.status_code or 0)
+        log_event("failure", {"step": step.order, "type": failure_type.value})
 
         if failure_type == FailureType.TRANSIENT_RECOVERABLE and not retried:
-            # Retry once
             handler = get_handler(step.type)
             retry_result = handler.execute(step, context)
             if not retry_result.stderr:
                 context.previous_outputs.append(retry_result.stdout)
                 return "retry"
-            # Escalate to systemic on retry failure
             failure_type = FailureType.SYSTEMIC
 
         if failure_type == FailureType.TRANSIENT_UNRECOVERABLE:
@@ -204,7 +295,7 @@ class Orchestrator:
                     step,
                     error_log,
                     context.previous_outputs,
-                    context.fingerprint.hash,
+                    context.fingerprint,
                 )
                 return ("repaired", new_ag)
             except Exception:
@@ -223,7 +314,7 @@ class Orchestrator:
             except IndexError:
                 return match.group(0)
 
-        def interpolate_value(value: any) -> any:
+        def interpolate_value(value: object) -> object:
             if isinstance(value, str) and "{{previous_outputs[" in value:
                 return _INTERPOLATION_RE.sub(replacer, value)
             elif isinstance(value, dict):
@@ -242,35 +333,11 @@ class Orchestrator:
         failed_step: Step,
         error_log: str,
         execution_history: list[str],
-        fingerprint_hash: Optional[str],
+        fingerprint: Fingerprint,
     ) -> ActionGraph:
-        """LLM diagnoses systemic failure, repairs step chain in Neo4j."""
-        context = assemble_repair_context(failed_step, error_log, execution_history)
-        repair_agent = create_critic_agent(model_id=self.settings.model_id, api_key=self.settings.anthropic_api_key)
-
-        try:
-            repair_result = repair_agent(
-                context, structured_output_model=RepairDiagnosis
-            )
-            diagnosis = repair_result.structured_output
-        except StructuredOutputException:
-            raise RuntimeError("Repair diagnosis failed: structured output error")
-
-        if diagnosis.suggested_fix:
-            new_step = Step(
-                order=failed_step.order,
-                phase=failed_step.phase,
-                type=failed_step.type,
-                command=diagnosis.suggested_fix,
-                parameters=failed_step.parameters,
-                success_criteria=failed_step.success_criteria,
-            )
-            self.graph_repo.repair_step_chain(
-                action_graph.id, failed_step.order, [new_step]
-            )
-
-        # Re-fetch updated graph using fingerprint hash
-        if fingerprint_hash:
-            data = self.graph_repo.get_action_graph_with_steps(fingerprint_hash)
-            return ActionGraph(**data) if data else action_graph
-        return action_graph
+        """Recompile via Recon+Critic with enriched context describing the failure."""
+        enrichment = assemble_repair_context(failed_step, error_log, execution_history)
+        return self._compile(
+            fingerprint, mitm_file=self._mitm_file, proxy_url=self._proxy_url,
+            repair_context=enrichment,
+        )

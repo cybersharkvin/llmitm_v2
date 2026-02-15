@@ -36,14 +36,67 @@ services:
       timeout: 3s
       retries: 5
 
+  nodegoat:
+    image: owasp-nodegoat:local
+    container_name: llmitm_nodegoat
+    command: node server.js
+    ports:
+      - "4000:4000"
+    depends_on:
+      - mongo
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/nodegoat
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4000"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mongo:
+    image: mongo:4.4
+    container_name: llmitm_mongo
+    volumes:
+      - mongo_data:/data/db
+
+  dvwa:
+    image: vulnerables/web-dvwa:latest
+    container_name: llmitm_dvwa
+    ports:
+      - "8081:80"
+    depends_on:
+      - mysql
+    environment:
+      RECAPTCHA_PRIV_KEY: ""
+      RECAPTCHA_PUB_KEY: ""
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mysql:
+    image: mysql:5.7
+    container_name: llmitm_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: dvwa
+      MYSQL_DATABASE: dvwa
+      MYSQL_USER: dvwa
+      MYSQL_PASSWORD: dvwa
+    volumes:
+      - mysql_data:/var/lib/mysql
+
   mitmproxy:
     image: mitmproxy/mitmproxy:latest
     container_name: llmitm_mitmproxy
     ports:
       - "8080:8080"  # HTTP proxy
-    command: mitmdump --mode regular -q --flow-detail 3
+    command: mitmdump --mode reverse:http://juiceshop:3000 -p 8080 --set anticache -q -s /capture/addon.py
     volumes:
       - mitm_data:/home/mitmproxy/.mitmproxy
+      - ./llmitm_v2/capture:/capture
+    depends_on:
+      juiceshop:
+        condition: service_healthy
 
 volumes:
   neo4j_data:
@@ -51,4 +104,8 @@ volumes:
   neo4j_logs:
     driver: local
   mitm_data:
+    driver: local
+  mongo_data:
+    driver: local
+  mysql_data:
     driver: local

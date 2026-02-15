@@ -66,11 +66,26 @@ backups/
 !backups/.gitkeep
 snapshots/latest.cypher
 
-# Hackathon event docs (not part of project)
+# Hackathon event docs (or stuff not part of project)
 hackathon_event_details.md
+Mitmproxy_for_Penetration_Testing_A_Professional_Guide.md
+mitmdump-cheatsheet.md
+.claude/docs/mitmproxy/jina_reader_openapi.json
+.claude/docs/anthropic/analyze_urls.py
+.claude/docs/anthropic/anthropic_docs_ingester.py
+.claude/docs/anthropic/llms-full.txt
+.claude/docs/anthropic/llms.txt
+.claude/docs/archive/
+.claude/docs/fetch_api_docs.py
+.claude/docs/anthropic/analyze_urls.py
+.claude/docs/anthropic/anthropic_docs_ingester.py
+.claude/docs/anthropic/__pycache__
 
 # Runtime output (handler temp files)
 llmitm_v2/tmp/
+
+# Debug logs (per-run agent pipeline traces)
+debug_logs/
 
 # Build artifacts
 *.tar.gz

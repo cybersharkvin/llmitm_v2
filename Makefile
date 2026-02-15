@@ -1,4 +1,4 @@
-.PHONY: up down schema reset snapshot restore snapshot-baseline restore-baseline test run break-graph fix-graph seed
+.PHONY: up down schema reset snapshot restore snapshot-baseline restore-baseline test run run-live break-graph fix-graph seed run-nodegoat run-dvwa break-graph-nodegoat break-graph-dvwa
 
 NAME ?= latest
 PYTHON ?= .venv/bin/python3
@@ -45,6 +45,9 @@ test:
 run:
 	$(PYTHON) -m llmitm_v2
 
+run-live:
+	CAPTURE_MODE=live $(PYTHON) -m llmitm_v2
+
 break-graph:
 	./scripts/break-graph.sh
 
@@ -53,3 +56,15 @@ fix-graph:
 
 seed:
 	$(PYTHON) scripts/seed-demo-graph.py
+
+run-nodegoat:
+	TARGET_PROFILE=nodegoat TRAFFIC_FILE=demo/nodegoat.mitm $(PYTHON) -m llmitm_v2
+
+run-dvwa:
+	TARGET_PROFILE=dvwa TRAFFIC_FILE=demo/dvwa.mitm $(PYTHON) -m llmitm_v2
+
+break-graph-nodegoat:
+	TARGET_PROFILE=nodegoat ./scripts/break-graph.sh
+
+break-graph-dvwa:
+	TARGET_PROFILE=dvwa ./scripts/break-graph.sh

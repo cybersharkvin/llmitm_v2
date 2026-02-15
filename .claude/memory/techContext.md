@@ -3,7 +3,7 @@
 ## Tech Stack
 
 **Language**: Python 3.12+
-**LLM SDK**: Strands Agents SDK (latest)
+**LLM SDK**: Anthropic Python SDK (v0.79.0+) — native structured output via grammar-constrained decoding
 **Schema Validation**: Pydantic v2
 **Graph Database**: Neo4j 5.x
 **Query Language**: Cypher
@@ -17,8 +17,7 @@
 ## Dependencies
 
 ### Core Framework
-- **strands-agents** (latest): LLM orchestration. Used as **library**, not framework. `Agent` is called by our code for single-shot LLM tasks
-- **strands-agents-tools** (latest): Built-in tool collection, selectively imported where needed
+- **anthropic** (v0.79.0+): Native Anthropic SDK. `client.messages.parse(output_format=Model)` for structured output (grammar-constrained decoding, 1 API call). `client.beta.messages.tool_runner(tools, output_format=Model)` for tool-using agents. `@beta_tool` decorator for tool definitions.
 
 ### Data Validation
 - **pydantic** (v2): All DTOs, LLM structured output, graph serialization. Serves triple duty: validation, type safety, contracts
@@ -44,7 +43,7 @@
 
 ### Installation
 ```bash
-pip install strands-agents pydantic neo4j mitmproxy httpx pytest ruff
+pip install anthropic pydantic neo4j mitmproxy httpx pytest ruff
 ```
 
 ### Development Server
@@ -67,11 +66,13 @@ docker run --env-file .env llmitm:latest
 - **Connection pool sizing**: Affects concurrent performance, default pool size = 100
 - **Cypher query complexity**: Deep traversals (>5 hops) can be slow, require optimization
 
-### Strands SDK
-- **Pydantic v2 required**: Structured output validation relies on Pydantic v2 features
-- **Tool serialization**: Tool functions must be serializable (no closures with external state)
-- **NullConversationManager**: No memory between calls unless explicitly managed via context assembly
-- **Tool call dependencies**: Sequential tool execution required to preserve dependency chains
+### Anthropic SDK
+- **Pydantic v2 required**: `output_format=` param validates against Pydantic v2 models
+- **`@beta_tool` on closures**: Works on standalone functions; class methods need closure wrappers (see `create_recon_tools()`, `create_graph_tools()`)
+- **`tool_runner` is beta**: API may change; fallback is manual 20-line while loop
+- **Grammar compilation latency**: First call per schema has extra latency (~1-2s), cached 24h server-side
+- **No conversation memory**: Each `messages.parse()` / `tool_runner()` call is stateless; context managed via assembly functions
+- **`max_iterations` on ProgrammaticAgent**: Caps tool call loop. Set to 8 for recon agent to prevent context bloat
 
 ### mitmproxy
 - **Certificate trust**: Target must trust mitm certificate for HTTPS interception
@@ -129,20 +130,28 @@ Content-Type: application/json
 - `NEO4J_USERNAME`: Neo4j username (default: `neo4j`)
 - `NEO4J_PASSWORD`: Neo4j password
 - `NEO4J_DATABASE`: Database name (default: `neo4j`)
-- `ANTHROPIC_API_KEY`: API key for Claude via Strands SDK
+- `ANTHROPIC_API_KEY`: API key for Claude via Anthropic SDK
 - `TARGET_URL`: Base URL of target application (e.g., `http://localhost:3000`)
 
 **Optional**:
-- `MAX_CRITIC_ITERATIONS`: Maximum actor/critic loops (default: 5)
+- `MAX_CRITIC_ITERATIONS`: Maximum actor/critic loops (default: 3)
+- `MAX_TOKEN_BUDGET`: Cumulative token limit across all API calls in one run (default: 150000). Raises RuntimeError if exceeded
 - `DEFAULT_SIMILARITY_THRESHOLD`: Fingerprint similarity cutoff (default: 0.85)
 - `MITM_PORT`: mitmproxy listen port (default: 8080)
 - `MITM_CERT_PATH`: Path to mitm certificate (default: `~/.mitmproxy/mitmproxy-ca-cert.pem`)
 - `LOG_LEVEL`: Python logging level (default: `INFO`)
+- `TARGET_PROFILE`: Target profile name (`juice_shop`, `nodegoat`, `dvwa`). Default: `juice_shop`
+- `CAPTURE_MODE`: `file` (static traffic file) or `live` (LLM-driven recon through mitmproxy). Default: `file`
+- `TRAFFIC_FILE`: Path to .mitm capture file (default: `demo/juice_shop.mitm`). Only used when `CAPTURE_MODE=file`
 
 ### docker-compose.yml
 - **neo4j service**: Neo4j 5.x with APOC and vector plugins enabled, APOC file I/O enabled, `./snapshots` bind-mounted to `/var/lib/neo4j/import/snapshots`
-- **target service**: OWASP Juice Shop on port 3000
-- **orchestrator service**: Python orchestrator with shared network access
+- **juiceshop service**: OWASP Juice Shop on port 3000
+- **nodegoat service**: OWASP NodeGoat on port 4000 (built from source as `owasp-nodegoat:local`, requires `command: node server.js` and `docker exec llmitm_nodegoat node artifacts/db-reset.js` on first run)
+- **dvwa service**: DVWA on port 8081 (requires DB setup via `/setup.php` on first run)
+- **mongo service**: MongoDB 4.4 for NodeGoat
+- **mysql service**: MySQL 5.7 for DVWA
+- **mitmproxy service**: Reverse proxy to Juice Shop on port 8080
 
 ### Makefile
 - `make up/down` — Docker Compose lifecycle with healthcheck
@@ -157,21 +166,19 @@ Content-Type: application/json
 - **Ruff config**: Line length 100, Python 3.12 target
 - **Pytest config**: Test discovery patterns, coverage settings
 
-## Strands SDK Usage
+## Anthropic SDK Usage
 
 | Feature | Used? | Rationale |
 |---------|-------|-----------|
-| `Agent` class | **Yes** | Single-shot LLM calls with tools and structured output |
-| `@tool` decorator | **Yes** | Graph-oriented reasoning tools exposed to LLM |
-| `structured_output_model` | **Yes** | Pydantic schema enforcement on every LLM response |
-| `SequentialToolExecutor` | **Yes** | Preserves dependency chain in tool calls |
-| `BeforeToolCallEvent` hook | **Yes** | Human-in-the-loop approval for destructive actions |
-| `NullConversationManager` | **Yes** | Disables conversational history; each call is fresh |
-| `SlidingWindowConversationManager` | **No** | Context managed explicitly via assembly functions |
-| `SessionManager` / `FileSessionManager` | **No** | Neo4j is single source of truth for all state |
-| `AgentState` | **No** | State lives in graph, not SDK |
-| `Swarm` / `Graph` multi-agent | **No** | Single orchestrator architecture |
-| `ConcurrentToolExecutor` | **No** | Would break tool call dependency chains |
+| `client.messages.parse()` | **Yes** | Single-shot structured output via grammar-constrained decoding. Used by SimpleAgent for Attack Critic |
+| `client.beta.messages.create()` | **Yes** | Programmatic tool calling with code_execution sandbox + custom tools. Used by ProgrammaticAgent for Recon Agent |
+| `code_execution_20250825` tool | **Yes** | Agent writes Python in sandbox, calls `await mitmdump(...)`. Intermediate results stay in sandbox |
+| `allowed_callers` on custom tools | **Yes** | mitmdump tool callable only from code_execution sandbox, not directly by Claude |
+| Beta headers | **Yes** | `code-execution-2025-08-25` + `advanced-tool-use-2025-11-20` required for ProgrammaticAgent |
+| `output_format=PydanticModel` | **Yes** | Grammar-constrained decoding ensures valid JSON matching Pydantic schema |
+| `response.parsed_output` | **Yes** | Pre-validated Pydantic instance from structured output response |
+| `response.usage` | **Yes** | Logged after every API call. Cumulative counter enforces 50K token budget |
+| `@beta_tool` decorator | **Partial** | Still used in `graph_tools.py` for embedding-based queries. Not used by main agent pipeline |
 
 ## Neo4j Capabilities Used
 
@@ -292,23 +299,23 @@ class StepResult(BaseModel):
 
 ## Performance Characteristics
 
-### Cold Start (Novel Fingerprint)
-- **Cost**: Expensive — full actor/critic compilation (multiple LLM calls)
-- **Time**: 30-60 seconds typical (3-5 iterations before Critic approval)
+### Cold Start (Novel Fingerprint) — VERIFIED
+- **Cost**: 7 API calls, ~37K tokens (Sonnet 4.5)
+- **Time**: ~80 seconds (recon agent + critic + 5-step execution)
 - **Frequency**: One-time cost per unique target fingerprint
-- **Optimization**: Cache compilation context assembly results
+- **Optimization**: 1 exploit per graph, max_iterations=8, no skill guides
 
-### Warm Start (Matched Fingerprint)
-- **Cost**: Free — zero LLM calls, pure graph traversal + execution
-- **Time**: 5-10 seconds for full CAMRO execution
-- **Bottleneck**: mitmdump subprocess execution and HTTP request latency
+### Warm Start (Matched Fingerprint) — VERIFIED
+- **Cost**: Zero — 0 API calls, 0 tokens
+- **Time**: ~2 seconds (fingerprint hash lookup + 5-step HTTP execution)
+- **Bottleneck**: HTTP request latency to target
 - **Optimization**: Near-instant fingerprint lookup via hash index
 
-### Self-Repair
-- **Deterministic classification**: <1ms for obvious failures (timeouts, 404, 503)
-- **LLM fallback**: Expensive but rare (ambiguous failures only)
-- **Storage**: Repair permanently stored via `[:REPAIRED_TO]` edges for future reuse
-- **Optimization**: Expand deterministic classification rules over time to reduce LLM dependency
+### Self-Repair — VERIFIED
+- **Cost**: 9 API calls, ~56K tokens (recon agent recompiles)
+- **Time**: ~90 seconds (3 failed steps + recompile + 5 clean steps)
+- **Guard**: Max 1 repair per execution run (prevents runaway recompilation)
+- **Storage**: New ActionGraph stored with newer created_at; ORDER BY DESC selects it on next warm start
 
 ---
 

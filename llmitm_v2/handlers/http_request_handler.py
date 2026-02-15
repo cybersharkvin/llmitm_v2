@@ -1,5 +1,6 @@
 """HTTP request handler using httpx."""
 
+import json
 import re
 from pathlib import Path
 
@@ -14,7 +15,7 @@ class HTTPRequestHandler(StepHandler):
     """Executes HTTP requests via httpx sync client."""
 
     def execute(self, step: Step, context: ExecutionContext) -> StepResult:
-        url = step.parameters.get("url", step.command)
+        url = step.parameters.get("url", step.parameters.get("path", step.command))
         if not url.startswith("http"):
             url = context.target_url.rstrip("/") + "/" + url.lstrip("/")
 
@@ -23,12 +24,33 @@ class HTTPRequestHandler(StepHandler):
         body = step.parameters.get("body")
         timeout = step.parameters.get("timeout", 30)
 
+        skip_cookies = step.parameters.get("skip_cookies", False)
+        cookies = {} if skip_cookies else context.cookies
+
         try:
-            with httpx.Client(cookies=context.cookies, timeout=timeout) as client:
-                response = client.request(method, url, headers=headers, content=body)
+            with httpx.Client(cookies=cookies, timeout=timeout, follow_redirects=True) as client:
+                kwargs = {"headers": headers}
+                if isinstance(body, dict):
+                    if step.parameters.get("json"):
+                        kwargs["json"] = body
+                    else:
+                        kwargs["data"] = body
+                elif body is not None:
+                    kwargs["content"] = body
+                response = client.request(method, url, **kwargs)
                 # Extract Set-Cookie values back into context for orchestrator
                 for name, value in response.cookies.items():
                     context.cookies[name] = value
+                # Extract auth token from response body if step requests it
+                token_path = step.parameters.get("extract_token_path")
+                if token_path:
+                    try:
+                        data = response.json()
+                        for key in token_path.split("."):
+                            data = data[key]
+                        context.session_tokens["Authorization"] = f"Bearer {data}"
+                    except Exception:
+                        pass
                 if step.output_file:
                     tmp_dir = Path(__file__).resolve().parent.parent / "tmp"
                     tmp_dir.mkdir(exist_ok=True)
@@ -36,8 +58,12 @@ class HTTPRequestHandler(StepHandler):
                 matched = bool(
                     step.success_criteria and re.search(step.success_criteria, response.text)
                 )
+                stderr = ""
+                if response.status_code >= 400:
+                    stderr = f"HTTP {response.status_code}"
                 return StepResult(
                     stdout=response.text,
+                    stderr=stderr,
                     status_code=response.status_code,
                     success_criteria_matched=matched,
                 )

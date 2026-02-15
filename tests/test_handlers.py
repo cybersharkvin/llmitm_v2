@@ -134,6 +134,27 @@ def test_get_handler_unknown_raises():
         get_handler(StepType.JSON_EXTRACT)
 
 
+# --- HTTP error detection ---
+
+@pytest.mark.integration
+def test_http_4xx_sets_stderr(fingerprint):
+    ctx = ExecutionContext(target_url="http://localhost:4000", fingerprint=fingerprint)
+    step = Step(order=1, phase=StepPhase.CAPTURE, type=StepType.HTTP_REQUEST, command="GET /nonexistent",
+                parameters={"method": "GET", "path": "/nonexistent-zzz"}, success_criteria=".")
+    try:
+        result = HTTPRequestHandler().execute(step, ctx)
+    except Exception:
+        pytest.skip("NodeGoat unavailable")
+    assert result.stderr and "404" in result.stderr
+
+
+def test_http_2xx_has_empty_stderr(step_factory, context):
+    step = Step(order=1, phase=StepPhase.CAPTURE, type=StepType.HTTP_REQUEST, command="GET /",
+                parameters={"method": "GET", "path": "/"}, success_criteria=".")
+    result = HTTPRequestHandler().execute(step, context)
+    assert result.stderr == "" and result.success_criteria_matched is True
+
+
 # --- Integration: HTTP (skip if no network) ---
 
 @pytest.mark.integration
