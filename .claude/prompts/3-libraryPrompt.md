@@ -6,6 +6,18 @@ Analyze all third-party library dependencies and document them in `.claude/analy
 
 **Definition**: "Third-party libraries" are external packages installed via package managers (npm, pip, cargo, etc.). This analysis covers what's installed, how it's used, and dependency health.
 
+You **MUST** start from @.claude/memory/tags.md as it gives you the architectural blueprints of the entire codebase up front:
+- Abstract Base Classes
+- Concrete Implementations
+- Factory Functions
+- All Classes
+- All Functions
+- All Methods
+
+You **SHOULD** grep this file to search for expected functionality--expected function names, api calls, and other relevant information--BEFORE opening files where that code may exists.
+
+You **SHOULD** use your task tool to track all of this.
+
 ---
 
 ## Phase 1: Reconnaissance
@@ -185,3 +197,15 @@ Before marking complete, verify:
 ## Output
 
 Save completed analysis to: `.claude/analysis/libraries.md`
+
+You **MUST** start from @.claude/memory/tags.md as it gives you the architectural blueprints of the entire codebase up front:
+- Abstract Base Classes
+- Concrete Implementations
+- Factory Functions
+- All Classes
+- All Functions
+- All Methods
+
+You **SHOULD** grep this file to search for expected functionality--expected function names, api calls, and other relevant information--BEFORE opening files where that code may exists.
+
+You **SHOULD** use your task tool to track all of this.

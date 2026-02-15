@@ -6,6 +6,18 @@ Analyze internal import relationships in this codebase and document them in `.cl
 
 **Definition**: "Internal dependencies" are import relationships between files within the project (not third-party packages). This reveals coupling, layering, and architectural health.
 
+You **MUST** start from @.claude/memory/tags.md as it gives you the architectural blueprints of the entire codebase up front:
+- Abstract Base Classes
+- Concrete Implementations
+- Factory Functions
+- All Classes
+- All Functions
+- All Methods
+
+You **SHOULD** grep this file to search for expected functionality--expected function names, api calls, and other relevant information--BEFORE opening files where that code may exists.
+
+You **SHOULD** use your task tool to track all of this.
+
 ---
 
 ## Phase 1: Reconnaissance
@@ -170,3 +182,15 @@ Before marking complete, verify:
 ## Output
 
 Save completed analysis to: `.claude/analysis/dependencies.md`
+
+You **MUST** start from @.claude/memory/tags.md as it gives you the architectural blueprints of the entire codebase up front:
+- Abstract Base Classes
+- Concrete Implementations
+- Factory Functions
+- All Classes
+- All Functions
+- All Methods
+
+You **SHOULD** grep this file to search for expected functionality--expected function names, api calls, and other relevant information--BEFORE opening files where that code may exists.
+
+You **SHOULD** use your task tool to track all of this.

@@ -8,6 +8,22 @@
 **LLM Role**: Stateless compiler for discrete tasks only
 **Runtime Model**: 95% deterministic graph traversal with zero LLM involvement
 
+## Dependency Architecture
+
+Dependencies form a **strict DAG** (zero circular dependencies). All imports flow top-to-bottom through 5 layers:
+
+```
+CLI (__main__) → Orchestrator (orchestrator.py + agents/context/classifier)
+  → Handlers | Repository | Tools | Capture
+    → Models (step, fingerprint, action_graph, context, finding, critic, recon)
+      → Foundation (config, constants, debug_logger, target_profiles)
+```
+
+- **38% of modules are leaves** (zero internal imports) — foundation is maximally stable
+- **orchestrator.py is the coupling hotspot** (12 efferent imports) — expected for the coordinator role
+- **No upward imports exist** — mid-tier layers never import from orchestrator or CLI
+- Full analysis: `.claude/analysis/dependencies.md`
+
 ## Design Philosophy
 
 | Principle | Description |
@@ -71,6 +87,26 @@
 - **Example**: `create_actor_agent()`, `create_critic_agent()`, `create_graph_repository()`
 - **Rationale**: Named with `create_` prefix for ctags architectural visibility, centralizes configuration
 
+### Process-Scoped Global State Pattern
+- **Description**: Module-level globals for ephemeral per-process state: `_total_tokens` / `_max_token_budget` in `agents.py`, `_calls` / `_events` / `_run_dir` in `debug_logger.py`. Deliberately NOT persisted — reset on every process start.
+- **When to Use**: Tracking cumulative metrics within a single run (token budget enforcement, debug log accumulation)
+- **Key Files**: `orchestrator/agents.py:23-48` (token budget), `debug_logger.py:96` (debug log state)
+- **Rationale**: Simpler than injecting counters through every call. Acceptable because the orchestrator is single-threaded and single-process.
+
+### Context Threading Pattern
+- **Description**: `ExecutionContext` accumulates mutable state (`previous_outputs`, `session_tokens`, `cookies`) across steps during graph execution. Each step handler reads context and may write to it (e.g., HTTPRequestHandler updates cookies from Set-Cookie, merges session_tokens into headers).
+- **When to Use**: Multi-step exploit chains where later steps depend on earlier outputs (e.g., extract JWT from login, use in IDOR request)
+- **Key Files**: `orchestrator.py:191-265` (`_execute` loop), `models/context.py:11` (ExecutionContext), all handlers (consumers)
+- **Write Points**: HTTPRequestHandler writes `session_tokens` and `cookies`; `_execute` loop writes `previous_outputs`
+- **Caveat**: `previous_outputs` grows unbounded — large HTTP responses accumulate in memory. Cap or truncation not yet implemented.
+- **Rationale**: Enables CAMRO step chains without explicit parameter wiring between steps. Context is the implicit data bus.
+
+### Dual Dict-Dispatch Pattern
+- **Description**: Two separate dict-dispatch registries: `EXPLOIT_STEP_GENERATORS` (exploit tool name → step generator function) and `TOOL_HANDLERS` (recon tool name → handler function). Distinct from the Handler Registry which dispatches by `StepType`.
+- **When to Use**: `attack_plan_to_action_graph()` dispatches exploit generation; `ProgrammaticAgent` dispatches recon tool calls
+- **Key Files**: `tools/exploit_tools.py` (EXPLOIT_STEP_GENERATORS), `tools/recon_tools.py` (TOOL_HANDLERS)
+- **Rationale**: Three registries, three layers: recon tools (LLM analysis phase), exploit tools (compilation phase), step handlers (execution phase). Each serves a different stage of the pipeline.
+
 ### Singleton Pattern
 - **Description**: Neo4j `Driver` instance created once, injected everywhere
 - **When to Use**: Database connections
@@ -119,6 +155,13 @@
 - **Key Files**: `capture/launcher.py` (fingerprint_from_mitm)
 - **Rationale**: File mode must work fully offline. Previous approach used quick_fingerprint() which required live target.
 
+### Step Parameter Interpolation
+- **Description**: Step parameters support `{{previous_outputs[N]}}` tokens resolved at execution time. The orchestrator walks all string values in `step.parameters` (including nested dicts/lists) and replaces tokens with `context.previous_outputs[N]`.
+- **When to Use**: Any exploit step that references output from an earlier step (e.g., login response body, extracted token)
+- **Key Files**: `orchestrator.py:308-327` (`_interpolate_params`, `interpolate_value`, `replacer`)
+- **Syntax**: `{{previous_outputs[0]}}` = first step's stdout, `{{previous_outputs[-1]}}` = last step's stdout. Out-of-range indices are left as-is.
+- **Rationale**: Enables multi-step exploit chains where later steps depend on earlier outputs (e.g., extract JWT from login, use in IDOR request).
+
 ### OBSERVE-Only Findings
 - **Description**: Only OBSERVE-phase steps produce Findings. CAPTURE/ANALYZE/MUTATE/REPLAY steps that match success criteria are prerequisites, not vulnerability discoveries.
 - **When to Use**: In `_execute()` when checking `success_criteria_matched`
@@ -157,6 +200,15 @@
 - **Description**: Exploit step generators use `success_criteria="."` (matches any non-empty response) instead of JSON-specific patterns like `"id"`.
 - **When to Use**: All CAMRO steps in exploit tools. The OBSERVE step just confirms a response was received; the Finding is created if the step matches.
 - **Rationale**: JSON patterns (`"id"`, `"role"`) fail on HTML targets. Generic criteria work universally.
+
+### Debug Logging Pattern
+- **Description**: Opt-in JSON tracing via `DEBUG_LOGGING=true`. Creates timestamped `debug_logs/<timestamp>/` with per-API-call logs, orchestrator event logs, and run summary.
+- **Key Files**: `debug_logger.py` (`init_debug_logging`, `is_enabled`, `log_api_call`, `log_event`, `write_summary`)
+- **Caveat**: File writes have no try/except — disk-full or permission errors fail silently (logs missing but run continues).
+
+### Temp File Output Pattern
+- **Description**: Steps with `step.output_file` set write raw HTTP response bodies to `llmitm_v2/tmp/<name>` for downstream regex extraction. Always active (not debug-gated).
+- **Key Files**: `handlers/http_request_handler.py`
 
 ### Dependency Injection
 - **Description**: Dependencies passed explicitly to constructors throughout the stack

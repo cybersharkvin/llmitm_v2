@@ -2,22 +2,34 @@
 
 ## Objective
 
-Analyze the framework(s) used in this application and document configuration in `.claude/analysis/frameworks.md`.
+You **MUST** analyze the framework(s) used in this application and document configuration in `.claude/analysis/frameworks.md`.
 
 **Definition**: "Framework" means the primary application framework that structures the codebase (e.g., React, Django, Rails, Streamlit), plus supporting frameworks (e.g., ORMs, test frameworks). This analysis covers configuration, patterns, and conventions.
+
+You **MUST** start from @.claude/memory/tags.md as it gives you the architectural blueprints of the entire codebase up front:
+- Abstract Base Classes
+- Concrete Implementations
+- Factory Functions
+- All Classes
+- All Functions
+- All Methods
+
+You **SHOULD** grep this file to search for expected functionality--expected function names, api calls, and other relevant information--BEFORE opening files where that code may exists.
+
+You **SHOULD** use your task tool to track all of this.
 
 ---
 
 ## Phase 1: Reconnaissance
 
-Before documenting, identify the framework:
+You **SHOULD** identify the framework before documenting:
 
 1. **Check package files** - `package.json`, `requirements.txt`, `Cargo.toml`, `go.mod`
 2. **Check config files** - `next.config.js`, `settings.py`, `config.ru`, `docker-compose.yml`
-3. **Look at entry points** - main files often reveal the framework
+3. **Look at entry points** - main files often reveal the framework (start with @.claude/memory/tags.md)
 4. **Read available memory/context files** for stated architecture
 
-**Do not fill tables until you've identified all frameworks in use.**
+You **MUST NOT** fill tables until you've identified all frameworks in use.
 
 ---
 
@@ -25,7 +37,7 @@ Before documenting, identify the framework:
 
 ### Section 1: Framework Identity
 
-**Search for**: Package dependencies, framework-specific imports, config files.
+You **SHOULD** search for package dependencies, framework-specific imports, config files.
 
 **1.1 Primary Framework**
 | Column | What to capture |
@@ -46,7 +58,7 @@ List supporting frameworks:
 
 ### Section 2: Configuration
 
-**Search for**: Framework config files, settings modules, environment setup.
+You **SHOULD** search for framework config files, settings modules, environment setup.
 
 **2.1 Configuration Files**
 List all framework-specific config files.
@@ -64,7 +76,7 @@ For each config file, document every non-default setting:
 
 ### Section 3: Framework Patterns
 
-**Search for**: Architecture patterns, conventions, special features.
+You **SHOULD** search for architecture patterns, conventions, special features.
 
 **3.1 Architecture Pattern**
 - What pattern does the framework encourage? (MVC, Component, Layered, etc.)
@@ -101,7 +113,7 @@ Document enabled framework features:
 
 ### Section 4: Build System
 
-**Search for**: Build tools, compilers, bundlers, task runners.
+You **SHOULD** search for build tools, compilers, bundlers, task runners.
 
 **4.1 Build Tool**
 - What builds the project? (webpack, vite, setuptools, cargo)
@@ -131,7 +143,7 @@ Document enabled optimizations:
 
 ### Section 5: Environment Configuration
 
-**Search for**: Environment modes, environment-specific settings.
+You **SHOULD** search for environment modes, environment-specific settings.
 
 **5.1 Environment Modes**
 What environments are configured?
@@ -166,7 +178,7 @@ What changes between environments?
 
 ## Phase 3: Natural Language Guidelines
 
-When writing descriptions and summaries:
+When writing descriptions and summaries, you **SHOULD**:
 
 1. **Version matters** - Always include exact versions
 2. **Explain deviations** - Why does this project differ from framework conventions?
@@ -187,7 +199,6 @@ Before marking complete, verify:
 - [ ] Build tool and commands documented
 - [ ] Environment modes identified
 - [ ] Special features/plugins listed
-- [ ] Configuration health assessed
 - [ ] Recommendations provided
 - [ ] No placeholder text remains in the output file
 
@@ -195,4 +206,16 @@ Before marking complete, verify:
 
 ## Output
 
-Save completed analysis to: `.claude/analysis/frameworks.md`
+You **MUST** save completed analysis to: `.claude/analysis/frameworks.md`
+
+You **MUST** start from @.claude/memory/tags.md as it gives you the architectural blueprints of the entire codebase up front:
+- Abstract Base Classes
+- Concrete Implementations
+- Factory Functions
+- All Classes
+- All Functions
+- All Methods
+
+You **SHOULD** grep this file to search for expected functionality--expected function names, api calls, and other relevant information--BEFORE opening files where that code may exists.
+
+You **SHOULD** use your task tool to track all of this.

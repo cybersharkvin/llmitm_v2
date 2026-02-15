@@ -204,6 +204,20 @@ Fuzzy similarity edges between fingerprints (optional optimization for caching v
 
 ---
 
+## Write Triggers (When Nodes Are Created/Updated)
+
+| Node/Property | Trigger | Method | Location |
+|---------------|---------|--------|----------|
+| `:Fingerprint` (MERGE) | `orchestrator.run()` entry | `save_fingerprint()` | `graph_repository.py:27` |
+| `:ActionGraph` + `:Step` chain (CREATE) | After compilation completes | `save_action_graph()` | `graph_repository.py:116` |
+| `:Finding` + `[:PRODUCED_BY]` (CREATE) | OBSERVE step matches `success_criteria` | `save_finding()` | `graph_repository.py:265` |
+| `times_executed` / `times_succeeded` | After execution completes | `increment_execution_count()` | `graph_repository.py:423` |
+| `[:REPAIRED_TO]` + new `:Step` chain | After repair compilation | `repair_step_chain()` | `graph_repository.py:305` |
+
+**Note**: `save_action_graph()` and `save_finding()` use CREATE (not MERGE) — duplicate nodes possible on retry/crash. `save_fingerprint()` uses MERGE (idempotent by hash).
+
+---
+
 ## Neo4j Python Driver Patterns
 
 ### Connection Management
@@ -571,41 +585,21 @@ ORDER BY success_rate DESC, findings_count DESC
 
 ## GraphRepository Methods
 
-**See `strandsGuide.md` for Strands SDK integration patterns (tools, structured output, agent usage).**
-
 ### Core Query Methods
 
-The `GraphRepository` class provides semantic methods that encapsulate Cypher queries:
+The `GraphRepository` class (`llmitm_v2/repository/graph_repository.py`) provides semantic methods that encapsulate Cypher queries:
 
 ```python
 class GraphRepository:
-    def find_similar_fingerprints(
-        self,
-        embedding: list[float],
-        top_k: int
-    ) -> list[dict]:
-        """Vector similarity search for fingerprints."""
-        # Implementation shown in "Vector Search Patterns" section
-
-    def get_action_graph_by_fingerprint(
-        self,
-        fingerprint_hash: str
-    ) -> Optional[ActionGraph]:
-        """Exact hash lookup for ActionGraph."""
-
-    def get_repairs_by_fingerprint(
-        self,
-        fingerprint_hash: str,
-        max_results: int
-    ) -> list[dict]:
-        """Retrieve repair history for a fingerprint."""
-
-    def save_action_graph(
-        self,
-        fingerprint: Fingerprint,
-        action_graph: ActionGraph
-    ) -> None:
-        """Persist Pydantic model to Neo4j nodes/relationships."""
+    def save_fingerprint(self, fingerprint: Fingerprint) -> None
+    def get_fingerprint_by_hash(self, hash_value: str) -> Optional[dict]
+    def find_similar_fingerprints(self, embedding: List[float], top_k: int = 5) -> list[dict]
+    def save_action_graph(self, fingerprint_hash: str, action_graph: ActionGraph) -> None
+    def get_action_graph_with_steps(self, fingerprint_hash: str) -> Optional[tuple]
+    def save_finding(self, action_graph_id: str, finding: Finding) -> None
+    def repair_step_chain(self, action_graph_id: str, failed_step_order: int, new_steps: List[Step]) -> None
+    def increment_execution_count(self, action_graph_id: str, succeeded: bool) -> None
+    def get_repair_history(self, fingerprint_hash: str, max_results: int = 10) -> list[dict]
 ```
 
 ---

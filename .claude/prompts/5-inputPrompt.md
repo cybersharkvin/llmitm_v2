@@ -6,6 +6,18 @@ Analyze ALL inputs to this application and document them in `.claude/analysis/ma
 
 **Definition**: An "input" is any data that enters the system from outside its execution boundary - user actions, external services, files, configuration, URL state, or environment.
 
+You **MUST** start from @.claude/memory/tags.md as it gives you the architectural blueprints of the entire codebase up front:
+- Abstract Base Classes
+- Concrete Implementations
+- Factory Functions
+- All Classes
+- All Functions
+- All Methods
+
+You **SHOULD** grep this file to search for expected functionality--expected function names, api calls, and other relevant information--BEFORE opening files where that code may exists.
+
+You **SHOULD** use your task tool to track all of this.
+
 ---
 
 ## Phase 1: Reconnaissance
@@ -192,3 +204,15 @@ Before marking complete, verify:
 ## Output
 
 Save completed analysis to: `.claude/analysis/majorInputs.md`
+
+You **MUST** start from @.claude/memory/tags.md as it gives you the architectural blueprints of the entire codebase up front:
+- Abstract Base Classes
+- Concrete Implementations
+- Factory Functions
+- All Classes
+- All Functions
+- All Methods
+
+You **SHOULD** grep this file to search for expected functionality--expected function names, api calls, and other relevant information--BEFORE opening files where that code may exists.
+
+You **SHOULD** use your task tool to track all of this.

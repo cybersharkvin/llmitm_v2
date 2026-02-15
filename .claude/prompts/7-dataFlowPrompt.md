@@ -6,6 +6,18 @@ Analyze how data moves through this application and document it in `.claude/anal
 
 **Definition**: A "data flow" traces how data enters the system, transforms, moves between components, gets stored, and exits. This includes state management, component communication, and processing pipelines.
 
+You **MUST** start from @.claude/memory/tags.md as it gives you the architectural blueprints of the entire codebase up front:
+- Abstract Base Classes
+- Concrete Implementations
+- Factory Functions
+- All Classes
+- All Functions
+- All Methods
+
+You **SHOULD** grep this file to search for expected functionality--expected function names, api calls, and other relevant information--BEFORE opening files where that code may exists.
+
+You **SHOULD** use your task tool to track all of this.
+
 ---
 
 ## Phase 1: Reconnaissance
@@ -169,3 +181,15 @@ Before marking complete, verify:
 ## Output
 
 Save completed analysis to: `.claude/analysis/dataFlows.md`
+
+You **MUST** start from @.claude/memory/tags.md as it gives you the architectural blueprints of the entire codebase up front:
+- Abstract Base Classes
+- Concrete Implementations
+- Factory Functions
+- All Classes
+- All Functions
+- All Methods
+
+You **SHOULD** grep this file to search for expected functionality--expected function names, api calls, and other relevant information--BEFORE opening files where that code may exists.
+
+You **SHOULD** use your task tool to track all of this.

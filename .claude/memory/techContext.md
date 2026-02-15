@@ -3,15 +3,15 @@
 ## Tech Stack
 
 **Language**: Python 3.12+
-**LLM SDK**: Anthropic Python SDK (v0.79.0+) — native structured output via grammar-constrained decoding
-**Schema Validation**: Pydantic v2
-**Graph Database**: Neo4j 5.x
+**LLM SDK**: Anthropic Python SDK (0.79.0) — native structured output via grammar-constrained decoding
+**Schema Validation**: Pydantic (2.11.10) + pydantic-settings (2.12.0)
+**Graph Database**: Neo4j 5.x via neo4j driver (6.1.0)
 **Query Language**: Cypher
-**Proxy**: mitmproxy / mitmdump (latest)
-**Neo4j Driver**: neo4j-python-driver v6+
-**HTTP Client**: httpx (latest)
-**Testing**: pytest (latest)
-**Linter**: ruff (latest)
+**Proxy**: mitmproxy (12.2.1) / mitmdump
+**Embeddings**: sentence-transformers (5.2.2) — lazy-loaded `all-MiniLM-L6-v2`, 384-dim
+**HTTP Client**: httpx (0.28.1) — synchronous only
+**Testing**: pytest (9.0.2)
+**Linter**: ruff (latest) — also handles formatting (black is redundant, removal candidate)
 **Containerization**: Docker Compose
 
 ## Dependencies
@@ -20,18 +20,22 @@
 - **anthropic** (v0.79.0+): Native Anthropic SDK. `client.messages.parse(output_format=Model)` for structured output (grammar-constrained decoding, 1 API call). `client.beta.messages.tool_runner(tools, output_format=Model)` for tool-using agents. `@beta_tool` decorator for tool definitions.
 
 ### Data Validation
-- **pydantic** (v2): All DTOs, LLM structured output, graph serialization. Serves triple duty: validation, type safety, contracts
+- **pydantic** (2.11.10): All DTOs, LLM structured output, graph serialization. Serves triple duty: validation, type safety, contracts
+- **pydantic-settings** (2.12.0): `Settings(BaseSettings)` for env-var-backed configuration
 
 ### Database
-- **neo4j** (v6+): `Driver` singleton, per-method `Session`, managed transactions. Connection via neo4j+s:// for Aura/production
+- **neo4j** (6.1.0): `Driver` singleton, per-method `Session`, managed transactions. Connection via neo4j+s:// for Aura/production
+
+### Embeddings
+- **sentence-transformers** (5.2.2): Lazy-imported in `graph_tools.py` for fingerprint vector similarity. Heaviest dep (~2GB via PyTorch). Candidate for optional dep.
 
 ### Execution
-- **mitmproxy** (latest): Traffic interception via mitmdump subprocess. Requires target to trust mitm certificate for HTTPS
-- **httpx** (latest): Modern async HTTP client for direct API calls in handlers
+- **mitmproxy** (12.2.1): Traffic interception via mitmdump subprocess. `.mitm` file parsing via `FlowReader`. Requires target to trust mitm certificate for HTTPS
+- **httpx** (0.28.1): Synchronous HTTP client (`httpx.Client`) for step execution and fingerprinting
 
 ### Development
-- **pytest** (latest): Test framework for unit and integration tests
-- **ruff** (latest): Linting and formatting
+- **pytest** (9.0.2): Test framework for unit and integration tests
+- **ruff** (latest): Linting and formatting (black also declared but redundant — removal candidate)
 
 ## Development Setup
 
@@ -135,7 +139,7 @@ Content-Type: application/json
 
 **Optional**:
 - `MAX_CRITIC_ITERATIONS`: Maximum actor/critic loops (default: 3)
-- `MAX_TOKEN_BUDGET`: Cumulative token limit across all API calls in one run (default: 150000). Raises RuntimeError if exceeded
+- `MAX_TOKEN_BUDGET`: Cumulative token limit across all API calls in one run (default: 50000). Raises RuntimeError if exceeded
 - `DEFAULT_SIMILARITY_THRESHOLD`: Fingerprint similarity cutoff (default: 0.85)
 - `MITM_PORT`: mitmproxy listen port (default: 8080)
 - `MITM_CERT_PATH`: Path to mitm certificate (default: `~/.mitmproxy/mitmproxy-ca-cert.pem`)
@@ -143,6 +147,7 @@ Content-Type: application/json
 - `TARGET_PROFILE`: Target profile name (`juice_shop`, `nodegoat`, `dvwa`). Default: `juice_shop`
 - `CAPTURE_MODE`: `file` (static traffic file) or `live` (LLM-driven recon through mitmproxy). Default: `file`
 - `TRAFFIC_FILE`: Path to .mitm capture file (default: `demo/juice_shop.mitm`). Only used when `CAPTURE_MODE=file`
+- `DEBUG_LOGGING`: Set to `true` to enable per-call JSON tracing to `debug_logs/<timestamp>/`. Creates `call_NNN.json`, `event_NNN_<type>.json`, and `run_summary.json`. Default: disabled
 
 ### docker-compose.yml
 - **neo4j service**: Neo4j 5.x with APOC and vector plugins enabled, APOC file I/O enabled, `./snapshots` bind-mounted to `/var/lib/neo4j/import/snapshots`
@@ -153,13 +158,20 @@ Content-Type: application/json
 - **mysql service**: MySQL 5.7 for DVWA
 - **mitmproxy service**: Reverse proxy to Juice Shop on port 8080
 
-### Makefile
+### Makefile (18 targets)
 - `make up/down` — Docker Compose lifecycle with healthcheck
 - `make schema` — Run setup_schema.py with local Neo4j env vars
 - `make snapshot NAME=x` — Binary dump + APOC Cypher export
 - `make restore NAME=x` — Binary load + setup_schema.py
 - `make reset` — Online wipe + schema recreate (no restart)
 - `make test` — Run pytest
+- `make run` — Run file mode (default: Juice Shop)
+- `make run-live` — Run live mode with recon agent
+- `make run-nodegoat` / `make run-dvwa` — Target-specific file mode runs
+- `make seed` — Insert known-good IDOR ActionGraph
+- `make break-graph` / `make fix-graph` — Corrupt/restore graph for repair demo
+- `make break-graph-nodegoat` / `make fix-graph-nodegoat` — NodeGoat-specific
+- `make break-graph-dvwa` / `make fix-graph-dvwa` — DVWA-specific
 
 ### pyproject.toml
 - **Dependencies**: All pip packages with version constraints
@@ -296,6 +308,18 @@ class StepResult(BaseModel):
 - **Status**: Design decision to avoid async complexity
 - **Impact**: Cannot use httpx async features
 - **Workaround**: Use `httpx.Client()` (sync) instead of `httpx.AsyncClient()`
+
+### Heavy Install Size (~2GB)
+- **Location**: sentence-transformers pulls PyTorch, numpy, transformers, huggingface-hub
+- **Status**: Mitigated by lazy import in `graph_tools.py`
+- **Impact**: Fresh installs are slow; CI/CD image size bloated
+- **Workaround**: Could move sentence-transformers to optional dep group
+
+### Loose Version Constraints
+- **Location**: All deps in pyproject.toml use `>=` floor only, no upper bounds
+- **Status**: No lock file exists
+- **Impact**: Installs are not reproducible; breaking changes from transitive deps possible
+- **Workaround**: Add `uv.lock` or `pip freeze` output; pin `anthropic` tightly (`>=0.79.0,<1.0`) due to beta API churn
 
 ## Performance Characteristics
 
