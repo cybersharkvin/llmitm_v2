@@ -33,6 +33,14 @@
 - **mitmproxy** (12.2.1): Traffic interception via mitmdump subprocess. `.mitm` file parsing via `FlowReader`. Requires target to trust mitm certificate for HTTPS
 - **httpx** (0.28.1): Synchronous HTTP client (`httpx.Client`) for step execution and fingerprinting
 
+### Monitor (Optional)
+- **flask** (3.0.0+): HTTP server for SSE streaming
+- **flask-cors** (5.0.0+): CORS support for frontend access
+- **react** (19.0.0): Frontend framework
+- **react-force-graph-3d** (1.29.1): 3D force-directed graph visualization
+- **three** (0.172.0): WebGL 3D library (peer dep of react-force-graph-3d)
+- **zod** (3.24.0): TypeScript-first schema validation for SSE events
+
 ### Development
 - **pytest** (9.0.2): Test framework for unit and integration tests
 - **ruff** (latest): Linting and formatting (black also declared but redundant — removal candidate)
@@ -148,6 +156,8 @@ Content-Type: application/json
 - `CAPTURE_MODE`: `file` (static traffic file) or `live` (LLM-driven recon through mitmproxy). Default: `file`
 - `TRAFFIC_FILE`: Path to .mitm capture file (default: `demo/juice_shop.mitm`). Only used when `CAPTURE_MODE=file`
 - `DEBUG_LOGGING`: Set to `true` to enable per-call JSON tracing to `debug_logs/<timestamp>/`. Creates `call_NNN.json`, `event_NNN_<type>.json`, and `run_summary.json`. Default: disabled
+- `MONITOR`: Set to `true` to enable real-time 3D monitor. Starts Flask SSE server on port 5001. Events emitted unconditionally (decoupled from DEBUG_LOGGING). Default: disabled
+- `MONITOR_PORT`: Port for monitor server (default: 5001). Only used when `MONITOR=true`
 
 ### docker-compose.yml
 - **neo4j service**: Neo4j 5.x with APOC and vector plugins enabled, APOC file I/O enabled, `./snapshots` bind-mounted to `/var/lib/neo4j/import/snapshots`

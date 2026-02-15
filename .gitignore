@@ -80,6 +80,7 @@ mitmdump-cheatsheet.md
 .claude/docs/anthropic/analyze_urls.py
 .claude/docs/anthropic/anthropic_docs_ingester.py
 .claude/docs/anthropic/__pycache__
+force-graph-concept
 
 # Runtime output (handler temp files)
 llmitm_v2/tmp/
@@ -93,3 +94,8 @@ debug_logs/
 
 # IDE config
 *.vscode
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/

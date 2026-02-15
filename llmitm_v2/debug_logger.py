@@ -86,6 +86,7 @@ _event_counter: int = 0
 _calls: list[ApiCallLog] = []
 _events: list[EventLog] = []
 _started_at: str = ""
+_event_callback: Optional[object] = None  # Callable[[str, dict[str, Any]], None]
 
 
 # ---------------------------------------------------------------------------
@@ -110,6 +111,12 @@ def init_debug_logging() -> None:
 
 def is_enabled() -> bool:
     return _run_dir is not None
+
+
+def set_event_callback(callback: object) -> None:
+    """Register a callback invoked on every log_event(), independent of DEBUG_LOGGING."""
+    global _event_callback
+    _event_callback = callback
 
 
 def log_api_call(
@@ -156,6 +163,10 @@ def log_api_call(
 
 def log_event(event_type: str, data: dict[str, Any]) -> None:
     """Write event_NNN_<type>.json for orchestrator milestones."""
+    # Invoke callback unconditionally (decoupled from DEBUG_LOGGING)
+    if _event_callback is not None:
+        _event_callback(event_type, data)
+
     if not is_enabled():
         return
     global _event_counter

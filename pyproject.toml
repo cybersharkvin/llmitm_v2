@@ -21,6 +21,8 @@ dependencies = [
     "sentence-transformers>=2.2.0",
     "anthropic>=0.20.0",
     "mitmproxy>=10.0",
+    "flask>=3.0.0",
+    "flask-cors>=5.0.0",
 ]
 
 [project.optional-dependencies]

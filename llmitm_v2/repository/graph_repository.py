@@ -448,6 +448,41 @@ class GraphRepository:
         with self.driver.session() as session:
             session.execute_write(tx_func)
 
+    def reset_all(self) -> None:
+        """Wipe all Neo4j data and recreate schema."""
+        with self.driver.session() as session:
+            session.run("MATCH (n) DETACH DELETE n")
+            try:
+                session.run("CALL apoc.schema.assert({}, {})")
+            except Exception:
+                pass  # APOC may not be available
+
+        from llmitm_v2.repository.setup_schema import setup_schema
+        setup_schema(quiet=True)
+
+    def corrupt_action_graph(self, fingerprint_hash: str) -> None:
+        """Corrupt HTTP method in MUTATE step (GET -> PATCH) to trigger repair."""
+        def tx_func(tx: Session) -> list:
+            result = tx.run(
+                """
+                MATCH (f:Fingerprint {hash: $hash})-[:TRIGGERS]->(ag:ActionGraph)
+                WITH ag ORDER BY ag.created_at DESC LIMIT 1
+                MATCH (ag)-[:HAS_STEP]->(s:Step)
+                WHERE s.phase = 'MUTATE'
+                  AND s.type = 'http_request'
+                  AND s.command STARTS WITH 'GET'
+                SET s.command = replace(s.command, 'GET', 'PATCH')
+                RETURN s.order, s.command
+                """,
+                hash=fingerprint_hash,
+            )
+            return list(result)
+
+        with self.driver.session() as session:
+            corrupted = session.execute_write(tx_func)
+            if not corrupted:
+                raise ValueError(f"No MUTATE step found for fingerprint {fingerprint_hash}")
+
     def get_repair_history(
         self,
         fingerprint_hash: str,

@@ -206,6 +206,16 @@ CLI (__main__) → Orchestrator (orchestrator.py + agents/context/classifier)
 - **Key Files**: `debug_logger.py` (`init_debug_logging`, `is_enabled`, `log_api_call`, `log_event`, `write_summary`)
 - **Caveat**: File writes have no try/except — disk-full or permission errors fail silently (logs missing but run continues).
 
+### Real-Time Monitor Pattern (Flask SSE + React 3D)
+- **Description**: Opt-in real-time visualization via `MONITOR=true`. Flask daemon thread streams 8 SSE event types to React frontend with 3D force-directed graph. Event callback hook in `debug_logger.py` decoupled from `DEBUG_LOGGING` flag.
+- **Backend**: `monitor/server.py` (Flask SSE, queue-based streaming, 15s keepalive), `debug_logger.py` (`set_event_callback`, `_event_callback` global), `orchestrator.py` (5 new `log_event()` calls)
+- **Frontend**: React + ForceGraph3D + Three.js + Zod. SSE client → graph-builder reducers → App state → 3D viz + SystemPanel.
+- **SSE Events**: `connected`, `run_start` (with ActionGraph topology), `step_start`, `step_result`, `compile_iter`, `critic_result`, `failure`, `repair_start`, `run_end`
+- **Layout**: Flat disc (fy pinned via `HOVER_HEIGHT + sin(i * 2.39) * HOVER_JITTER`, X/Z free for force layout). Same spatial spec as POC.
+- **Node Rendering**: Sphere core (emissive intensity 1.0/2.2/1.6/2.0 by idle/active/completed/error) + spikes (6/16/10/12 count by status) + drop lines.
+- **When to Use**: Development/demo/debugging. Zero overhead when `MONITOR` unset (callback is no-op).
+- **Rationale**: Live visibility into cold start, warm start, self-repair flows. Pure additive feature — zero changes to existing orchestrator logic beyond event emission.
+
 ### Temp File Output Pattern
 - **Description**: Steps with `step.output_file` set write raw HTTP response bodies to `llmitm_v2/tmp/<name>` for downstream regex extraction. Always active (not debug-gated).
 - **Key Files**: `handlers/http_request_handler.py`

@@ -76,6 +76,24 @@ class Orchestrator:
         self.settings = settings
         self.target_profile = get_active_profile(settings.target_profile)
 
+    def _emit_run_start(self, fingerprint_hash: str, path: str, ag: ActionGraph) -> None:
+        """Helper to emit run_start event with action graph topology."""
+        sorted_steps = sorted(ag.steps, key=lambda s: s.order)
+        log_event("run_start", {
+            "fingerprint_hash": fingerprint_hash,
+            "path": path,
+            "action_graph_id": ag.id,
+            "steps": [
+                {
+                    "order": s.order,
+                    "type": s.type.value if hasattr(s.type, 'value') else s.type,
+                    "phase": s.phase.value if hasattr(s.phase, 'value') else s.phase,
+                    "command": s.command
+                }
+                for s in sorted_steps
+            ]
+        })
+
     def run(
         self,
         fingerprint: Fingerprint,
@@ -100,10 +118,23 @@ class Orchestrator:
             ag = self._compile(fingerprint, mitm_file=mitm_file, proxy_url=proxy_url)
             compiled = True
 
+        # Emit run_start with action graph topology
+        self._emit_run_start(fingerprint.hash, "cold_start" if compiled else "warm_start", ag)
+
         result = self._execute(ag, fingerprint)
         self.graph_repo.increment_execution_count(ag.id, result.success)
 
         path = "repair" if result.repaired else ("cold_start" if compiled else "warm_start")
+
+        # Emit run_end
+        log_event("run_end", {
+            "success": result.success,
+            "findings_count": len(result.findings),
+            "path": path,
+            "repaired": result.repaired,
+            "steps_executed": result.steps_executed,
+        })
+
         return OrchestratorResult(
             path=path,
             action_graph_id=ag.id,
@@ -204,6 +235,7 @@ class Orchestrator:
         i = 0
         while i < len(sorted_steps):
             step = sorted_steps[i]
+            log_event("step_start", {"order": step.order})
             interpolated = self._interpolate_params(step, ctx)
             handler = get_handler(interpolated.type)
             result = handler.execute(interpolated, ctx)
@@ -253,6 +285,8 @@ class Orchestrator:
                     ctx = ExecutionContext(
                         target_url=self.settings.target_url, fingerprint=fingerprint
                     )
+                    # Emit run_start for the NEW repaired graph topology
+                    self._emit_run_start(fingerprint.hash, "repair", new_ag)
                     i = 0
                     continue  # Restart from step 0 with new graph
             else:
@@ -289,6 +323,7 @@ class Orchestrator:
             return "abort"
 
         if failure_type == FailureType.SYSTEMIC:
+            log_event("repair_start", {})
             try:
                 new_ag = self._repair(
                     action_graph,

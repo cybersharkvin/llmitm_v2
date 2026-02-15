@@ -1,7 +1,7 @@
 {
-  "session": "Self-Repair Verified + PR Ready (Feb 15, 2026)",
-  "completed_phase": "All 3 targets pass cold→warm→repair→persistence. 3 bugs fixed. README updated.",
-  "summary": "Fixed HTTP 4xx detection, 404→SYSTEMIC reclassification, IDOR auth offset bug. All 3 targets verified across all 4 modes.",
+  "session": "Interactive Monitor Controls (Feb 15, 2026)",
+  "completed_phase": "Added REST API endpoints + interactive frontend controls to monitor",
+  "summary": "Implemented 4 Flask REST endpoints (run/stop/break/reset), target dropdown, reset confirmation dialog, BREAK button for repair demo, and 2 performance fixes (seeded PRNG, in-place mutation). Zero regressions (119 tests pass).",
   "test_results": {
     "test_suite": "tests/",
     "passed": 119,
@@ -9,42 +9,37 @@
     "skipped": 1,
     "status": "ALL PASSING"
   },
-
-  "e2e_results": {
-    "juice_shop": {
-      "cold_start": "Success=True, 5 steps, 1 finding, ~38K tokens, 7 API calls",
-      "warm_start": "Success=True, 5 steps, 1 finding, 0 API calls",
-      "self_repair": "Repaired=True, Success=True, 8 steps, 1 finding, ~134K tokens",
-      "persistence": "Path=warm_start, Success=True, 0 API calls"
-    },
-    "nodegoat": {
-      "cold_start": "Success=True, 4 steps, 1 finding, ~87K tokens, 7 API calls",
-      "warm_start": "Success=True, 4 steps, 1 finding, 0 API calls",
-      "self_repair": "Repaired=True, Success=True, 6 steps, 1 finding, ~70K tokens",
-      "persistence": "Path=warm_start, Success=True, 0 API calls"
-    },
-    "dvwa": {
-      "cold_start": "Success=True, 8 steps, 1 finding, ~71K tokens, 12 API calls",
-      "warm_start": "Success=True, 8 steps, 1 finding, 0 API calls",
-      "self_repair": "Repaired=True, Success=True, 8 steps, 1 finding, ~60K tokens",
-      "persistence": "Path=warm_start, Success=True, 0 API calls"
-    }
+  "files_by_category": {
+    "backend_modified": [
+      {"path": "llmitm_v2/monitor/server.py", "description": "Added 4 REST endpoints (run/stop/break/reset) + Pydantic models + thread management + DI for graph_repo/driver"},
+      {"path": "llmitm_v2/repository/graph_repository.py", "description": "Added reset_all() and corrupt_action_graph() methods"},
+      {"path": "llmitm_v2/__main__.py", "description": "Moved monitor startup after graph_repo creation, pass driver+graph_repo to start_monitor_server()"}
+    ],
+    "frontend_modified": [
+      {"path": "frontend/src/App.css", "description": "Replaced with POC styles + new classes for controls, dialog, dropdown, break button"},
+      {"path": "frontend/src/App.tsx", "description": "Added isRunning/canBreak/targetProfile/showResetConfirm state + 6 handlers + reset dialog"},
+      {"path": "frontend/src/components/SystemPanel.tsx", "description": "Full rewrite with CONTROLS, state-grid, progress-track, node-detail, event-row"},
+      {"path": "frontend/src/components/Legend.tsx", "description": "POC structure: 3 sections with subtitles, 6 spike colors, legend-hint"},
+      {"path": "frontend/src/components/BrainGraph.tsx", "description": "Fix 1: count-based useMemo + in-place mutation. Fix 2: mulberry32 seeded PRNG"}
+    ]
   },
-
-  "bugs_fixed_this_session": [
-    {"bug": "HTTP 4xx not treated as failures", "fix": "HTTPRequestHandler sets stderr for status >= 400"},
-    {"bug": "404 → abort instead of repair", "fix": "Reclassified 404 as SYSTEMIC in failure_classifier"},
-    {"bug": "IDOR MUTATE step auth offset off-by-one", "fix": "offset+1 → offset in exploit_tools.py"}
+  "design_decisions": [
+    {"decision": "DI for monitor server", "rationale": "start_monitor_server() accepts driver+graph_repo, avoids module-level Neo4j imports"},
+    {"decision": "Graceful stop only", "rationale": "Current step completes before stop. No force-kill for MVP."},
+    {"decision": "BREAK button conditional", "rationale": "Only after warm_start success AND not repaired — guides 5-click demo"},
+    {"decision": "Reset confirmation dialog", "rationale": "DETACH DELETE all needs user confirmation"}
   ],
-
   "next_steps": [
-    {"step": 1, "title": "Create dev → main PR", "priority": "P0"}
+    {"step": 1, "title": "Install frontend deps: cd frontend && pnpm install", "priority": "P0"},
+    {"step": 2, "title": "Test E2E: MONITOR=true make run + cd frontend && pnpm dev", "priority": "P0"},
+    {"step": 3, "title": "Verify 5-click demo flow: RUN→RUN→BREAK→RUN→RESET", "priority": "P0"}
   ],
-
   "context_for_next_session": [
-    "All 3 targets verified across all 4 demo modes.",
-    "119 tests passing (7 new boundary tests), 0 regressions.",
-    "README updated with multi-target results and setup instructions.",
-    "New boundary tests cover: HTTP 4xx stderr, auth token output references for all auth types, token_swap User B ref."
+    "Monitor has full interactive controls: 4 REST endpoints + RUN/STOP/BREAK/RESET buttons + target dropdown + reset dialog.",
+    "Backend runs orchestrator in daemon thread, SSE streams events to frontend.",
+    "BREAK button enables repair demo without terminal (corrupts MUTATE step GET→PATCH in Neo4j).",
+    "BrainGraph: no spinning (count-based useMemo), no spike flicker (seeded PRNG).",
+    "Frontend deps not yet installed. Need pnpm install before testing.",
+    "119 tests pass, zero regressions."
   ]
 }

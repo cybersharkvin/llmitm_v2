@@ -29,13 +29,6 @@ def main():
     if "TARGET_URL" not in os.environ:
         settings.target_url = profile.default_url
 
-    # Wire token budget from settings
-    from llmitm_v2.orchestrator.agents import set_token_budget
-    set_token_budget(settings.max_token_budget)
-
-    from llmitm_v2.debug_logger import init_debug_logging, write_summary
-    init_debug_logging()
-
     # Connect to Neo4j
     driver = GraphDatabase.driver(
         settings.neo4j_uri,
@@ -47,6 +40,29 @@ def main():
         logger.info("Neo4j schema initialized")
 
         graph_repo = GraphRepository(driver)
+
+        # Monitor mode: start Flask server, block forever, skip orchestration
+        if os.environ.get("MONITOR", "").lower() in ("1", "true", "yes"):
+            from llmitm_v2.monitor.server import start_monitor_server
+            monitor_thread = start_monitor_server(
+                port=int(os.environ.get("MONITOR_PORT", "5001")),
+                driver=driver,
+                graph_repo=graph_repo,
+            )
+            logger.info(
+                "Monitor ready on port %s — waiting for commands",
+                os.environ.get("MONITOR_PORT", "5001"),
+            )
+            monitor_thread.join()
+            return
+
+        # Non-monitor: wire budget/logging, run orchestrator immediately
+        from llmitm_v2.orchestrator.agents import set_token_budget
+        set_token_budget(settings.max_token_budget)
+
+        from llmitm_v2.debug_logger import init_debug_logging, write_summary
+        init_debug_logging()
+
         orchestrator = Orchestrator(graph_repo, settings)
 
         result = None
