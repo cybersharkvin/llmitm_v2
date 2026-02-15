@@ -56,6 +56,7 @@
 - **Test Suite**: 119 passing, 1 skipped, 0 failed
 
 ### Recent Milestones
+- **Feb 15, 2026**: Full Docker containerization — backend + frontend as compose services, Makefile simplified, single `docker compose up/down` workflow
 - **Feb 15, 2026**: Boundary interaction tests added (7 new tests: HTTP 4xx stderr, auth token output references, token_swap User B ref). 119 tests total.
 - **Feb 15, 2026**: Self-repair verified on all 3 targets (3 bugs fixed: HTTP 4xx stderr, 404→SYSTEMIC, auth offset). README updated. PR ready.
 - **Feb 14, 2026**: GAP-3 CLOSED — Multi-target E2E verified (Juice Shop 38K, NodeGoat 87K, DVWA 71K cold; all 0 tokens warm)
@@ -83,17 +84,15 @@
 
 ## Deployment Status
 
-- **Environment**: Local development (Docker Compose + .venv)
-- **Installation**: `python3 -m venv .venv && .venv/bin/pip install -e .`
-- **Run**: `make run` or `.venv/bin/python3 -m llmitm_v2`
+- **Environment**: Fully containerized via Docker Compose (9 services)
+- **Start**: `docker compose up -d` (starts Neo4j, targets, backend, frontend)
+- **Stop**: `docker compose down`
+- **Frontend**: http://localhost:5173
+- **Backend**: http://localhost:5001/health
+- **Testing**: `make test` (uses local .venv)
 - **Schema Setup**: `make schema`
-- **Testing**: `make test`
-- **Snapshot**: `make snapshot NAME=x`
-- **Restore**: `make restore NAME=x`
-- **Reset**: `make reset` (online wipe + schema recreate)
-- **Seed Demo**: `make seed` (insert known-good IDOR ActionGraph)
-- **Break for Repair Demo**: `make break-graph` (corrupt GET→PATCH on /api/Users steps)
-- **Fix Manually**: `make fix-graph` (reverse corruption)
+- **Seed Demo**: `make seed`
+- **Break for Repair Demo**: `make break-graph`
 
 ---
 

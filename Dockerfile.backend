@@ -1,0 +1,21 @@
+FROM python:3.12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential wget \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy everything needed for install
+COPY pyproject.toml ./
+COPY llmitm_v2/ ./llmitm_v2/
+COPY demo/ ./demo/
+COPY scripts/ ./scripts/
+COPY skills/ ./skills/
+
+RUN pip install --no-cache-dir -e .
+RUN mkdir -p llmitm_v2/tmp
+
+EXPOSE 5001
+
+CMD ["python", "-m", "llmitm_v2"]

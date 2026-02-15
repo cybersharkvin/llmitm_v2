@@ -58,16 +58,11 @@
 pip install anthropic pydantic neo4j mitmproxy httpx pytest ruff
 ```
 
-### Development Server
+### Running (Docker-native)
 ```bash
-docker-compose up  # Starts Neo4j + target app (OWASP Juice Shop)
-python -m llmitm.orchestrator  # Runs orchestrator
-```
-
-### Production Build
-```bash
-docker build -t llmitm:latest .
-docker run --env-file .env llmitm:latest
+docker compose up -d    # Starts entire stack (Neo4j, targets, backend, frontend)
+# Open http://localhost:5173
+docker compose down     # Stops everything
 ```
 
 ## Technical Constraints
@@ -159,29 +154,28 @@ Content-Type: application/json
 - `MONITOR`: Set to `true` to enable real-time 3D monitor. Starts Flask SSE server on port 5001. Events emitted unconditionally (decoupled from DEBUG_LOGGING). Default: disabled
 - `MONITOR_PORT`: Port for monitor server (default: 5001). Only used when `MONITOR=true`
 
-### docker-compose.yml
-- **neo4j service**: Neo4j 5.x with APOC and vector plugins enabled, APOC file I/O enabled, `./snapshots` bind-mounted to `/var/lib/neo4j/import/snapshots`
-- **juiceshop service**: OWASP Juice Shop on port 3000
-- **nodegoat service**: OWASP NodeGoat on port 4000 (built from source as `owasp-nodegoat:local`, requires `command: node server.js` and `docker exec llmitm_nodegoat node artifacts/db-reset.js` on first run)
-- **dvwa service**: DVWA on port 8081 (requires DB setup via `/setup.php` on first run)
-- **mongo service**: MongoDB 4.4 for NodeGoat
-- **mysql service**: MySQL 5.7 for DVWA
-- **mitmproxy service**: Reverse proxy to Juice Shop on port 8080
+### docker-compose.yml (9 services)
+- **neo4j**: Neo4j 5.x with APOC, healthcheck on port 7474
+- **juiceshop**: OWASP Juice Shop on port 3000 (distroless image — no healthcheck binary available)
+- **nodegoat**: OWASP NodeGoat on port 4000 (depends on mongo)
+- **dvwa**: DVWA on port 8081 (depends on mysql)
+- **mongo**: MongoDB 4.4 for NodeGoat
+- **mysql**: MySQL 5.7 for DVWA
+- **mitmproxy**: Reverse proxy to Juice Shop on port 8080
+- **backend**: Python 3.12 Flask SSE server on port 5001 (Dockerfile.backend, MONITOR=true, depends on neo4j healthy + juiceshop started)
+- **frontend**: Node 20 Vite dev server on port 5173 (Dockerfile.frontend, depends on backend healthy, bind-mounts frontend/src for hot reload)
 
-### Makefile (18 targets)
-- `make up/down` — Docker Compose lifecycle with healthcheck
+`docker compose up -d` starts everything. `docker compose down` stops everything.
+
+### Makefile (dev/debug tools only)
 - `make schema` — Run setup_schema.py with local Neo4j env vars
-- `make snapshot NAME=x` — Binary dump + APOC Cypher export
-- `make restore NAME=x` — Binary load + setup_schema.py
-- `make reset` — Online wipe + schema recreate (no restart)
-- `make test` — Run pytest
-- `make run` — Run file mode (default: Juice Shop)
-- `make run-live` — Run live mode with recon agent
-- `make run-nodegoat` / `make run-dvwa` — Target-specific file mode runs
+- `make reset` — Online wipe + schema recreate
+- `make test` — Run pytest (local .venv)
+- `make run` / `make run-live` — Run orchestrator locally
+- `make run-nodegoat` / `make run-dvwa` — Target-specific runs
 - `make seed` — Insert known-good IDOR ActionGraph
 - `make break-graph` / `make fix-graph` — Corrupt/restore graph for repair demo
-- `make break-graph-nodegoat` / `make fix-graph-nodegoat` — NodeGoat-specific
-- `make break-graph-dvwa` / `make fix-graph-dvwa` — DVWA-specific
+- `make snapshot` / `make restore` — Neo4j backup/restore
 
 ### pyproject.toml
 - **Dependencies**: All pip packages with version constraints

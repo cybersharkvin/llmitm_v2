@@ -1,0 +1,14 @@
+.git/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+node_modules/
+frontend/node_modules/
+frontend/dist/
+logs/
+debug_logs/
+.env
+.pytest_cache/
+.claude/
+force-graph-concept/

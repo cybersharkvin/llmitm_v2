@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   neo4j:
     image: neo4j:5-community
@@ -30,11 +28,6 @@ services:
       - "3000:3000"
     environment:
       NODE_ENV: development
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
 
   nodegoat:
     image: owasp-nodegoat:local
@@ -96,7 +89,65 @@ services:
       - ./llmitm_v2/capture:/capture
     depends_on:
       juiceshop:
+        condition: service_started
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: llmitm_backend
+    ports:
+      - "5001:5001"
+    depends_on:
+      neo4j:
         condition: service_healthy
+      juiceshop:
+        condition: service_started
+    environment:
+      NEO4J_URI: neo4j://neo4j:7687
+      NEO4J_USERNAME: ${NEO4J_USERNAME:-neo4j}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-password}
+      NEO4J_DATABASE: ${NEO4J_DATABASE:-neo4j}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      TARGET_URL: http://juiceshop:3000
+      MONITOR: "true"
+      MONITOR_PORT: "5001"
+      MODEL_ID: ${MODEL_ID:-claude-sonnet-4-5-20250929}
+      MAX_CRITIC_ITERATIONS: ${MAX_CRITIC_ITERATIONS:-2}
+      MAX_TOKEN_BUDGET: ${MAX_TOKEN_BUDGET:-150000}
+      TARGET_PROFILE: ${TARGET_PROFILE:-juice_shop}
+      CAPTURE_MODE: ${CAPTURE_MODE:-file}
+      TRAFFIC_FILE: ${TRAFFIC_FILE:-demo/juice_shop.mitm}
+    volumes:
+      - ./demo:/app/demo:ro
+      - ./llmitm_v2/capture:/app/llmitm_v2/capture
+      - ./llmitm_v2/tmp:/app/llmitm_v2/tmp
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5001/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: llmitm_frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.ts:/app/vite.config.ts
+      - ./frontend/tsconfig.json:/app/tsconfig.json
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5173"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 volumes:
   neo4j_data:
