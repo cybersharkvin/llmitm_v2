@@ -34,9 +34,9 @@ class TestFailureClassification:
         result = classify_failure("Too Many Requests", 429)
         assert result == FailureType.TRANSIENT_RECOVERABLE
 
-    def test_classify_failure_404_is_unrecoverable(self):
+    def test_classify_failure_404_is_systemic(self):
         result = classify_failure("Not Found", 404)
-        assert result == FailureType.TRANSIENT_UNRECOVERABLE
+        assert result == FailureType.SYSTEMIC
 
     def test_classify_failure_401_is_unrecoverable(self):
         result = classify_failure("Unauthorized", 401)

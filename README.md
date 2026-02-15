@@ -8,16 +8,33 @@ LLMitM v2 discovers web application vulnerabilities by reasoning about where bus
 
 **The LLM builds the automation that replaces itself.** Expensive LLM reasoning happens once at "compile time" to produce a deterministic ActionGraph. The system then executes that compiled artifact repeatedly without LLM involvement, converging toward zero LLM cost as the graph grows.
 
-## E2E Results (Verified Feb 13, 2026)
+## E2E Results (Verified Feb 15, 2026)
 
-All 4 demonstration runs pass against OWASP Juice Shop:
+Three targets verified across all four demonstration modes:
 
+### Juice Shop (Bearer Token Auth)
 | Test | Path | LLM Calls | Tokens | Findings | Status |
 |------|------|-----------|--------|----------|--------|
-| 1. Cold Start | `cold_start` | 7 | ~37K | 1 IDOR | PASS |
-| 2. Warm Start | `warm_start` | 0 | 0 | 1 IDOR | PASS |
-| 3. Self-Repair | `repair` | 9 | ~56K | 1 IDOR | PASS |
-| 4. Persistence | `warm_start` | 0 | 0 | 1 IDOR | PASS |
+| Cold Start | `cold_start` | 7 | ~38K | 1 IDOR | PASS |
+| Warm Start | `warm_start` | 0 | 0 | 1 IDOR | PASS |
+| Self-Repair | `repair` | 18 | ~134K | 1 IDOR | PASS |
+| Persistence | `warm_start` | 0 | 0 | 1 IDOR | PASS |
+
+### NodeGoat (Session Cookie Auth)
+| Test | Path | LLM Calls | Tokens | Findings | Status |
+|------|------|-----------|--------|----------|--------|
+| Cold Start | `cold_start` | 7 | ~87K | 1 IDOR | PASS |
+| Warm Start | `warm_start` | 0 | 0 | 1 IDOR | PASS |
+| Self-Repair | `repair` | 9 | ~70K | 1 IDOR | PASS |
+| Persistence | `warm_start` | 0 | 0 | 1 IDOR | PASS |
+
+### DVWA (Session Cookie + CSRF Auth)
+| Test | Path | LLM Calls | Tokens | Findings | Status |
+|------|------|-----------|--------|----------|--------|
+| Cold Start | `cold_start` | 12 | ~71K | 1 IDOR | PASS |
+| Warm Start | `warm_start` | 0 | 0 | 1 IDOR | PASS |
+| Self-Repair | `repair` | 8 | ~60K | 1 IDOR | PASS |
+| Persistence | `warm_start` | 0 | 0 | 1 IDOR | PASS |
 
 ## How It Works
 
@@ -80,31 +97,52 @@ python3 -m venv .venv
 # Copy env and fill in your Anthropic API key
 cp .env.example .env
 
-# Start Neo4j + Juice Shop
+# Start all services (Neo4j, Juice Shop, NodeGoat, DVWA, mitmproxy)
 make up
 ```
 
-## Running the Demo
+### First-Run Setup for Targets
 
+**NodeGoat** requires a database reset on first start:
 ```bash
-# Reset graph (clean slate)
-make reset
-
-# Test 1 — Cold start (compiles ActionGraph, finds IDOR vulnerability)
-DEBUG_LOGGING=true make run
-
-# Test 2 — Warm start (zero LLM calls, reuses stored graph)
-DEBUG_LOGGING=true make run
-
-# Test 3 — Self-repair (corrupt graph, LLM recompiles)
-make break-graph
-DEBUG_LOGGING=true make run
-
-# Test 4 — Persistence (repaired graph reused, zero LLM calls)
-DEBUG_LOGGING=true make run
+docker exec llmitm_nodegoat node artifacts/db-reset.js
 ```
 
-Debug logs are written to `debug_logs/<timestamp>/` including per-API-call JSON and `run_summary.json`.
+**DVWA** requires database initialization on first start:
+1. Open `http://localhost:8081/setup.php` in a browser
+2. Click "Create / Reset Database"
+
+## Running the Demo
+
+### Juice Shop (default target)
+
+```bash
+make reset                    # Clean Neo4j slate
+make run                      # Cold start — compiles ActionGraph, finds IDOR
+make run                      # Warm start — zero LLM calls, reuses graph
+make break-graph && make run  # Self-repair — LLM recompiles
+make run                      # Persistence — repaired graph reused
+```
+
+### NodeGoat
+
+```bash
+make run-nodegoat             # Cold start
+make run-nodegoat             # Warm start
+make break-graph-nodegoat && make run-nodegoat  # Self-repair
+make run-nodegoat             # Persistence
+```
+
+### DVWA
+
+```bash
+make run-dvwa                 # Cold start
+make run-dvwa                 # Warm start
+make break-graph-dvwa && make run-dvwa  # Self-repair
+make run-dvwa                 # Persistence
+```
+
+Add `DEBUG_LOGGING=true` before any `make run` command to write per-API-call JSON logs to `debug_logs/<timestamp>/`.
 
 ## Exploring the Graph
 
@@ -125,6 +163,9 @@ MATCH (f:Finding)-[:PRODUCED_BY]->(ag) RETURN f, ag
 -- See all ActionGraphs for a fingerprint (newest first)
 MATCH (f:Fingerprint)-[:TRIGGERS]->(ag:ActionGraph)
 RETURN f.hash, ag.id, ag.created_at ORDER BY ag.created_at DESC
+
+-- See repair edges
+MATCH ()-[r:REPAIRED_TO]->() RETURN r
 ```
 
 ## Running Tests
@@ -133,19 +174,22 @@ RETURN f.hash, ag.id, ag.created_at ORDER BY ag.created_at DESC
 make test
 ```
 
-96 tests passing, 1 skipped.
+119 tests passing, 1 skipped.
 
 ## Makefile Targets
 
 | Target | Description |
 |--------|-------------|
 | `make up` / `make down` | Start/stop Docker containers |
-| `make run` | Run the orchestrator |
-| `make test` | Run pytest suite |
+| `make run` | Run orchestrator (Juice Shop) |
+| `make run-nodegoat` | Run orchestrator (NodeGoat) |
+| `make run-dvwa` | Run orchestrator (DVWA) |
+| `make test` | Run pytest suite (119 passing) |
 | `make schema` | Create Neo4j constraints and indexes |
 | `make reset` | Wipe graph and recreate schema |
-| `make break-graph` | Corrupt steps for self-repair demo (GET→PATCH) |
-| `make fix-graph` | Reverse corruption (manual fallback) |
+| `make break-graph` | Corrupt Juice Shop steps for repair demo |
+| `make break-graph-nodegoat` | Corrupt NodeGoat steps for repair demo |
+| `make break-graph-dvwa` | Corrupt DVWA steps for repair demo |
 | `make snapshot NAME=x` | Export Neo4j binary dump |
 | `make restore NAME=x` | Restore from binary dump |
 

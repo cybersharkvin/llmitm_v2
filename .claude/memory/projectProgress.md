@@ -289,6 +289,26 @@
   - Completed: Feb 14, 2026
   - Validation: 112 tests passing, 1 skipped, 0 regressions
 
+- ✅ **Self-Repair Verified on All 3 Targets + 3 Bug Fixes**: Full 4-mode demo verified
+  - Bug 1: HTTP 4xx responses not treated as failures — HTTPRequestHandler now sets stderr for status >= 400
+  - Bug 2: 404 classified as TRANSIENT_UNRECOVERABLE (abort) — reclassified as SYSTEMIC (triggers repair)
+  - Bug 3: IDOR MUTATE step auth offset off-by-one — offset+1 → offset in exploit_tools.py
+  - All 3 targets pass cold→warm→repair→persistence
+  - Juice Shop repair: ~134K tokens | NodeGoat repair: ~70K tokens | DVWA repair: ~60K tokens
+  - README updated with multi-target results, setup instructions, break/repair commands
+  - Completed: Feb 15, 2026
+  - Validation: 112 tests passing, 1 skipped, 0 regressions
+
+- ✅ **Boundary Interaction Tests**: 7 tests covering cross-component failure modes
+  - test_http_4xx_sets_stderr: HTTP handler sets stderr for 404 responses (integration, NodeGoat)
+  - test_http_2xx_has_empty_stderr: HTTP handler leaves stderr empty for 200 responses
+  - test_idor_mutate_bearer_references_token_not_login_response: MUTATE step uses previous_outputs[-2] (JWT), not [-3] (login body)
+  - test_idor_capture_bearer_references_last_output: CAPTURE step uses previous_outputs[-1] (JWT)
+  - test_idor_cookie/csrf_steps_have_no_auth_offset_issue: cookie-auth steps don't have output references in headers
+  - test_token_swap_replay_uses_user_b_token: REPLAY step uses User B's token (previous_outputs[-1])
+  - Completed: Feb 15, 2026
+  - Validation: 119 tests passing (7 new), 1 skipped, 0 regressions
+
 ## In Progress
 
 - None
@@ -315,11 +335,13 @@
 
 ### Current State
 - **Version**: 0.1.0
-- **Status**: E2E VERIFIED — All 3 targets pass cold+warm start
+- **Status**: E2E VERIFIED — All 3 targets pass cold+warm+repair+persistence
 - **Primary Branch**: main
-- **Test Suite**: 112 passing, 1 skipped, 0 failed
+- **Test Suite**: 119 passing, 1 skipped, 0 failed
 
 ### Recent Milestones
+- **Feb 15, 2026**: Boundary interaction tests added (7 new tests: HTTP 4xx stderr, auth token output references, token_swap User B ref). 119 tests total.
+- **Feb 15, 2026**: Self-repair verified on all 3 targets (3 bugs fixed: HTTP 4xx stderr, 404→SYSTEMIC, auth offset). README updated. PR ready.
 - **Feb 14, 2026**: GAP-3 CLOSED — Multi-target E2E verified (Juice Shop 38K, NodeGoat 87K, DVWA 71K cold; all 0 tokens warm)
 - **Feb 13, 2026**: E2E ALL 4 TESTS PASSING (cold start 37K tokens, warm start 0 tokens, self-repair 56K tokens, persistence 0 tokens)
 - **Feb 13, 2026**: Pre-E2E bug fixes (credential placeholders, URL resolution, break-graph method corruption, 96 tests)

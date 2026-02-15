@@ -58,8 +58,12 @@ class HTTPRequestHandler(StepHandler):
                 matched = bool(
                     step.success_criteria and re.search(step.success_criteria, response.text)
                 )
+                stderr = ""
+                if response.status_code >= 400:
+                    stderr = f"HTTP {response.status_code}"
                 return StepResult(
                     stdout=response.text,
+                    stderr=stderr,
                     status_code=response.status_code,
                     success_criteria_matched=matched,
                 )

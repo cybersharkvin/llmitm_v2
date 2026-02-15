@@ -285,7 +285,7 @@
 - **test_assemble_repair_context_truncates_error_log**(self) (`tests/test_orchestrator.py:87`)
 - **test_classify_failure_401_is_unrecoverable**(self) (`tests/test_orchestrator.py:41`)
 - **test_classify_failure_403_is_unrecoverable**(self) (`tests/test_orchestrator.py:45`)
-- **test_classify_failure_404_is_unrecoverable**(self) (`tests/test_orchestrator.py:37`)
+- **test_classify_failure_404_is_systemic**(self) (`tests/test_orchestrator.py:37`)
 - **test_classify_failure_429_is_recoverable**(self) (`tests/test_orchestrator.py:33`)
 - **test_classify_failure_503_is_recoverable**(self) (`tests/test_orchestrator.py:29`)
 - **test_classify_failure_reset_is_recoverable**(self) (`tests/test_orchestrator.py:57`)

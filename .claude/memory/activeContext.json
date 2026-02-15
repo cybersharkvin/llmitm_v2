@@ -1,107 +1,50 @@
 {
-  "session": "GAP-3 Closed: Multi-Target E2E Verified (Feb 14, 2026)",
-  "completed_phase": "All 5 gaps closed. NodeGoat + DVWA + Juice Shop E2E cold+warm start verified.",
-  "summary": "Captured .mitm files for NodeGoat and DVWA, fixed 7 bugs (form encoding, redirect following, generic success criteria, exploit fallback, max_iterations, extra_login_fields, docker image), all 3 targets pass cold+warm start.",
-  "git_commits": ["a2eaed8"],
+  "session": "Self-Repair Verified + PR Ready (Feb 15, 2026)",
+  "completed_phase": "All 3 targets pass cold→warm→repair→persistence. 3 bugs fixed. README updated.",
+  "summary": "Fixed HTTP 4xx detection, 404→SYSTEMIC reclassification, IDOR auth offset bug. All 3 targets verified across all 4 modes.",
   "test_results": {
     "test_suite": "tests/",
-    "passed": 112,
+    "passed": 119,
     "failed": 0,
     "skipped": 1,
     "status": "ALL PASSING"
   },
 
-  "known_gaps": [
-    {"id": "GAP-1", "status": "CLOSED"},
-    {"id": "GAP-2", "status": "CLOSED"},
-    {"id": "GAP-3", "status": "CLOSED"},
-    {"id": "GAP-4", "status": "CLOSED"},
-    {"id": "GAP-5", "status": "CLOSED"}
-  ],
-
   "e2e_results": {
     "juice_shop": {
       "cold_start": "Success=True, 5 steps, 1 finding, ~38K tokens, 7 API calls",
-      "warm_start": "Success=True, 5 steps, 1 finding, 0 API calls"
+      "warm_start": "Success=True, 5 steps, 1 finding, 0 API calls",
+      "self_repair": "Repaired=True, Success=True, 8 steps, 1 finding, ~134K tokens",
+      "persistence": "Path=warm_start, Success=True, 0 API calls"
     },
     "nodegoat": {
       "cold_start": "Success=True, 4 steps, 1 finding, ~87K tokens, 7 API calls",
-      "warm_start": "Success=True, 4 steps, 1 finding, 0 API calls"
+      "warm_start": "Success=True, 4 steps, 1 finding, 0 API calls",
+      "self_repair": "Repaired=True, Success=True, 6 steps, 1 finding, ~70K tokens",
+      "persistence": "Path=warm_start, Success=True, 0 API calls"
     },
     "dvwa": {
       "cold_start": "Success=True, 8 steps, 1 finding, ~71K tokens, 12 API calls",
-      "warm_start": "Success=True, 8 steps, 1 finding, 0 API calls"
+      "warm_start": "Success=True, 8 steps, 1 finding, 0 API calls",
+      "self_repair": "Repaired=True, Success=True, 8 steps, 1 finding, ~60K tokens",
+      "persistence": "Path=warm_start, Success=True, 0 API calls"
     }
   },
 
+  "bugs_fixed_this_session": [
+    {"bug": "HTTP 4xx not treated as failures", "fix": "HTTPRequestHandler sets stderr for status >= 400"},
+    {"bug": "404 → abort instead of repair", "fix": "Reclassified 404 as SYSTEMIC in failure_classifier"},
+    {"bug": "IDOR MUTATE step auth offset off-by-one", "fix": "offset+1 → offset in exploit_tools.py"}
+  ],
+
   "next_steps": [
-    {
-      "step": 1,
-      "title": "Self-repair demo on NodeGoat and DVWA",
-      "priority": "P1",
-      "tasks": [
-        "Run make break-graph-nodegoat, then make run-nodegoat to trigger repair",
-        "Run make break-graph-dvwa, then make run-dvwa to trigger repair",
-        "Run each target a third time to verify persistence (repaired graph reused)"
-      ],
-      "success_criteria": [
-        "NodeGoat repair run: Repaired=True, Success=True, >=1 finding",
-        "NodeGoat persistence run: Path=warm_start, 0 API calls, Success=True, graph reused from repaired version",
-        "DVWA repair run: Repaired=True, Success=True, >=1 finding",
-        "DVWA persistence run: Path=warm_start, 0 API calls, Success=True, graph reused from repaired version",
-        "Juice Shop self-repair still works (regression): make break-graph && make run → Repaired=True"
-      ]
-    },
-    {
-      "step": 2,
-      "title": "Pre-recorded demo capture",
-      "priority": "P1",
-      "tasks": [
-        "Record terminal session showing all 3 targets (cold, warm, repair)",
-        "Screenshot Neo4j Browser showing graph topology (Fingerprint→ActionGraph→Steps, REPAIRED_TO edges)"
-      ],
-      "success_criteria": [
-        "Recording shows cold→warm→break→repair→persistence flow for at least 1 target",
-        "Neo4j screenshots show 3 distinct Fingerprint nodes with separate ActionGraph chains",
-        "At least one REPAIRED_TO edge visible in graph"
-      ]
-    },
-    {
-      "step": 3,
-      "title": "Push dev → main PR",
-      "priority": "P0 (before hackathon deadline Feb 16)",
-      "tasks": [
-        "Squash or rebase dev commits into clean PR",
-        "Update README with multi-target instructions",
-        "Ensure 112 tests pass"
-      ],
-      "success_criteria": [
-        "112 tests pass in CI",
-        "PR description summarizes all 3 target demos with token costs",
-        "README documents: docker setup, db-reset for NodeGoat, setup.php for DVWA, make run-* targets"
-      ]
-    }
+    {"step": 1, "title": "Create dev → main PR", "priority": "P0"}
   ],
 
   "context_for_next_session": [
-    "All gaps closed. All 3 targets verified with cold+warm start.",
-    "112 tests passing, 0 regressions.",
-    "Self-repair NOT yet verified on NodeGoat or DVWA — only Juice Shop has been tested.",
-    "break-graph.sh is profile-aware: reads $TARGET_PROFILE and maps to correct endpoint per target.",
-    "NodeGoat requires db-reset: docker exec llmitm_nodegoat node artifacts/db-reset.js",
-    "DVWA requires DB setup via /setup.php with CSRF token (done on current deploy).",
-    "NodeGoat built from source (owasp-nodegoat:local), needs command: node server.js in docker-compose.",
-    "Docker services currently running: neo4j, juiceshop, nodegoat, mongo, dvwa, mysql, mitmproxy.",
-    "MAX_TOKEN_BUDGET=150000 is sufficient for all 3 targets but DVWA is the tightest (~71K cold, up to 164K on failed runs before criteria fix)."
-  ],
-
-  "files_to_reference": [
-    "demo/nodegoat.mitm — 54KB, 7 flows (login x2, allocations x3, contributions, profile)",
-    "demo/dvwa.mitm — 34KB (login, CSRF flow, vulnerability pages)",
-    "scripts/break-graph.sh — profile-aware endpoint corruption for self-repair demo",
-    "llmitm_v2/handlers/http_request_handler.py — form encoding + redirect following fixes",
-    "llmitm_v2/tools/exploit_tools.py — generic success criteria, extra_login_fields, exploit fallback",
-    "llmitm_v2/target_profiles.py — extra_login_fields for DVWA",
-    "docker-compose.yml — owasp-nodegoat:local image + command"
+    "All 3 targets verified across all 4 demo modes.",
+    "119 tests passing (7 new boundary tests), 0 regressions.",
+    "README updated with multi-target results and setup instructions.",
+    "New boundary tests cover: HTTP 4xx stderr, auth token output references for all auth types, token_swap User B ref."
   ]
 }

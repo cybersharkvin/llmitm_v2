@@ -96,3 +96,35 @@ def test_login_steps_cookie_produces_1(nodegoat):
 
 def test_login_steps_csrf_produces_3(dvwa):
     assert len(_login_and_auth_steps(dvwa, "a")) == 3
+
+
+# --- Auth token reference correctness (boundary tests) ---
+
+def test_idor_mutate_bearer_references_token_not_login_response(juice):
+    steps = idor_walk_steps("/api/Users/1", "test", juice)
+    mutate = [s for s in steps if s.phase == "MUTATE"][0]
+    assert "previous_outputs[-2]" in mutate.parameters["headers"]["Authorization"]
+
+
+def test_idor_capture_bearer_references_last_output(juice):
+    steps = idor_walk_steps("/api/Users/1", "test", juice)
+    capture = [s for s in steps if s.phase == "CAPTURE" and "Users" in s.command][0]
+    assert "previous_outputs[-1]" in capture.parameters["headers"]["Authorization"]
+
+
+def test_idor_cookie_steps_have_no_auth_offset_issue(nodegoat):
+    steps = idor_walk_steps("/allocations/1", "test", nodegoat)
+    for s in steps:
+        assert "previous_outputs" not in str(s.parameters.get("headers", {}))
+
+
+def test_idor_csrf_steps_have_no_auth_offset_issue(dvwa):
+    steps = idor_walk_steps("/vuln/1", "test", dvwa)
+    for s in steps:
+        assert "previous_outputs" not in str(s.parameters.get("headers", {}))
+
+
+def test_token_swap_replay_uses_user_b_token(juice):
+    steps = token_swap_steps("/api/Users/1", "test", juice)
+    replay = [s for s in steps if s.phase == "REPLAY"][0]
+    assert "previous_outputs[-1]" in replay.parameters["headers"]["Authorization"]
