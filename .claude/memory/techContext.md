@@ -36,6 +36,8 @@
 ### Monitor (Optional)
 - **flask** (3.0.0+): HTTP server for SSE streaming
 - **flask-cors** (5.0.0+): CORS support for frontend access
+- **gunicorn** (23.0.0+): WSGI server — replaces Flask dev server for real-time SSE streaming
+- **gevent** (24.0+): Cooperative concurrency — gunicorn worker class that flushes SSE yields immediately
 - **react** (19.0.0): Frontend framework
 - **react-force-graph-3d** (1.29.1): 3D force-directed graph visualization
 - **three** (0.172.0): WebGL 3D library (peer dep of react-force-graph-3d)

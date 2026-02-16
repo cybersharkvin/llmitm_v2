@@ -15,13 +15,22 @@ from llmitm_v2.debug_logger import log_event
 from llmitm_v2.handlers.registry import get_handler
 from llmitm_v2.models import (
     ActionGraph,
+    CompileIterEvent,
+    CriticResultEvent,
     ExecutionContext,
     ExecutionResult,
+    FailureEvent,
     Finding,
     Fingerprint,
     OrchestratorResult,
+    RepairStartEvent,
+    RunEndEvent,
+    RunStartEvent,
     Step,
+    StepInfo,
     StepResult,
+    StepResultEvent,
+    StepStartEvent,
 )
 from llmitm_v2.models.recon import AttackPlan
 from llmitm_v2.orchestrator.agents import create_attack_critic, create_recon_agent
@@ -79,20 +88,15 @@ class Orchestrator:
     def _emit_run_start(self, fingerprint_hash: str, path: str, ag: ActionGraph) -> None:
         """Helper to emit run_start event with action graph topology."""
         sorted_steps = sorted(ag.steps, key=lambda s: s.order)
-        log_event("run_start", {
-            "fingerprint_hash": fingerprint_hash,
-            "path": path,
-            "action_graph_id": ag.id,
-            "steps": [
-                {
-                    "order": s.order,
-                    "type": s.type.value if hasattr(s.type, 'value') else s.type,
-                    "phase": s.phase.value if hasattr(s.phase, 'value') else s.phase,
-                    "command": s.command
-                }
+        log_event("run_start", RunStartEvent(
+            fingerprint_hash=fingerprint_hash,
+            path=path,
+            action_graph_id=ag.id,
+            steps=[
+                StepInfo(order=s.order, type=s.type, phase=s.phase, command=s.command)
                 for s in sorted_steps
-            ]
-        })
+            ],
+        ))
 
     def run(
         self,
@@ -127,13 +131,13 @@ class Orchestrator:
         path = "repair" if result.repaired else ("cold_start" if compiled else "warm_start")
 
         # Emit run_end
-        log_event("run_end", {
-            "success": result.success,
-            "findings_count": len(result.findings),
-            "path": path,
-            "repaired": result.repaired,
-            "steps_executed": result.steps_executed,
-        })
+        log_event("run_end", RunEndEvent(
+            success=result.success,
+            findings_count=len(result.findings),
+            path=path,
+            repaired=result.repaired,
+            steps_executed=result.steps_executed,
+        ))
 
         return OrchestratorResult(
             path=path,
@@ -188,7 +192,7 @@ class Orchestrator:
             context = repair_context + context
 
         for i in range(self.settings.max_critic_iterations):
-            log_event("compile_iter", {"iteration": i})
+            log_event("compile_iter", CompileIterEvent(iteration=i))
             try:
                 recon_result = recon(context, structured_output_model=AttackPlan)
                 plan = recon_result.structured_output
@@ -205,10 +209,10 @@ class Orchestrator:
                 logger.warning("Attack critic failed on iteration %d: %s: %s", i, type(e).__name__, e)
                 continue
 
-            log_event("critic_result", {
-                "opportunities": len(refined_plan.attack_plan),
-                "exploits": [o.recommended_exploit for o in refined_plan.attack_plan],
-            })
+            log_event("critic_result", CriticResultEvent(
+                opportunities=len(refined_plan.attack_plan),
+                exploits=[o.recommended_exploit for o in refined_plan.attack_plan],
+            ))
 
             ag = attack_plan_to_action_graph(refined_plan, self.target_profile)
             ag.ensure_id()
@@ -235,12 +239,12 @@ class Orchestrator:
         i = 0
         while i < len(sorted_steps):
             step = sorted_steps[i]
-            log_event("step_start", {"order": step.order})
+            log_event("step_start", StepStartEvent(order=step.order))
             interpolated = self._interpolate_params(step, ctx)
             handler = get_handler(interpolated.type)
             result = handler.execute(interpolated, ctx)
             steps_executed += 1
-            log_event("step_result", {"order": step.order, "type": step.type if isinstance(step.type, str) else step.type.value, "matched": result.success_criteria_matched})
+            log_event("step_result", StepResultEvent(order=step.order, type=step.type, matched=result.success_criteria_matched))
 
             # Check for finding
             if result.success_criteria_matched and step.success_criteria and step.phase == StepPhase.OBSERVE:
@@ -309,7 +313,7 @@ class Orchestrator:
         """Classify failure -> 'retry' / 'abort' / ('repaired', new_ag). Returns action taken."""
         error_log = result.stderr or result.stdout
         failure_type = classify_failure(error_log, result.status_code or 0)
-        log_event("failure", {"step": step.order, "type": failure_type.value})
+        log_event("failure", FailureEvent(step=step.order, type=failure_type.value))
 
         if failure_type == FailureType.TRANSIENT_RECOVERABLE and not retried:
             handler = get_handler(step.type)
@@ -323,7 +327,7 @@ class Orchestrator:
             return "abort"
 
         if failure_type == FailureType.SYSTEMIC:
-            log_event("repair_start", {})
+            log_event("repair_start", RepairStartEvent())
             try:
                 new_ag = self._repair(
                     action_graph,

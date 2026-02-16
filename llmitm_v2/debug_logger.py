@@ -161,8 +161,13 @@ def log_api_call(
     _call_counter += 1
 
 
-def log_event(event_type: str, data: dict[str, Any]) -> None:
+def log_event(event_type: str, data: "dict[str, Any] | BaseModel") -> None:
     """Write event_NNN_<type>.json for orchestrator milestones."""
+    from pydantic import BaseModel as _BM
+
+    if isinstance(data, _BM):
+        data = data.model_dump(mode="json")
+
     # Invoke callback unconditionally (decoupled from DEBUG_LOGGING)
     if _event_callback is not None:
         _event_callback(event_type, data)

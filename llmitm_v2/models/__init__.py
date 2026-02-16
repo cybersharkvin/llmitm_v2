@@ -14,6 +14,17 @@ from llmitm_v2.models.recon import (
     AttackOpportunity,
     AttackPlan,
 )
+from llmitm_v2.models.events import (
+    CompileIterEvent,
+    CriticResultEvent,
+    FailureEvent,
+    RepairStartEvent,
+    RunEndEvent,
+    RunStartEvent,
+    StepInfo,
+    StepResultEvent,
+    StepStartEvent,
+)
 from llmitm_v2.models.step import Step
 
 __all__ = [
@@ -29,4 +40,13 @@ __all__ = [
     "OrchestratorResult",
     "AttackOpportunity",
     "AttackPlan",
+    "RunStartEvent",
+    "StepInfo",
+    "StepStartEvent",
+    "StepResultEvent",
+    "CompileIterEvent",
+    "CriticResultEvent",
+    "FailureEvent",
+    "RepairStartEvent",
+    "RunEndEvent",
 ]

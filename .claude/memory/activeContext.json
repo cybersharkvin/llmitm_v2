@@ -1,48 +1,41 @@
 {
-  "session": "Full Docker containerization (Feb 15, 2026)",
-  "completed_phase": "Containerized backend + frontend into Docker Compose",
-  "summary": "Added Dockerfile.backend (Python 3.12) and Dockerfile.frontend (Node 20 Vite dev server) so `docker compose up` starts the entire stack. Removed Makefile monitor/up/down targets. Fixed Juice Shop healthcheck (distroless image has no wget/curl/node).",
+  "session": "Strongly typed SSE + Vite proxy bypass + BrainGraph concept alignment (Feb 15, 2026)",
+  "completed_phase": "Fixed 3 problems: (1) Vite proxy SSE buffering — EventSource connects directly to backend:5001, (2) BrainGraph nodes flying off — nodeThreeObject deps [selectedNode] only (not [selectedNode, graphData]), removed .find() lookup, (3) Type safety — SSEEventMap interface, SSEEventData union, FGNode typed interface, zero `as XxxEvent` casts",
+  "summary": "SSE bypasses Vite proxy (the actual root cause of batched delivery). BrainGraph aligned with concept source (nodeThreeObject deps [selectedNode] only, reads node.status directly). Full type chain: Pydantic → Zod safeParse → SSEEventMap → typed handleEvent → GraphData → FGNode → nodeThreeObject.",
   "test_results": {
-    "test_suite": "tests/",
-    "passed": 118,
-    "failed": 1,
-    "skipped": 1,
-    "status": "118 PASSING (1 pre-existing flaky: test_http_4xx_sets_stderr needs live server)"
+    "test_suite": "frontend tsc --noEmit",
+    "passed": "all",
+    "failed": 0,
+    "status": "TypeScript passes (only pre-existing unused var warnings in graph-builder.ts)"
   },
   "files_by_category": {
-    "created": [
-      {"path": "Dockerfile.backend", "description": "Python 3.12-slim, pip install -e ., runs python -m llmitm_v2"},
-      {"path": "Dockerfile.frontend", "description": "Node 20-alpine, npm ci, Vite dev server on 0.0.0.0:5173"},
-      {"path": ".dockerignore", "description": "Excludes .venv, node_modules, .git, __pycache__, logs, .env"}
-    ],
     "modified": [
-      {"path": "docker-compose.yml", "description": "Added backend + frontend services, removed version field, fixed Juice Shop healthcheck (distroless)"},
-      {"path": "frontend/vite.config.ts", "description": "Added host: 0.0.0.0, proxy target changed to http://backend:5001"},
-      {"path": "Makefile", "description": "Removed up/down/monitor/monitor-stop/monitor-logs (replaced by docker compose)"}
+      {"path": "frontend/src/lib/sse-client.ts", "description": "SSEEventMap interface (typed per event), SSEEventData union, SSEHandler uses SSEEventData not unknown"},
+      {"path": "frontend/src/App.tsx", "description": "SSE URL bypasses Vite proxy (direct to :5001/events), all `as XxxEvent` casts replaced with `as SSEEventMap[key]`"},
+      {"path": "frontend/src/components/BrainGraph.tsx", "description": "FGNode interface (GraphNode + fy), nodeThreeObject deps [selectedNode] only, reads node.status directly (no .find()), handleClick typed FGNode"}
     ]
   },
   "design_decisions": [
-    {"decision": "All-in on Docker Compose", "rationale": "Single command up/down. No more Makefile process management, PID files, or log tailing."},
-    {"decision": "Vite dev server in container (not nginx static)", "rationale": "Hot reload for dev/demo. Bind-mount frontend/src for live editing."},
-    {"decision": "NEO4J_URI override in compose", "rationale": "Container networking uses service names (neo4j:7687), .env keeps localhost for local dev."},
-    {"decision": "Removed Juice Shop healthcheck", "rationale": "bkimminich/juice-shop is distroless — no wget, curl, or node binary available for healthcheck."}
+    {"decision": "Bypass Vite proxy for SSE", "rationale": "Vite's http-proxy buffers SSE responses — delivers all events at once when connection closes. Direct EventSource to backend:5001 gets real-time delivery."},
+    {"decision": "nodeThreeObject deps [selectedNode] only", "rationale": "Including graphData caused ForceGraph3D to rebuild ALL Three.js objects on every status change, restarting force simulation → nodes fly off. Concept source uses [selectedNode] only — ForceGraph3D auto-calls nodeThreeObject when graphData prop changes."},
+    {"decision": "SSEEventMap typed dispatch", "rationale": "Replaces `data: unknown` + `as XxxEvent` casts with Zod-inferred types. If Python Pydantic and frontend Zod diverge, tsc catches it."},
+    {"decision": "FGNode extends GraphNode", "rationale": "Replaces `node: any` in nodeThreeObject/handleClick. GraphNode from Zod schema + fy from ForceGraph3D layout."}
   ],
   "git_state": {
     "branch": "frontend",
     "last_commit": "6ff59b1",
-    "pushed": false
+    "pushed": false,
+    "uncommitted_changes": true
   },
   "next_steps": [
-    {"step": 1, "title": "E2E test: docker compose up → click RUN in browser", "priority": "P0"},
+    {"step": 1, "title": "E2E verify: docker compose up --build backend frontend → cold start → warm start with visible node transitions", "priority": "P0"},
     {"step": 2, "title": "Create PR from frontend branch", "priority": "P0"},
     {"step": 3, "title": "Pre-recorded demo capture", "priority": "P1"}
   ],
   "context_for_next_session": [
-    "Entire stack is Docker-native: `docker compose up -d` starts everything, `docker compose down` stops everything.",
-    "Backend container: llmitm_backend (port 5001), Frontend container: llmitm_frontend (port 5173).",
-    "Frontend hot reload works via bind-mounted ./frontend/src.",
-    "Vite proxy target is http://backend:5001 (Docker service name) — breaks running Vite outside Docker.",
-    "Makefile still has: test, run, schema, reset, seed, break-graph, fix-graph, snapshots (local .venv tools).",
-    "118 tests pass. 1 flaky (test_http_4xx_sets_stderr needs running HTTP server)."
+    "SSE pipeline: Pydantic → model_dump(mode='json') → _push_event (fan-out GeventQueues) → bytes → gunicorn flushes → EventSource(hostname:5001/events) bypasses Vite → Zod safeParse → SSEEventMap[K] typed → handleEvent → enqueueGraphUpdate (RAF queue) → setGraphData → useMemo([graphData]) → FGNode[] → ForceGraph3D",
+    "nodeThreeObject deps [selectedNode] only — ForceGraph3D calls it automatically when graphData prop changes. No .find() lookup needed because useMemo rebuilds fgData with current status.",
+    "RAF queue in App.tsx ensures each status transition gets at least one animation frame of visibility.",
+    "All changes uncommitted on frontend branch."
   ]
 }

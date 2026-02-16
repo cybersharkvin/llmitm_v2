@@ -14,7 +14,7 @@ services:
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
-      - ./snapshots:/var/lib/neo4j/import/snapshots
+      - neo4j_snapshots:/var/lib/neo4j/import/snapshots
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:7474"]
       interval: 5s
@@ -118,6 +118,7 @@ services:
       TARGET_PROFILE: ${TARGET_PROFILE:-juice_shop}
       CAPTURE_MODE: ${CAPTURE_MODE:-file}
       TRAFFIC_FILE: ${TRAFFIC_FILE:-demo/juice_shop.mitm}
+      DEBUG_LOGGING: "true"
     volumes:
       - ./demo:/app/demo:ro
       - ./llmitm_v2/capture:/app/llmitm_v2/capture
@@ -159,4 +160,6 @@ volumes:
   mongo_data:
     driver: local
   mysql_data:
+    driver: local
+  neo4j_snapshots:
     driver: local

@@ -12,3 +12,4 @@ debug_logs/
 .pytest_cache/
 .claude/
 force-graph-concept/
+snapshots/

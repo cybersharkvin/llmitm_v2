@@ -1,22 +1,26 @@
 """Flask REST + SSE server for interactive orchestrator control."""
 
 import json
-import queue
 import threading
 from pathlib import Path
 from typing import Literal, Optional
+
+import gevent
+from gevent.queue import Queue as GeventQueue
 
 from flask import Flask, Response, request, jsonify
 from flask_cors import CORS
 from pydantic import BaseModel
 
 from llmitm_v2.debug_logger import set_event_callback
+from llmitm_v2.models.events import RunEndEvent
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 # ── Module State ──
-_sse_queue: queue.Queue[str] = queue.Queue(maxsize=1000)
+_clients: set[GeventQueue] = set()
+_clients_lock = threading.Lock()
 _current_run_thread: Optional[threading.Thread] = None
 _stop_requested: threading.Event = threading.Event()
 _graph_repo = None  # Injected at startup
@@ -35,15 +39,18 @@ class BreakRequest(BaseModel):
     mode: Literal["file", "live"] = "file"
 
 
-# ── SSE Callback ──
+# ── SSE Fan-Out ──
 def _push_event(event_type: str, data: dict) -> None:
-    """Callback registered with debug_logger. Formats as SSE and enqueues."""
-    sse_msg = f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
-    try:
-        _sse_queue.put_nowait(sse_msg)
-    except queue.Full:
-        _sse_queue.get()  # Drop oldest
-        _sse_queue.put_nowait(sse_msg)
+    """Fan-out: push SSE bytes to every connected client's queue, then yield to hub."""
+    sse_msg = f"event: {event_type}\ndata: {json.dumps(data)}\n\n".encode("utf-8")
+    with _clients_lock:
+        for q in list(_clients):
+            try:
+                q.put_nowait(sse_msg)
+            except gevent.queue.Full:
+                q.get()  # Drop oldest
+                q.put_nowait(sse_msg)
+    gevent.sleep(0)  # Yield to hub — lets SSE greenlets flush
 
 
 # ── Helpers ──
@@ -55,7 +62,6 @@ def _get_fingerprint(target_profile: str, mode: str):
 
     settings = Settings(target_profile=target_profile)
     profile = get_active_profile(target_profile)
-    settings.target_url = profile.default_url
 
     if mode == "live":
         from llmitm_v2.capture.launcher import quick_fingerprint
@@ -101,10 +107,11 @@ def _run_orchestrator_thread(settings, fp, mitm_file: str, proxy_url: str) -> No
     except Exception as e:
         import logging
         logging.getLogger(__name__).exception("Orchestrator thread failed: %s", e)
-        _push_event("run_end", {
-            "success": False, "findings_count": 0,
-            "path": "error", "repaired": False, "steps_executed": 0,
-        })
+        error_event = RunEndEvent(
+            success=False, findings_count=0, path="error",
+            repaired=False, steps_executed=0,
+        )
+        _push_event("run_end", error_event.model_dump(mode="json"))
     finally:
         _current_run_thread = None
 
@@ -187,20 +194,28 @@ def api_reset():
 
 @app.route("/events")
 def events() -> Response:
-    """SSE endpoint. Client connects with EventSource('/events')."""
+    """SSE endpoint. Each client gets its own GeventQueue (fan-out)."""
     def stream():
-        yield "event: connected\ndata: {}\n\n"
-        while True:
-            try:
-                msg = _sse_queue.get(timeout=15)
-                yield msg
-            except queue.Empty:
-                yield ": keepalive\n\n"
+        q: GeventQueue = GeventQueue(maxsize=1000)
+        with _clients_lock:
+            _clients.add(q)
+        try:
+            yield b"event: connected\ndata: {}\n\n"
+            while True:
+                try:
+                    msg = q.get(timeout=15)
+                    yield msg
+                except gevent.queue.Empty:
+                    yield b": keepalive\n\n"
+        finally:
+            with _clients_lock:
+                _clients.discard(q)
 
     return Response(
         stream(),
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        direct_passthrough=True,
     )
 
 

@@ -206,14 +206,16 @@ CLI (__main__) → Orchestrator (orchestrator.py + agents/context/classifier)
 - **Key Files**: `debug_logger.py` (`init_debug_logging`, `is_enabled`, `log_api_call`, `log_event`, `write_summary`)
 - **Caveat**: File writes have no try/except — disk-full or permission errors fail silently (logs missing but run continues).
 
-### Real-Time Monitor Pattern (Flask SSE + React 3D)
-- **Description**: Opt-in real-time visualization via `MONITOR=true`. Flask daemon thread streams 8 SSE event types to React frontend with 3D force-directed graph. Event callback hook in `debug_logger.py` decoupled from `DEBUG_LOGGING` flag.
-- **Backend**: `monitor/server.py` (Flask SSE, queue-based streaming, 15s keepalive), `debug_logger.py` (`set_event_callback`, `_event_callback` global), `orchestrator.py` (5 new `log_event()` calls)
-- **Frontend**: React + ForceGraph3D + Three.js + Zod. SSE client → graph-builder reducers → App state → 3D viz + SystemPanel.
+### Real-Time Monitor Pattern (Gunicorn SSE + React 3D)
+- **Description**: Real-time visualization via Docker Compose. Gunicorn+gevent serves Flask SSE (real-time flush per yield). 9 SSE event types stream to React frontend with 3D force-directed graph. Event callback hook in `debug_logger.py` decoupled from `DEBUG_LOGGING` flag.
+- **Backend**: `wsgi.py` (WSGI entry point — Neo4j init + inject into server module), `monitor/server.py` (Flask SSE routes, per-client GeventQueue fan-out with `_clients` set + `_clients_lock`, `gevent.sleep(0)` in `_push_event` yields orchestrator greenlet to hub, 15s keepalive), `debug_logger.py` (`set_event_callback`, `_event_callback` global, auto-serializes BaseModel via `model_dump(mode="json")`), `orchestrator.py` (all `log_event()` calls use typed Pydantic event models from `models/events.py`)
+- **Typed SSE Contract**: Python Pydantic models (`models/events.py`) ↔ frontend Zod schemas (`lib/schemas.ts`). Orchestrator constructs typed models → `debug_logger` serializes → `_push_event` fans out to all client GeventQueues + `gevent.sleep(0)` → each client's `stream()` generator yields from its own queue → gunicorn flushes immediately.
+- **Why gunicorn+gevent**: Flask's Werkzeug dev server buffers generator output at the WSGI layer. `direct_passthrough=True` only affects Response object, not the server. Gevent's cooperative scheduling flushes each `yield` immediately to the socket.
+- **Frontend**: React 19 + ForceGraph3D + Three.js + Zod. SSE client (`EventSource("/api/events")`) → Zod `safeParse` at boundary (8 event schemas) → `handleEvent` → `enqueueGraphUpdate` (RAF queue: one update per `requestAnimationFrame` for visible transitions) → `setGraphData` → BrainGraph `useMemo([graphData])` rebuilds fgData → `nodeThreeObject` reads status from `graphData.nodes.find()` closure (not stale ForceGraph3D internal node).
 - **SSE Events**: `connected`, `run_start` (with ActionGraph topology), `step_start`, `step_result`, `compile_iter`, `critic_result`, `failure`, `repair_start`, `run_end`
-- **Layout**: Flat disc (fy pinned via `HOVER_HEIGHT + sin(i * 2.39) * HOVER_JITTER`, X/Z free for force layout). Same spatial spec as POC.
+- **Layout**: Flat disc (fy pinned via `HOVER_HEIGHT + sin(i * 2.39) * HOVER_JITTER`, X/Z free for force layout).
 - **Node Rendering**: Sphere core (emissive intensity 1.0/2.2/1.6/2.0 by idle/active/completed/error) + spikes (6/16/10/12 count by status) + drop lines.
-- **When to Use**: Development/demo/debugging. Zero overhead when `MONITOR` unset (callback is no-op).
+- **When to Use**: Development/demo/debugging. Docker Compose starts backend (gunicorn) + frontend (Vite) automatically.
 - **Rationale**: Live visibility into cold start, warm start, self-repair flows. Pure additive feature — zero changes to existing orchestrator logic beyond event emission.
 
 ### Temp File Output Pattern

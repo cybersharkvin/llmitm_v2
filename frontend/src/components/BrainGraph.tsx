@@ -2,7 +2,12 @@ import { useRef, useEffect, useCallback, useMemo } from "react";
 import ForceGraph3D from "react-force-graph-3d";
 import * as THREE from "three";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
-import type { GraphData, NodeStatus } from "../lib/schemas";
+import type { GraphData, GraphNode, NodeStatus } from "../lib/schemas";
+
+/** ForceGraph3D node: GraphNode fields + force-layout y-pin. */
+interface FGNode extends GraphNode {
+  fy: number;
+}
 
 const NODE_BASE_COLOR = 0xfff0e8;
 const NODE_EMISSIVE = 0xff88aa;
@@ -154,7 +159,7 @@ export function BrainGraph({ graphData, selectedNode, onNodeClick }: Props) {
 
   // ── Fix 2: Seeded spike rendering ──
   const nodeThreeObject = useCallback(
-    (node: any) => {
+    (node: FGNode) => {
       const rng = mulberry32(hashString(node.id));
       const status: NodeStatus = node.status || "idle";
       const isSelected = node.id === selectedNode;
@@ -214,7 +219,7 @@ export function BrainGraph({ graphData, selectedNode, onNodeClick }: Props) {
   );
 
   const handleClick = useCallback(
-    (node: any) => {
+    (node: FGNode) => {
       if (node?.id) onNodeClick(node.id);
     },
     [onNodeClick],

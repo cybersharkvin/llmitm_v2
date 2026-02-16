@@ -5,6 +5,7 @@
 - ✅ **Foundation → First E2E** (Feb 10-11): Pydantic models, GraphRepository, Neo4j schema, LLM agents (Strands SDK), step handlers (HTTP/Shell/Regex), orchestrator (cold/warm/repair), CLI, fingerprinting, snapshot infra, live recon agent. First Juice Shop cold+warm+self-repair verified. 87 tests. Commits: `9e58307`→`432a1c4` (14 commits)
 - ✅ **Architecture Overhaul + Multi-Target** (Feb 12-14): Migrated Strands→Anthropic native SDK, consolidated to 2-agent arch (ProgrammaticAgent + SimpleAgent), built 4+5 tool system (4 recon + 5 exploit), added TargetProfile registry (Juice Shop/NodeGoat/DVWA with bearer/cookie/CSRF auth). Fixed ~25 bugs across 8 batches. All 3 targets pass all 4 modes. 112 tests. Commits: `a87073e`→`da4b447` (14 commits)
 - ✅ **Final Polish** (Feb 15): Fixed HTTP 4xx stderr detection, 404→SYSTEMIC reclassification, IDOR auth offset bug. Added 7 boundary interaction tests. 119 tests, 0 failures. Commit: `b57e16e`
+- ✅ **SSE + Break/Repair Fixes** (Feb 15): Fixed 4 demo-blocking bugs: (1) SSE buffering — replaced Flask dev server with gunicorn+gevent for real-time streaming (created wsgi.py entry point), (2) corrupt_action_graph Cypher used nonexistent `[:HAS_STEP]` — rewritten to `[:STARTS_WITH]->[:NEXT*]` chain, (3) corruption strategy changed from HTTP method swap to URL path replacement (404→SYSTEMIC→repair), (4) frontend handleBreak checks `response.ok`
 
 ## In Progress
 
@@ -13,6 +14,7 @@
 ## Pending Features
 
 - Pre-recorded demo capture (terminal session + Neo4j Browser screenshots)
+- Re-enable sentence-transformers for vector similarity fingerprint matching (moved to optional dep `pip install -e ".[embeddings]"` — graph_tools.py code exists but is not called in main pipeline; will wire into orchestrator when fuzzy matching is needed beyond exact hash lookup)
 
 ## Known Issues
 

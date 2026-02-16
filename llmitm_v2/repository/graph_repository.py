@@ -461,18 +461,18 @@ class GraphRepository:
         setup_schema(quiet=True)
 
     def corrupt_action_graph(self, fingerprint_hash: str) -> None:
-        """Corrupt HTTP method in MUTATE step (GET -> PATCH) to trigger repair."""
+        """Corrupt URL path in MUTATE step to trigger 404 → SYSTEMIC → repair."""
         def tx_func(tx: Session) -> list:
             result = tx.run(
                 """
                 MATCH (f:Fingerprint {hash: $hash})-[:TRIGGERS]->(ag:ActionGraph)
                 WITH ag ORDER BY ag.created_at DESC LIMIT 1
-                MATCH (ag)-[:HAS_STEP]->(s:Step)
-                WHERE s.phase = 'MUTATE'
-                  AND s.type = 'http_request'
-                  AND s.command STARTS WITH 'GET'
-                SET s.command = replace(s.command, 'GET', 'PATCH')
-                RETURN s.order, s.command
+                MATCH (ag)-[:STARTS_WITH]->(first:Step)
+                MATCH (first)-[:NEXT*0..100]->(s:Step)
+                WHERE s.phase = 'MUTATE' AND s.type = 'http_request'
+                WITH s LIMIT 1
+                SET s.parameters = replace(s.parameters, '/api/Users/', '/api/BROKEN_PATH_FOR_REPAIR_DEMO/')
+                RETURN s.order, s.command, s.parameters
                 """,
                 hash=fingerprint_hash,
             )

@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { BrainGraph } from "./components/BrainGraph";
 import { SystemPanel } from "./components/SystemPanel";
 import { Legend } from "./components/Legend";
-import { createSSEClient, type SSEEventType } from "./lib/sse-client";
+import { createSSEClient, type SSEEventType, type SSEEventData, type SSEEventMap } from "./lib/sse-client";
 import {
   emptyGraph,
   buildGraphFromRunStart,
@@ -12,15 +12,6 @@ import {
   applyRepairStart,
 } from "./lib/graph-builder";
 import type { GraphData, WorkflowEvent, RunMeta } from "./lib/schemas";
-import type {
-  RunStartEvent,
-  StepStartEvent,
-  StepResultEvent,
-  CompileIterEvent,
-  CriticResultEvent,
-  FailureEvent,
-  RunEndEvent,
-} from "./lib/schemas";
 import "./App.css";
 
 const INITIAL_META: RunMeta = { status: "IDLE", path: "-", compileStatus: "", fingerprintHash: "" };
@@ -35,6 +26,29 @@ export default function App() {
   const [targetProfile, setTargetProfile] = useState<"juice_shop" | "nodegoat" | "dvwa">("juice_shop");
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
+  // ── RAF queue: apply one graph update per animation frame for visible transitions ──
+  const graphQueue = useRef<Array<(prev: GraphData) => GraphData>>([]);
+  const rafId = useRef<number>(0);
+
+  const processQueue = useCallback(() => {
+    const next = graphQueue.current.shift();
+    if (next) {
+      setGraphData(next);
+      rafId.current = requestAnimationFrame(processQueue);
+    } else {
+      rafId.current = 0;
+    }
+  }, []);
+
+  const enqueueGraphUpdate = useCallback((updater: (prev: GraphData) => GraphData) => {
+    graphQueue.current.push(updater);
+    if (!rafId.current) {
+      rafId.current = requestAnimationFrame(processQueue);
+    }
+  }, [processQueue]);
+
+  useEffect(() => () => { if (rafId.current) cancelAnimationFrame(rafId.current); }, []);
+
   const pushEvent = useCallback((msg: string, nodeId = "", nodeName = "") => {
     setEvents((prev) => [
       { timestamp: Date.now(), nodeId, nodeName, type: "status_change", from: "idle", to: "idle", message: msg },
@@ -43,29 +57,29 @@ export default function App() {
   }, []);
 
   const handleEvent = useCallback(
-    (eventType: SSEEventType, data: unknown) => {
+    (eventType: SSEEventType, data: SSEEventData) => {
       switch (eventType) {
         case "connected":
           pushEvent("Connected to monitor");
           break;
 
         case "compile_iter": {
-          const e = data as CompileIterEvent;
+          const e = data as SSEEventMap["compile_iter"];
           setRunMeta((m) => ({ ...m, status: "COMPILING", compileStatus: `Iteration ${e.iteration + 1}...` }));
           pushEvent(`Compiling — iteration ${e.iteration + 1}`);
           break;
         }
 
         case "critic_result": {
-          const e = data as CriticResultEvent;
+          const e = data as SSEEventMap["critic_result"];
           setRunMeta((m) => ({ ...m, compileStatus: `Critic: ${e.exploits.join(", ")}` }));
           pushEvent(`Critic approved: ${e.exploits.join(", ")}`);
           break;
         }
 
         case "run_start": {
-          const e = data as RunStartEvent;
-          setGraphData(buildGraphFromRunStart(e));
+          const e = data as SSEEventMap["run_start"];
+          enqueueGraphUpdate(() => buildGraphFromRunStart(e));
           setRunMeta((m) => ({
             ...m,
             status: "EXECUTING",
@@ -78,35 +92,35 @@ export default function App() {
         }
 
         case "step_start": {
-          const e = data as StepStartEvent;
-          setGraphData((prev) => applyStepStart(prev, e.order));
+          const e = data as SSEEventMap["step_start"];
+          enqueueGraphUpdate((prev) => applyStepStart(prev, e.order));
           pushEvent(`Step ${e.order} started`, `step_${e.order}`);
           break;
         }
 
         case "step_result": {
-          const e = data as StepResultEvent;
-          setGraphData((prev) => applyStepResult(prev, e.order, e.matched));
+          const e = data as SSEEventMap["step_result"];
+          enqueueGraphUpdate((prev) => applyStepResult(prev, e.order, e.matched));
           pushEvent(`Step ${e.order} ${e.matched ? "completed" : "failed"}`, `step_${e.order}`);
           break;
         }
 
         case "failure": {
-          const e = data as FailureEvent;
-          setGraphData((prev) => applyFailure(prev, e.step, e.type));
+          const e = data as SSEEventMap["failure"];
+          enqueueGraphUpdate((prev) => applyFailure(prev, e.step, e.type));
           pushEvent(`Step ${e.step} failure: ${e.type}`, `step_${e.step}`);
           break;
         }
 
         case "repair_start": {
-          setGraphData((prev) => applyRepairStart(prev));
+          enqueueGraphUpdate((prev) => applyRepairStart(prev));
           setRunMeta((m) => ({ ...m, status: "REPAIR" }));
           pushEvent("Self-repair initiated");
           break;
         }
 
         case "run_end": {
-          const e = data as RunEndEvent;
+          const e = data as SSEEventMap["run_end"];
           setRunMeta((m) => ({ ...m, status: "IDLE" }));
           setIsRunning(false);
 
@@ -121,11 +135,12 @@ export default function App() {
         }
       }
     },
-    [pushEvent],
+    [pushEvent, enqueueGraphUpdate],
   );
 
   useEffect(() => {
-    const cleanup = createSSEClient("/api/events", handleEvent);
+    const sseUrl = `${window.location.protocol}//${window.location.hostname}:5001/events`;
+    const cleanup = createSSEClient(sseUrl, handleEvent);
     return cleanup;
   }, [handleEvent]);
 
@@ -154,7 +169,7 @@ export default function App() {
   }, [pushEvent]);
 
   const handleBreak = useCallback(async () => {
-    await fetch("/api/break", {
+    const res = await fetch("/api/break", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -162,8 +177,13 @@ export default function App() {
         mode: "file",
       }),
     });
-    setCanBreak(false);
-    pushEvent("Graph corrupted - next run will trigger repair");
+    if (res.ok) {
+      setCanBreak(false);
+      pushEvent("Graph corrupted - next run will trigger repair");
+    } else {
+      const data = await res.json();
+      pushEvent(`Break failed: ${data.message}`);
+    }
   }, [targetProfile, pushEvent]);
 
   const handleResetClick = useCallback(() => {
