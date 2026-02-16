@@ -6,6 +6,7 @@
 - ✅ **Architecture Overhaul + Multi-Target** (Feb 12-14): Migrated Strands→Anthropic native SDK, consolidated to 2-agent arch (ProgrammaticAgent + SimpleAgent), built 4+5 tool system (4 recon + 5 exploit), added TargetProfile registry (Juice Shop/NodeGoat/DVWA with bearer/cookie/CSRF auth). Fixed ~25 bugs across 8 batches. All 3 targets pass all 4 modes. 112 tests. Commits: `a87073e`→`da4b447` (14 commits)
 - ✅ **Final Polish** (Feb 15): Fixed HTTP 4xx stderr detection, 404→SYSTEMIC reclassification, IDOR auth offset bug. Added 7 boundary interaction tests. 119 tests, 0 failures. Commit: `b57e16e`
 - ✅ **SSE + Break/Repair Fixes** (Feb 15): Fixed 4 demo-blocking bugs: (1) SSE buffering — replaced Flask dev server with gunicorn+gevent for real-time streaming (created wsgi.py entry point), (2) corrupt_action_graph Cypher used nonexistent `[:HAS_STEP]` — rewritten to `[:STARTS_WITH]->[:NEXT*]` chain, (3) corruption strategy changed from HTTP method swap to URL path replacement (404→SYSTEMIC→repair), (4) frontend handleBreak checks `response.ok`
+- ✅ **Actor/Critic Visibility Panel** (Feb 15): Added `recon_result` SSE event (full AttackPlan), enriched `critic_result` with iteration + refined_plan. New CompilePanel component with Recon/Critic tabs showing expandable OpportunityCards. Plans persist during execution, clear on new compilation.
 
 ## In Progress
 

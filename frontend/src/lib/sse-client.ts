@@ -4,6 +4,7 @@ import {
   StepStartEvent,
   StepResultEvent,
   CompileIterEvent,
+  ReconResultEvent,
   CriticResultEvent,
   FailureEvent,
   RepairStartEvent,
@@ -16,6 +17,7 @@ const SSE_EVENT_TYPES = [
   "step_start",
   "step_result",
   "compile_iter",
+  "recon_result",
   "critic_result",
   "failure",
   "repair_start",
@@ -31,6 +33,7 @@ export interface SSEEventMap {
   step_start: z.infer<typeof StepStartEvent>;
   step_result: z.infer<typeof StepResultEvent>;
   compile_iter: z.infer<typeof CompileIterEvent>;
+  recon_result: z.infer<typeof ReconResultEvent>;
   critic_result: z.infer<typeof CriticResultEvent>;
   failure: z.infer<typeof FailureEvent>;
   repair_start: z.infer<typeof RepairStartEvent>;
@@ -48,6 +51,7 @@ const EVENT_SCHEMAS: Partial<Record<SSEEventType, z.ZodType>> = {
   step_start: StepStartEvent,
   step_result: StepResultEvent,
   compile_iter: CompileIterEvent,
+  recon_result: ReconResultEvent,
   critic_result: CriticResultEvent,
   failure: FailureEvent,
   repair_start: RepairStartEvent,

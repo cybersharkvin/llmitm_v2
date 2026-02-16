@@ -17,6 +17,7 @@ from llmitm_v2.models import (
     ActionGraph,
     CompileIterEvent,
     CriticResultEvent,
+    ReconResultEvent,
     ExecutionContext,
     ExecutionResult,
     FailureEvent,
@@ -200,6 +201,11 @@ class Orchestrator:
                 logger.warning("Recon agent failed on iteration %d: %s: %s", i, type(e).__name__, e)
                 continue
 
+            log_event("recon_result", ReconResultEvent(
+                iteration=i,
+                plan=plan.model_dump(mode="json"),
+            ))
+
             try:
                 critic_result = critic(
                     plan.model_dump_json(), structured_output_model=AttackPlan
@@ -210,8 +216,10 @@ class Orchestrator:
                 continue
 
             log_event("critic_result", CriticResultEvent(
+                iteration=i,
                 opportunities=len(refined_plan.attack_plan),
                 exploits=[o.recommended_exploit for o in refined_plan.attack_plan],
+                refined_plan=refined_plan.model_dump(mode="json"),
             ))
 
             ag = attack_plan_to_action_graph(refined_plan, self.target_profile)

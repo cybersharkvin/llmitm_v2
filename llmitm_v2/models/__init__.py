@@ -18,6 +18,7 @@ from llmitm_v2.models.events import (
     CompileIterEvent,
     CriticResultEvent,
     FailureEvent,
+    ReconResultEvent,
     RepairStartEvent,
     RunEndEvent,
     RunStartEvent,
@@ -47,6 +48,7 @@ __all__ = [
     "CompileIterEvent",
     "CriticResultEvent",
     "FailureEvent",
+    "ReconResultEvent",
     "RepairStartEvent",
     "RunEndEvent",
 ]

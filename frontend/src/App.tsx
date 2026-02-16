@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { BrainGraph } from "./components/BrainGraph";
+import { CompilePanel } from "./components/CompilePanel";
 import { SystemPanel } from "./components/SystemPanel";
 import { Legend } from "./components/Legend";
 import { createSSEClient, type SSEEventType, type SSEEventData, type SSEEventMap } from "./lib/sse-client";
@@ -11,7 +12,7 @@ import {
   applyFailure,
   applyRepairStart,
 } from "./lib/graph-builder";
-import type { GraphData, WorkflowEvent, RunMeta } from "./lib/schemas";
+import type { GraphData, WorkflowEvent, RunMeta, AttackPlan } from "./lib/schemas";
 import "./App.css";
 
 const INITIAL_META: RunMeta = { status: "IDLE", path: "-", compileStatus: "", fingerprintHash: "" };
@@ -25,6 +26,9 @@ export default function App() {
   const [canBreak, setCanBreak] = useState(false);
   const [targetProfile, setTargetProfile] = useState<"juice_shop" | "nodegoat" | "dvwa">("juice_shop");
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [reconPlan, setReconPlan] = useState<AttackPlan | null>(null);
+  const [criticPlan, setCriticPlan] = useState<AttackPlan | null>(null);
+  const [compilePanelOpen, setCompilePanelOpen] = useState(true);
 
   // ── RAF queue: apply one graph update per animation frame for visible transitions ──
   const graphQueue = useRef<Array<(prev: GraphData) => GraphData>>([]);
@@ -65,13 +69,27 @@ export default function App() {
 
         case "compile_iter": {
           const e = data as SSEEventMap["compile_iter"];
+          if (e.iteration === 0) {
+            setReconPlan(null);
+            setCriticPlan(null);
+          }
           setRunMeta((m) => ({ ...m, status: "COMPILING", compileStatus: `Iteration ${e.iteration + 1}...` }));
           pushEvent(`Compiling — iteration ${e.iteration + 1}`);
           break;
         }
 
+        case "recon_result": {
+          const e = data as SSEEventMap["recon_result"];
+          setReconPlan(e.plan);
+          setCompilePanelOpen(true);
+          pushEvent(`Recon plan: ${e.plan.attack_plan.length} opportunities`);
+          break;
+        }
+
         case "critic_result": {
           const e = data as SSEEventMap["critic_result"];
+          setCriticPlan(e.refined_plan);
+          setCompilePanelOpen(true);
           setRunMeta((m) => ({ ...m, compileStatus: `Critic: ${e.exploits.join(", ")}` }));
           pushEvent(`Critic approved: ${e.exploits.join(", ")}`);
           break;
@@ -80,6 +98,7 @@ export default function App() {
         case "run_start": {
           const e = data as SSEEventMap["run_start"];
           enqueueGraphUpdate(() => buildGraphFromRunStart(e));
+          setCompilePanelOpen(false);
           setRunMeta((m) => ({
             ...m,
             status: "EXECUTING",
@@ -199,6 +218,9 @@ export default function App() {
     setRunMeta(INITIAL_META);
     setIsRunning(false);
     setCanBreak(false);
+    setReconPlan(null);
+    setCriticPlan(null);
+    setCompilePanelOpen(true);
     pushEvent("Neo4j reset complete");
   }, [pushEvent]);
 
@@ -239,6 +261,13 @@ export default function App() {
       <div className="main-content">
         <div className="viz-container">
           <BrainGraph graphData={graphData} selectedNode={selectedNode} onNodeClick={handleNodeClick} />
+          <CompilePanel
+            reconPlan={reconPlan}
+            criticPlan={criticPlan}
+            isCompiling={runMeta.status === "COMPILING"}
+            collapsed={!compilePanelOpen}
+            onToggle={() => setCompilePanelOpen(p => !p)}
+          />
           <Legend />
         </div>
 

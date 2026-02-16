@@ -1,41 +1,41 @@
 {
-  "session": "Strongly typed SSE + Vite proxy bypass + BrainGraph concept alignment (Feb 15, 2026)",
-  "completed_phase": "Fixed 3 problems: (1) Vite proxy SSE buffering — EventSource connects directly to backend:5001, (2) BrainGraph nodes flying off — nodeThreeObject deps [selectedNode] only (not [selectedNode, graphData]), removed .find() lookup, (3) Type safety — SSEEventMap interface, SSEEventData union, FGNode typed interface, zero `as XxxEvent` casts",
-  "summary": "SSE bypasses Vite proxy (the actual root cause of batched delivery). BrainGraph aligned with concept source (nodeThreeObject deps [selectedNode] only, reads node.status directly). Full type chain: Pydantic → Zod safeParse → SSEEventMap → typed handleEvent → GraphData → FGNode → nodeThreeObject.",
+  "session": "CompilePanel Overlay Refactor (Feb 15, 2026)",
+  "completed_phase": "Converted CompilePanel from flow element to floating overlay with auto-collapse",
+  "summary": "CompilePanel no longer pushes the 3D graph down. Now renders as position:absolute overlay inside viz-container, with collapsed vertical tab state. Auto-collapses on run_start, auto-expands on recon_result/critic_result.",
   "test_results": {
     "test_suite": "frontend tsc --noEmit",
     "passed": "all",
     "failed": 0,
-    "status": "TypeScript passes (only pre-existing unused var warnings in graph-builder.ts)"
+    "status": "TypeScript passes (pre-existing unused var warnings in graph-builder.ts only)."
   },
   "files_by_category": {
-    "modified": [
-      {"path": "frontend/src/lib/sse-client.ts", "description": "SSEEventMap interface (typed per event), SSEEventData union, SSEHandler uses SSEEventData not unknown"},
-      {"path": "frontend/src/App.tsx", "description": "SSE URL bypasses Vite proxy (direct to :5001/events), all `as XxxEvent` casts replaced with `as SSEEventMap[key]`"},
-      {"path": "frontend/src/components/BrainGraph.tsx", "description": "FGNode interface (GraphNode + fy), nodeThreeObject deps [selectedNode] only, reads node.status directly (no .find()), handleClick typed FGNode"}
+    "frontend_modified": [
+      {"path": "frontend/src/components/CompilePanel.tsx", "description": "Props changed: collapsed/onToggle controlled by parent. Renders .compile-panel-tab (vertical tab) when collapsed. Removed internal collapsed state."},
+      {"path": "frontend/src/App.tsx", "description": "Added compilePanelOpen state. Auto-collapse on run_start, auto-expand on recon_result/critic_result. Moved CompilePanel inside viz-container. Reset handler now clears reconPlan/criticPlan/compilePanelOpen."},
+      {"path": "frontend/src/index.css", "description": "compile-panel is now position:absolute overlay (left:12px, top:50%, z-index:10, backdrop-filter:blur). New .compile-panel-tab vertical tab style. Body max-height changed to calc(50vh - 40px)."}
     ]
   },
   "design_decisions": [
-    {"decision": "Bypass Vite proxy for SSE", "rationale": "Vite's http-proxy buffers SSE responses — delivers all events at once when connection closes. Direct EventSource to backend:5001 gets real-time delivery."},
-    {"decision": "nodeThreeObject deps [selectedNode] only", "rationale": "Including graphData caused ForceGraph3D to rebuild ALL Three.js objects on every status change, restarting force simulation → nodes fly off. Concept source uses [selectedNode] only — ForceGraph3D auto-calls nodeThreeObject when graphData prop changes."},
-    {"decision": "SSEEventMap typed dispatch", "rationale": "Replaces `data: unknown` + `as XxxEvent` casts with Zod-inferred types. If Python Pydantic and frontend Zod diverge, tsc catches it."},
-    {"decision": "FGNode extends GraphNode", "rationale": "Replaces `node: any` in nodeThreeObject/handleClick. GraphNode from Zod schema + fy from ForceGraph3D layout."}
+    {"decision": "CompilePanel as absolute overlay inside viz-container", "rationale": "viz-container has position:relative, so absolute positioning keeps panel floating over the graph without affecting layout flow."},
+    {"decision": "Parent-controlled collapsed state", "rationale": "App.tsx owns the state so SSE events (run_start, recon_result) can programmatically toggle the panel."},
+    {"decision": "Collapsed state = thin vertical tab on left edge", "rationale": "Minimal screen footprint when not needed, writing-mode:vertical-rl for 'Plan' label."},
+    {"decision": "Reset handler clears plan state", "rationale": "Found during user story walkthrough — handleResetConfirm wasn't clearing reconPlan/criticPlan, leaving stale panel visible after reset."}
   ],
   "git_state": {
     "branch": "frontend",
-    "last_commit": "6ff59b1",
+    "last_commit": "45a52a1",
     "pushed": false,
     "uncommitted_changes": true
   },
   "next_steps": [
-    {"step": 1, "title": "E2E verify: docker compose up --build backend frontend → cold start → warm start with visible node transitions", "priority": "P0"},
+    {"step": 1, "title": "E2E verify: docker compose up --build → cold start → CompilePanel overlays graph, auto-collapses on execution", "priority": "P0"},
     {"step": 2, "title": "Create PR from frontend branch", "priority": "P0"},
     {"step": 3, "title": "Pre-recorded demo capture", "priority": "P1"}
   ],
   "context_for_next_session": [
-    "SSE pipeline: Pydantic → model_dump(mode='json') → _push_event (fan-out GeventQueues) → bytes → gunicorn flushes → EventSource(hostname:5001/events) bypasses Vite → Zod safeParse → SSEEventMap[K] typed → handleEvent → enqueueGraphUpdate (RAF queue) → setGraphData → useMemo([graphData]) → FGNode[] → ForceGraph3D",
-    "nodeThreeObject deps [selectedNode] only — ForceGraph3D calls it automatically when graphData prop changes. No .find() lookup needed because useMemo rebuilds fgData with current status.",
-    "RAF queue in App.tsx ensures each status transition gets at least one animation frame of visibility.",
+    "CompilePanel now renders INSIDE .viz-container (was between subtitle-bar and main-content).",
+    "Two render modes: expanded (position:absolute overlay, 340px wide, vertically centered) and collapsed (.compile-panel-tab vertical tab on left edge).",
+    "Auto-collapse trigger: run_start SSE event. Auto-expand triggers: recon_result, critic_result SSE events.",
     "All changes uncommitted on frontend branch."
   ]
 }

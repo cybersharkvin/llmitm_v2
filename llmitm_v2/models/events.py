@@ -35,9 +35,16 @@ class CompileIterEvent(BaseModel):
     iteration: int
 
 
+class ReconResultEvent(BaseModel):
+    iteration: int
+    plan: dict
+
+
 class CriticResultEvent(BaseModel):
+    iteration: int
     opportunities: int
     exploits: list[str]
+    refined_plan: dict
 
 
 class FailureEvent(BaseModel):
